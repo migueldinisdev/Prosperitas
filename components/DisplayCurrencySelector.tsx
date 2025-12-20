@@ -5,15 +5,15 @@ export const DisplayCurrencySelector: React.FC = () => {
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(Currency.USD);
 
   return (
-    <div className="flex items-center bg-app-card border border-app-border rounded-lg p-1">
+    <div className="flex items-center bg-white dark:bg-app-card border border-zinc-200 dark:border-app-border rounded-lg p-1">
       {[Currency.EUR, Currency.USD, Currency.GBP].map((curr) => (
         <button
           key={curr}
           onClick={() => setSelectedCurrency(curr)}
           className={`px-3 py-1 text-xs font-medium rounded-md transition-all duration-200 ${
             curr === selectedCurrency 
-              ? 'bg-zinc-700 text-white shadow-sm' 
-              : 'text-zinc-500 hover:text-zinc-300'
+              ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' 
+              : 'text-zinc-600 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
           }`}
         >
           {curr}

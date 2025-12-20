@@ -16,9 +16,9 @@
             },
             colors: {
               app: {
-                bg: '#09090b', // Zinc 950
-                card: '#18181b', // Zinc 900
-                border: '#27272a', // Zinc 800
+                bg: '#09090b', // Zinc 950 (dark) - will be overridden by CSS vars
+                card: '#18181b', // Zinc 900 (dark)
+                border: '#27272a', // Zinc 800 (dark)
                 primary: '#3b82f6', // Blue 500
                 accent: '#8b5cf6', // Violet 500
                 success: '#10b981', // Emerald 500
@@ -30,12 +30,34 @@
       }
     </script>
     <style>
+      /* Theme CSS Variables */
+      :root {
+        /* Light mode colors */
+        --color-bg: 250 250 250; /* Zinc 50 */
+        --color-card: 255 255 255; /* White */
+        --color-border: 228 228 231; /* Zinc 200 */
+        --color-text-primary: 24 24 27; /* Zinc 900 */
+        --color-text-secondary: 82 82 91; /* Zinc 500 */
+        --color-text-tertiary: 161 161 170; /* Zinc 400 */
+      }
+      
+      .dark {
+        /* Dark mode colors */
+        --color-bg: 9 9 11; /* Zinc 950 */
+        --color-card: 24 24 27; /* Zinc 900 */
+        --color-border: 39 39 42; /* Zinc 800 */
+        --color-text-primary: 244 244 245; /* Zinc 100 */
+        --color-text-secondary: 161 161 170; /* Zinc 400 */
+        --color-text-tertiary: 113 113 122; /* Zinc 500 */
+      }
+      
       body {
-        background-color: #09090b;
-        color: #f4f4f5;
+        background-color: rgb(var(--color-bg));
+        color: rgb(var(--color-text-primary));
         font-family: 'Inter', sans-serif;
         -webkit-font-smoothing: antialiased;
       }
+      
       /* Custom scrollbar for premium feel */
       ::-webkit-scrollbar {
         width: 6px;
@@ -44,12 +66,19 @@
       ::-webkit-scrollbar-track {
         background: transparent;
       }
-      ::-webkit-scrollbar-thumb {
+      .dark ::-webkit-scrollbar-thumb {
         background: #3f3f46;
         border-radius: 3px;
       }
-      ::-webkit-scrollbar-thumb:hover {
+      ::-webkit-scrollbar-thumb {
+        background: #d4d4d8;
+        border-radius: 3px;
+      }
+      .dark ::-webkit-scrollbar-thumb:hover {
         background: #52525b;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #a1a1aa;
       }
     </style>
   <script type="importmap">
