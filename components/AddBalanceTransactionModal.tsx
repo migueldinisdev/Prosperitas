@@ -14,7 +14,7 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({ isOpen, onClose })
     <Modal isOpen={isOpen} onClose={onClose} title="Add Transaction">
       <div className="space-y-4">
         <div className="flex bg-zinc-900 p-1 rounded-lg">
-          {['expense', 'income', 'transfer'].map((t) => (
+          {['expense', 'income'].map((t) => (
             <button
               key={t}
               onClick={() => setType(t)}
@@ -45,17 +45,6 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({ isOpen, onClose })
             <option>Salary</option>
           </select>
         </div>
-
-        {type === 'transfer' && (
-          <div>
-             <label className="block text-xs font-medium text-zinc-400 mb-1">Destination Wallet</label>
-             <select className="w-full bg-zinc-900 border border-app-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-white">
-                <option>Coinbase</option>
-                <option>Binance</option>
-                <option>Trading212</option>
-             </select>
-          </div>
-        )}
 
         <div className="pt-2">
            <Button className="w-full">Save Transaction</Button>
