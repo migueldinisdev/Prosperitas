@@ -1,7 +1,7 @@
 # Copilot Instructions for Prosperitas
 
 ## Project Overview
-Prosperitas is a premium financial tracker app for managing net worth, investment portfolios, and expense balancing with an Apple-inspired dark UI aesthetic.
+Prosperitas is a premium financial tracker app for managing net worth, investment portfolios, and expense balancing with a dark UI aesthetic.
 
 **Stack**: React 19 + TypeScript + Vite + React Router + Tailwind CSS (via CDN)
 
