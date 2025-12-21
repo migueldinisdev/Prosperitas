@@ -3,6 +3,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { BalanceMonthSwitcher } from './BalanceMonthSwitcher';
 import { MonthlyBalanceTransactionsList } from './MonthlyBalanceTransactionsList';
 import { BalanceCategorySpendingSection } from './BalanceCategorySpendingSection';
+import { BalanceSankeySection } from './BalanceSankeySection';
 import { Card } from '../../ui/Card';
 import { Button } from '../../ui/Button';
 import { Plus, SlidersHorizontal } from 'lucide-react';
@@ -38,7 +39,7 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
         }
       />
       
-      <main className="p-6 max-w-5xl mx-auto space-y-6">
+      <main className="p-6 max-w-7xl mx-auto space-y-6">
         <BalanceMonthSwitcher />
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -72,13 +73,19 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
            </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-           <div className="lg:col-span-2">
-              <MonthlyBalanceTransactionsList />
-           </div>
-           <div className="lg:col-span-1">
-              <BalanceCategorySpendingSection />
-           </div>
+        {/* Transactions List - Full Width with Scrollable Container */}
+        <div className="w-full">
+           <MonthlyBalanceTransactionsList />
+        </div>
+
+        {/* Spending by Category - Full Width */}
+        <div className="w-full">
+           <BalanceCategorySpendingSection />
+        </div>
+
+        {/* Sankey Flow Chart - Full Width */}
+        <div className="w-full">
+           <BalanceSankeySection />
         </div>
       </main>
 
