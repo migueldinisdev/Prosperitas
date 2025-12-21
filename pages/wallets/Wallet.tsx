@@ -74,40 +74,57 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
       </div>
 
       <main className="p-6 max-w-7xl mx-auto space-y-6">
+        <Card title="Quick Actions">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Button
+              variant="primary"
+              className="w-full"
+              icon={<ArrowUpRight size={16} />}
+            >
+              Add Trade
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full"
+              icon={<DollarSign size={16} />}
+            >
+              Transfer to Balance
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full"
+              icon={<WalletIcon size={16} />}
+            >
+              Add Dividend
+            </Button>
+          </div>
+        </Card>
+
         {/* Statistics Header */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-           <Card className="p-4">
-              <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">Current Value</p>
-              <p className="text-2xl font-bold text-app-foreground mt-1">$45,230.50</p>
-           </Card>
-           <Card className="p-4">
-              <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">Invested</p>
-              <p className="text-2xl font-bold text-app-foreground mt-1">$42,030.00</p>
-           </Card>
-           <Card className="p-4">
-              <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">Total PnL</p>
-              <div className="flex items-center gap-1 mt-1 text-app-success">
-                 <ArrowUpRight size={18} />
-                 <span className="text-2xl font-bold">+$3,200.50</span>
+        <Card className="p-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <p className="text-xs text-app-muted uppercase tracking-wider font-semibold mb-1">Current Value</p>
+              <p className="text-2xl font-bold text-app-foreground">$45,230.50</p>
+            </div>
+            <div>
+              <p className="text-xs text-app-muted uppercase tracking-wider font-semibold mb-1">Invested</p>
+              <p className="text-2xl font-bold text-app-foreground">$42,030.00</p>
+            </div>
+            <div>
+              <p className="text-xs text-app-muted uppercase tracking-wider font-semibold mb-1">Total PnL</p>
+              <div className="flex items-center gap-1 text-app-success">
+                <ArrowUpRight size={18} />
+                <span className="text-2xl font-bold">+$3,200.50</span>
               </div>
-           </Card>
-           <Card className="p-4">
-              <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">Cash Available</p>
-              <p className="text-2xl font-bold text-app-foreground mt-1">$1,200.00</p>
-           </Card>
-        </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Chart Section */}
         <Card title="Performance History">
            <LineChart data={chartData} dataKey="value" height={300} />
         </Card>
-
-        {/* Operations */}
-        <div className="flex flex-wrap gap-4">
-           <Button variant="secondary" icon={<DollarSign size={16} />}>Transfer to Balance</Button>
-           <Button variant="secondary" icon={<WalletIcon size={16} />}>Add Dividend</Button>
-           <Button variant="primary" icon={<ArrowUpRight size={16} />}>Add Trade</Button>
-        </div>
 
         {/* Holdings */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
