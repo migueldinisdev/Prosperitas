@@ -98,12 +98,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                 >
                     <ArrowLeft size={20} />
                 </Link>
-                <h1 className="text-xl font-bold text-app-foreground flex items-center gap-3">
-                    <span>{formattedName}</span>
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-app-surface border border-app-border text-app-muted">
-                        <PieIcon size={14} /> Balanced
-                    </span>
-                </h1>
+                <h1 className="text-xl font-bold text-app-foreground">{formattedName}</h1>
                 <div className="flex-1" />
                 <Button variant="ghost" onClick={onMenuClick} className="lg:hidden">
                     Menu
@@ -111,49 +106,50 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
             </div>
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Current Value
-                        </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">$13,820.00</p>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Invested
-                        </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">$12,400.00</p>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Total PnL
-                        </p>
-                        <div className="flex items-center gap-1 mt-1 text-app-success">
-                            <ArrowUpRight size={18} />
-                            <span className="text-2xl font-bold">+$1,420.00</span>
+                <Card title="Quick Actions">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Button
+                            variant="primary"
+                            className="w-full"
+                            icon={<ArrowUpRight size={16} />}
+                        >
+                            Add Trade
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            className="w-full"
+                            icon={<BarChart3 size={16} />}
+                        >
+                            View Analytics
+                        </Button>
+                    </div>
+                </Card>
+
+                <Card className="p-5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold mb-1">
+                                Current Value
+                            </p>
+                            <p className="text-2xl font-bold text-app-foreground">$13,820.00</p>
                         </div>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Risk Score
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="text-lg font-semibold text-app-foreground">3/5</span>
-                            <div className="flex gap-1">
-                                {[1, 2, 3, 4, 5].map((level) => (
-                                    <div
-                                        key={level}
-                                        className={`w-1 h-3 rounded-full ${
-                                            level <= 3
-                                                ? "bg-app-primary"
-                                                : "bg-app-border"
-                                        }`}
-                                    />
-                                ))}
+                        <div>
+                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold mb-1">
+                                Invested
+                            </p>
+                            <p className="text-2xl font-bold text-app-foreground">$12,400.00</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold mb-1">
+                                Total PnL
+                            </p>
+                            <div className="flex items-center gap-1 text-app-success">
+                                <ArrowUpRight size={18} />
+                                <span className="text-2xl font-bold">+$1,420.00</span>
                             </div>
                         </div>
-                    </Card>
-                </div>
+                    </div>
+                </Card>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card title="Allocation" className="lg:col-span-1">
@@ -167,15 +163,6 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                             height={260}
                         />
                     </Card>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                    <Button variant="primary" icon={<ArrowUpRight size={16} />}>
-                        Add Trade
-                    </Button>
-                    <Button variant="secondary" icon={<BarChart3 size={16} />}>
-                        View Analytics
-                    </Button>
                 </div>
 
                 <Card title="Holdings">
