@@ -37,7 +37,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                   {assetTypeData.map(d => (
                      <div key={d.name} className="flex items-center gap-2 text-sm">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }}></div>
-                        <span className="text-zinc-300">{d.name}</span>
+                        <span className="text-zinc-700 dark:text-zinc-300">{d.name}</span>
                         <span className="text-zinc-500 ml-auto">{d.value}%</span>
                      </div>
                   ))}
@@ -50,7 +50,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                   {currencyData.map(d => (
                      <div key={d.name} className="flex items-center gap-2 text-sm">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }}></div>
-                        <span className="text-zinc-300">{d.name}</span>
+                        <span className="text-zinc-700 dark:text-zinc-300">{d.name}</span>
                         <span className="text-zinc-500 ml-auto">{d.value}%</span>
                      </div>
                   ))}
