@@ -13,13 +13,13 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({ isOpen, onClose })
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add Transaction">
       <div className="space-y-4">
-        <div className="flex bg-zinc-900 p-1 rounded-lg">
+        <div className="flex bg-app-surface p-1 rounded-lg">
           {['expense', 'income'].map((t) => (
             <button
               key={t}
               onClick={() => setType(t)}
               className={`flex-1 py-1.5 text-sm font-medium rounded-md capitalize transition-all ${
-                type === t ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
+                type === t ? 'bg-app-primary text-white shadow-sm' : 'text-app-muted hover:text-app-foreground'
               }`}
             >
               {t}
@@ -28,17 +28,17 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({ isOpen, onClose })
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-400 mb-1">Amount</label>
+          <label className="block text-xs font-medium text-app-muted mb-1">Amount</label>
           <input 
             type="number" 
             placeholder="0.00" 
-            className="w-full bg-zinc-900 border border-app-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-white"
+            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-400 mb-1">Category</label>
-          <select className="w-full bg-zinc-900 border border-app-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-white">
+          <label className="block text-xs font-medium text-app-muted mb-1">Category</label>
+          <select className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary">
             <option>Groceries</option>
             <option>Rent</option>
             <option>Entertainment</option>

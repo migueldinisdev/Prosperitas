@@ -4,7 +4,7 @@ import { Card } from '../../ui/Card';
 import { PieChart } from '../../components/PieChart';
 
 const assetTypeData = [
-  { name: 'Stocks', value: 45, color: '#3b82f6' },
+  { name: 'Stocks', value: 45, color: '#d61544' },
   { name: 'Crypto', value: 30, color: '#f59e0b' },
   { name: 'Cash', value: 15, color: '#10b981' },
   { name: 'Real Estate', value: 10, color: '#8b5cf6' },
@@ -37,8 +37,8 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                   {assetTypeData.map(d => (
                      <div key={d.name} className="flex items-center gap-2 text-sm">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }}></div>
-                        <span className="text-zinc-300">{d.name}</span>
-                        <span className="text-zinc-500 ml-auto">{d.value}%</span>
+                        <span className="text-app-foreground">{d.name}</span>
+                        <span className="text-app-muted ml-auto">{d.value}%</span>
                      </div>
                   ))}
                </div>
@@ -50,8 +50,8 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                   {currencyData.map(d => (
                      <div key={d.name} className="flex items-center gap-2 text-sm">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }}></div>
-                        <span className="text-zinc-300">{d.name}</span>
-                        <span className="text-zinc-500 ml-auto">{d.value}%</span>
+                        <span className="text-app-foreground">{d.name}</span>
+                        <span className="text-app-muted ml-auto">{d.value}%</span>
                      </div>
                   ))}
                </div>

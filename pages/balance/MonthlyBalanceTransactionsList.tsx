@@ -17,31 +17,31 @@ const transactions = [
 export const MonthlyBalanceTransactionsList: React.FC = () => {
   return (
     <div className="space-y-3">
-      <h3 className="text-lg font-semibold text-white px-1">Transactions</h3>
+      <h3 className="text-lg font-semibold text-app-foreground px-1">Transactions</h3>
       <div className="bg-app-card border border-app-border rounded-2xl overflow-hidden">
         {/* Scrollable container with fixed height */}
         <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
           {transactions.map((t, i) => (
             <div 
               key={t.id} 
-              className={`flex items-center justify-between p-4 hover:bg-white/5 transition-colors cursor-pointer ${
+              className={`flex items-center justify-between p-4 hover:bg-app-surface transition-colors cursor-pointer ${
                 i !== transactions.length - 1 ? 'border-b border-app-border' : ''
               }`}
             >
               <div className="flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   t.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' :
-                  t.type === 'transfer' ? 'bg-blue-500/10 text-blue-500' : 'bg-zinc-800 text-zinc-400'
+                  t.type === 'transfer' ? 'bg-blue-500/10 text-blue-500' : 'bg-app-surface text-app-muted'
                 }`}>
                   <t.icon size={18} />
                 </div>
                 <div>
-                  <p className="font-medium text-white">{t.title}</p>
-                  <p className="text-xs text-zinc-500">{t.cat} • {t.date}</p>
+                  <p className="font-medium text-app-foreground">{t.title}</p>
+                  <p className="text-xs text-app-muted">{t.cat} • {t.date}</p>
                 </div>
               </div>
               <span className={`font-semibold ${
-                t.amount > 0 ? 'text-app-success' : 'text-zinc-200'
+                t.amount > 0 ? 'text-app-success' : 'text-app-foreground'
               }`}>
                 {t.amount > 0 ? '+' : ''}{t.amount.toFixed(2)}
               </span>
@@ -49,7 +49,7 @@ export const MonthlyBalanceTransactionsList: React.FC = () => {
           ))}
         </div>
       </div>
-      <button className="w-full text-center text-sm text-zinc-500 hover:text-zinc-300 py-2 transition-colors">
+      <button className="w-full text-center text-sm text-app-muted hover:text-app-foreground py-2 transition-colors">
         View all transactions
       </button>
     </div>

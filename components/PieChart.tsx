@@ -26,8 +26,8 @@ export const PieChart: React.FC<PieChartProps> = ({ data, height = 300 }) => {
             ))}
           </Pie>
           <Tooltip 
-             contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#fff' }}
-             itemStyle={{ color: '#e4e4e7' }}
+             contentStyle={{ backgroundColor: 'rgb(var(--color-app-card))', borderColor: 'rgb(var(--color-app-border))', borderRadius: '8px', color: 'rgb(var(--color-app-foreground))' }}
+             itemStyle={{ color: 'rgb(var(--color-app-foreground))' }}
           />
           <Legend iconType="circle" />
         </RePieChart>

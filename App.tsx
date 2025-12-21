@@ -15,7 +15,7 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className="flex min-h-screen bg-app-bg text-zinc-100 font-sans selection:bg-indigo-500/30">
+      <div className="flex min-h-screen bg-app-bg text-app-foreground font-sans selection:bg-app-primary/20">
         <LateralMenu 
           isMobileOpen={isMobileMenuOpen} 
           setIsMobileOpen={setIsMobileMenuOpen} 
@@ -31,7 +31,7 @@ const App: React.FC = () => {
             
             <Route path="/pies" element={<PiesPage onMenuClick={() => setIsMobileMenuOpen(true)} />} />
             {/* Pie Detail would go here similar to WalletDetail */}
-            <Route path="/pies/:id" element={<div className="p-10 text-center text-zinc-500">Pie Details Mock</div>} />
+            <Route path="/pies/:id" element={<div className="p-10 text-center text-app-muted">Pie Details Mock</div>} />
             
             <Route path="/statistics" element={<StatisticsPage onMenuClick={() => setIsMobileMenuOpen(true)} />} />
             <Route path="/help" element={<HelpPage onMenuClick={() => setIsMobileMenuOpen(true)} />} />
