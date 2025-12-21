@@ -33,8 +33,14 @@ export const AddTradeModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Handle form submission
-    console.log('Trade submitted');
+    
+    // Validate required fields
+    if (!ticker || !price || !fxRate || !units) {
+      return;
+    }
+
+    // TODO: Submit trade data to state management when implemented
+    // For now, just close the modal
     onClose();
   };
 
@@ -108,6 +114,7 @@ export const AddTradeModal: React.FC<Props> = ({ isOpen, onClose }) => {
               className="w-full bg-zinc-900 border border-app-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-white"
             >
               <option value="">-- Select Pie --</option>
+              {/* TODO: Replace with dynamic pie list from application state */}
               <option value="tech">Tech Growth</option>
               <option value="dividend">Dividend Portfolio</option>
               <option value="crypto">Crypto Holdings</option>
@@ -264,7 +271,7 @@ export const AddTradeModal: React.FC<Props> = ({ isOpen, onClose }) => {
           <div className="bg-zinc-900 border border-amber-500/20 rounded-lg p-4">
             <p className="text-xs text-zinc-400 mb-2">Estimated Profit (requires cost average)</p>
             <p className="text-sm text-zinc-500">
-              Profit will be calculated based on: (Units × Sell Price × FX Rate) - (Units × Cost Average)
+              Profit = (Units × Sell Price × FX Rate) - (Units × Cost Average in display currency) - Fees - Tax
             </p>
           </div>
         )}
