@@ -94,13 +94,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     </thead>
                     <tbody className="divide-y divide-zinc-200 dark:divide-app-border">
                        <tr className="group hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-3 font-medium text-zinc-900 dark:text-white">Bitcoin <span className="text-zinc-500 ml-1">BTC</span></td>
+                          <td className="px-4 py-3 font-medium text-zinc-900 dark:text-white">Bitcoin <span className="text-zinc-600 dark:text-zinc-500 ml-1">BTC</span></td>
                           <td className="px-4 py-3 text-right text-zinc-700 dark:text-zinc-300">$34,200.00</td>
                           <td className="px-4 py-3 text-right text-zinc-900 dark:text-white font-medium">$27,000.00</td>
                           <td className="px-4 py-3 text-right text-app-success">+$2,400.00</td>
                        </tr>
                        <tr className="group hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-3 font-medium text-zinc-900 dark:text-white">Ethereum <span className="text-zinc-500 ml-1">ETH</span></td>
+                          <td className="px-4 py-3 font-medium text-zinc-900 dark:text-white">Ethereum <span className="text-zinc-600 dark:text-zinc-500 ml-1">ETH</span></td>
                           <td className="px-4 py-3 text-right text-zinc-700 dark:text-zinc-300">$1,850.00</td>
                           <td className="px-4 py-3 text-right text-zinc-900 dark:text-white font-medium">$13,500.00</td>
                           <td className="px-4 py-3 text-right text-app-success">+$850.00</td>
