@@ -20,7 +20,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({ name, balance, pnl, type
           <div className="w-12 h-12 rounded-xl bg-app-card flex items-center justify-center text-xl font-bold text-app-text-primary group-hover:scale-105 transition-transform">
              {name[0]}
           </div>
-          <span className="text-xs font-medium text-app-text-secondary bg-app-bg px-2 py-1 rounded-md border border-zinc-200 border-app-border">
+          <span className="text-xs font-medium text-app-text-secondary bg-app-bg px-2 py-1 rounded-md border border-app-border border-app-border">
             {type}
           </span>
         </div>

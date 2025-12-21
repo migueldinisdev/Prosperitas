@@ -32,7 +32,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
   return (
     <div className="pb-20">
-      <div className="sticky top-0 z-30 bg-zinc-50/80 bg-app-bg/80 backdrop-blur-md border-b border-zinc-200 border-app-border px-6 py-4 flex items-center gap-4">
+      <div className="sticky top-0 z-30 bg-app-bg/80 bg-app-bg/80 backdrop-blur-md border-b border-app-border border-app-border px-6 py-4 flex items-center gap-4">
          <Link to="/wallets" className="p-2 -ml-2 text-app-text-secondary hover:text-app-text-primary rounded-lg hover:bg-app-card/50 transition-colors">
             <ArrowLeft size={20} />
          </Link>
@@ -84,7 +84,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
            <Card title="Holdings" className="lg:col-span-2">
               <div className="overflow-x-auto">
                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-app-text-secondary uppercase border-b border-zinc-200 border-app-border">
+                    <thead className="text-xs text-app-text-secondary uppercase border-b border-app-border border-app-border">
                        <tr>
                           <th className="px-4 py-3 font-medium">Asset</th>
                           <th className="px-4 py-3 font-medium text-right">Price</th>

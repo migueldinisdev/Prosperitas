@@ -38,7 +38,7 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
         <div className="space-y-4">
            <div>
               <label className="block text-xs font-medium text-app-text-secondary mb-1">Platform Name</label>
-              <input type="text" className="w-full bg-zinc-50 bg-app-bg border border-zinc-200 border-app-border rounded-lg px-3 py-2 text-app-text-primary" />
+              <input type="text" className="w-full bg-app-bg bg-app-bg border border-app-border border-app-border rounded-lg px-3 py-2 text-app-text-primary" />
            </div>
            <Button className="w-full">Create Wallet</Button>
         </div>

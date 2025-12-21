@@ -20,7 +20,7 @@ export const PieCard: React.FC<PieCardProps> = ({ name, desc, risk, value, growt
               <h3 className="text-lg font-bold text-app-text-primary">{name}</h3>
               <div className="flex gap-1">
                  {[1,2,3,4,5].map(i => (
-                    <div key={i} className={`w-1 h-3 rounded-full ${i <= risk ? 'bg-indigo-500' : 'bg-zinc-300 bg-app-card'}`} />
+                    <div key={i} className={`w-1 h-3 rounded-full ${i <= risk ? 'bg-indigo-500' : 'bg-app-card bg-app-card'}`} />
                  ))}
               </div>
            </div>

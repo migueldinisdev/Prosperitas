@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 export const BalanceMonthSwitcher: React.FC = () => {
   return (
-    <div className="flex items-center justify-between bg-white bg-app-card border border-zinc-200 border-app-border rounded-xl p-2 mb-6">
+    <div className="flex items-center justify-between bg-app-card bg-app-card border border-app-border border-app-border rounded-xl p-2 mb-6">
       <button className="p-2 hover:bg-app-card rounded-lg text-app-text-secondary hover:text-app-text-primary transition-colors">
         <ChevronLeft size={20} />
       </button>

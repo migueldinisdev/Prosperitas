@@ -13,12 +13,12 @@ export const MonthlyBalanceTransactionsList: React.FC = () => {
   return (
     <div className="space-y-3">
       <h3 className="text-lg font-semibold text-app-text-primary px-1">Transactions</h3>
-      <div className="bg-white bg-app-card border border-zinc-200 border-app-border rounded-2xl overflow-hidden">
+      <div className="bg-app-card bg-app-card border border-app-border border-app-border rounded-2xl overflow-hidden">
         {transactions.map((t, i) => (
           <div 
             key={t.id} 
             className={`flex items-center justify-between p-4 hover:bg-app-card/50 transition-colors cursor-pointer ${
-              i !== transactions.length - 1 ? 'border-b border-zinc-200 border-app-border' : ''
+              i !== transactions.length - 1 ? 'border-b border-app-border border-app-border' : ''
             }`}
           >
             <div className="flex items-center gap-4">
@@ -34,14 +34,14 @@ export const MonthlyBalanceTransactionsList: React.FC = () => {
               </div>
             </div>
             <span className={`font-semibold ${
-              t.amount > 0 ? 'text-app-success' : 'text-zinc-900 text-app-text-primary'
+              t.amount > 0 ? 'text-app-success' : 'text-app-text-primary text-app-text-primary'
             }`}>
               {t.amount > 0 ? '+' : ''}{t.amount.toFixed(2)}
             </span>
           </div>
         ))}
       </div>
-      <button className="w-full text-center text-sm text-app-text-secondary hover:text-zinc-900 hover:text-app-text-secondary py-2">
+      <button className="w-full text-center text-sm text-app-text-secondary hover:text-app-text-primary hover:text-app-text-secondary py-2">
         View all transactions
       </button>
     </div>
