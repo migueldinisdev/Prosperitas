@@ -18,7 +18,7 @@ const sankeyData = {
 export const BalanceSankeySection: React.FC = () => {
   return (
     <Card title="Cash Flow Analysis">
-      <SankeyChart data={sankeyData} height={450} />
+      <SankeyChart data={sankeyData} height={400} />
     </Card>
   );
 };
