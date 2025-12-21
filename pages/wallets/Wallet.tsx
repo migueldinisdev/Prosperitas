@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../ui/Card';
@@ -6,6 +6,7 @@ import { LineChart } from '../../components/LineChart';
 import { Button } from '../../ui/Button';
 import { PieChart } from '../../components/PieChart';
 import { ArrowLeft, ArrowUpRight, DollarSign, Wallet as WalletIcon } from 'lucide-react';
+import { AddTradeModal } from '../../components/AddTradeModal';
 
 // Mock data strictly for UI demo
 const chartData = [
@@ -29,6 +30,7 @@ interface Props {
 export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
   const { id } = useParams();
   const walletName = id ? id.charAt(0).toUpperCase() + id.slice(1) : 'Wallet';
+  const [isTradeModalOpen, setTradeModalOpen] = useState(false);
 
   return (
     <div className="pb-20">
@@ -72,7 +74,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         <div className="flex flex-wrap gap-4">
            <Button variant="secondary" icon={<DollarSign size={16} />}>Transfer to Balance</Button>
            <Button variant="secondary" icon={<WalletIcon size={16} />}>Add Dividend</Button>
-           <Button variant="primary" icon={<ArrowUpRight size={16} />}>Add Trade</Button>
+           <Button variant="primary" icon={<ArrowUpRight size={16} />} onClick={() => setTradeModalOpen(true)}>Add Trade</Button>
         </div>
 
         {/* Holdings */}
@@ -111,6 +113,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
            </Card>
         </div>
       </main>
+
+      <AddTradeModal isOpen={isTradeModalOpen} onClose={() => setTradeModalOpen(false)} />
     </div>
   );
 };
