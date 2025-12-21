@@ -24,28 +24,30 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                 title="Balance"
                 subtitle="Manage income and expenses"
                 onMenuClick={onMenuClick}
-                action={
-                    <div className="flex gap-2">
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            icon={<SlidersHorizontal size={14} />}
-                            onClick={() => setCategoriesOpen(true)}
-                        >
-                            Categories
-                        </Button>
-                        <Button
-                            onClick={() => setAddTxOpen(true)}
-                            size="sm"
-                            icon={<Plus size={16} />}
-                        >
-                            Add
-                        </Button>
-                    </div>
-                }
             />
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
+                <Card title="Quick Actions">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Button
+                            variant="primary"
+                            className="w-full"
+                            icon={<Plus size={16} />}
+                            onClick={() => setAddTxOpen(true)}
+                        >
+                            Add Transaction
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            className="w-full"
+                            icon={<SlidersHorizontal size={16} />}
+                            onClick={() => setCategoriesOpen(true)}
+                        >
+                            Manage Categories
+                        </Button>
+                    </div>
+                </Card>
+
                 <BalanceMonthSwitcher />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
