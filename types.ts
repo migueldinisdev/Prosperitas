@@ -43,3 +43,10 @@ export interface Asset {
   value: number;
   allocation: number;
 }
+
+export interface Category {
+  id: string;
+  name: string;
+  icon: string; // Lucide icon name
+  color: string; // Hex color
+}

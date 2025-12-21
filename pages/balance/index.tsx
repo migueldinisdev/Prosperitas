@@ -7,6 +7,7 @@ import { Card } from '../../ui/Card';
 import { Button } from '../../ui/Button';
 import { Plus, SlidersHorizontal } from 'lucide-react';
 import { AddBalanceTransactionModal } from '../../components/AddBalanceTransactionModal';
+import { ManageCategoriesModal } from '../../components/ManageCategoriesModal';
 
 interface Props {
   onMenuClick: () => void;
@@ -14,6 +15,7 @@ interface Props {
 
 export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
   const [isAddTxOpen, setAddTxOpen] = useState(false);
+  const [isCategoriesOpen, setCategoriesOpen] = useState(false);
 
   return (
     <div className="pb-20">
@@ -23,7 +25,14 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
         onMenuClick={onMenuClick}
         action={
           <div className="flex gap-2">
-             <Button variant="secondary" size="sm" icon={<SlidersHorizontal size={14} />}>Categories</Button>
+             <Button 
+               variant="secondary" 
+               size="sm" 
+               icon={<SlidersHorizontal size={14} />}
+               onClick={() => setCategoriesOpen(true)}
+             >
+               Categories
+             </Button>
              <Button onClick={() => setAddTxOpen(true)} size="sm" icon={<Plus size={16} />}>Add</Button>
           </div>
         }
@@ -74,6 +83,7 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
       </main>
 
       <AddBalanceTransactionModal isOpen={isAddTxOpen} onClose={() => setAddTxOpen(false)} />
+      <ManageCategoriesModal isOpen={isCategoriesOpen} onClose={() => setCategoriesOpen(false)} />
     </div>
   );
 };
