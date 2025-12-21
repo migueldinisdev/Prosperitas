@@ -1,0 +1,69 @@
+:root {
+  color-scheme: light;
+  --color-app-bg: 248 250 252;
+  --color-app-card: 255 255 255;
+  --color-app-surface: 238 242 246;
+  --color-app-border: 226 232 240;
+  --color-app-foreground: 15 23 42;
+  --color-app-muted: 71 85 105;
+  --color-app-primary: 37 99 235;
+  --color-app-accent: 124 58 237;
+  --color-app-success: 22 163 74;
+  --color-app-danger: 225 29 72;
+  --shadow-card: 0 10px 40px rgba(15, 23, 42, 0.08);
+  --overlay: rgba(15, 23, 42, 0.45);
+  --scrollbar: #cbd5e1;
+  --scrollbar-hover: #94a3b8;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-app-bg: 9 9 11;
+  --color-app-card: 24 24 27;
+  --color-app-surface: 16 16 20;
+  --color-app-border: 39 39 42;
+  --color-app-foreground: 244 244 245;
+  --color-app-muted: 161 161 170;
+  --color-app-primary: 59 130 246;
+  --color-app-accent: 139 92 246;
+  --color-app-success: 16 185 129;
+  --color-app-danger: 244 63 94;
+  --shadow-card: 0 12px 48px rgba(0, 0, 0, 0.35);
+  --overlay: rgba(0, 0, 0, 0.55);
+  --scrollbar: #3f3f46;
+  --scrollbar-hover: #52525b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: rgb(var(--color-app-bg));
+  color: rgb(var(--color-app-foreground));
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in srgb, rgb(var(--color-app-primary)) 20%, transparent);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
+}

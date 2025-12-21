@@ -99,15 +99,15 @@ export const SankeyChart: React.FC<SankeyChartProps> = ({ data, height = 500 }) 
           {data.source !== undefined ? (
             // Link tooltip
             <>
-              <p className="text-white font-medium text-sm">
+              <p className="text-app-foreground font-medium text-sm">
                 {nodes[data.source].name} → {nodes[data.target].name}
               </p>
-              <p className="text-zinc-400 text-sm">${data.value.toFixed(2)}</p>
+              <p className="text-app-muted text-sm">${data.value.toFixed(2)}</p>
             </>
           ) : (
             // Node tooltip
             <>
-              <p className="text-white font-medium text-sm">{data.name}</p>
+              <p className="text-app-foreground font-medium text-sm">{data.name}</p>
             </>
           )}
         </div>

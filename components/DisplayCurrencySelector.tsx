@@ -12,8 +12,8 @@ export const DisplayCurrencySelector: React.FC = () => {
           onClick={() => setSelectedCurrency(curr)}
           className={`px-3 py-1 text-xs font-medium rounded-md transition-all duration-200 ${
             curr === selectedCurrency 
-              ? 'bg-zinc-700 text-white shadow-sm' 
-              : 'text-zinc-500 hover:text-zinc-300'
+              ? 'bg-app-primary text-white shadow-sm' 
+              : 'text-app-muted hover:text-app-foreground'
           }`}
         >
           {curr}

@@ -145,7 +145,7 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
             return (
               <div
                 key={category.id}
-                className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg border border-app-border hover:border-zinc-600 transition-colors"
+                className="flex items-center justify-between p-3 bg-app-surface rounded-lg border border-app-border hover:border-app-primary/40 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <div 
@@ -154,18 +154,18 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   >
                     <CategoryIcon size={16} style={{ color: category.color }} />
                   </div>
-                  <span className="text-sm font-medium text-white">{category.name}</span>
+                  <span className="text-sm font-medium text-app-foreground">{category.name}</span>
                 </div>
                 <div className="flex gap-1">
                   <button
                     onClick={() => handleEdit(category)}
-                    className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
+                    className="p-1.5 text-app-muted hover:text-app-foreground hover:bg-app-card rounded-md transition-colors"
                   >
                     <Edit2 size={14} />
                   </button>
                   <button
                     onClick={() => handleDelete(category.id)}
-                    className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
+                    className="p-1.5 text-app-muted hover:text-app-danger hover:bg-app-danger/10 rounded-md transition-colors"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -178,23 +178,23 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
         {/* Add/Edit Form */}
         {(isAdding || editingId) && (
           <div className="border-t border-app-border pt-4 space-y-3">
-            <h4 className="text-sm font-semibold text-white">
+            <h4 className="text-sm font-semibold text-app-foreground">
               {editingId ? 'Edit Category' : 'Add Category'}
             </h4>
             
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Name</label>
+              <label className="block text-xs font-medium text-app-muted mb-1">Name</label>
               <input 
                 type="text"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="Category name"
-                className="w-full bg-zinc-900 border border-app-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white"
+                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground text-sm focus:outline-none focus:ring-1 focus:ring-app-primary"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Icon</label>
+              <label className="block text-xs font-medium text-app-muted mb-1">Icon</label>
               <div className="grid grid-cols-6 gap-2">
                 {Object.keys(iconComponents).map((iconName) => {
                   const Icon = iconComponents[iconName];
@@ -204,11 +204,11 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       onClick={() => setFormIcon(iconName)}
                       className={`p-2 rounded-lg border transition-all ${
                         formIcon === iconName
-                          ? 'border-white bg-white/10'
-                          : 'border-app-border hover:border-zinc-600 bg-zinc-900'
+                          ? 'border-app-primary bg-app-primary/10'
+                          : 'border-app-border hover:border-app-primary/40 bg-app-surface'
                       }`}
                     >
-                      <Icon size={20} className={formIcon === iconName ? 'text-white' : 'text-zinc-400'} />
+                      <Icon size={20} className={formIcon === iconName ? 'text-app-foreground' : 'text-app-muted'} />
                     </button>
                   );
                 })}
@@ -216,14 +216,14 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Color</label>
+              <label className="block text-xs font-medium text-app-muted mb-1">Color</label>
               <div className="flex gap-2">
                 {availableColors.map((color) => (
                   <button
                     key={color}
                     onClick={() => setFormColor(color)}
                     className={`w-8 h-8 rounded-lg transition-all ${
-                      formColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-app-card' : ''
+                      formColor === color ? 'ring-2 ring-app-primary ring-offset-2 ring-offset-app-card' : ''
                     }`}
                     style={{ backgroundColor: color }}
                   />
@@ -241,7 +241,7 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     <IconComponent size={20} style={{ color: formColor }} />
                   </div>
                 )}
-                <span className="text-sm text-zinc-300">{formName || 'Preview'}</span>
+                <span className="text-sm text-app-foreground">{formName || 'Preview'}</span>
               </div>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm" onClick={resetForm}>

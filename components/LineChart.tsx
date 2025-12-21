@@ -13,26 +13,26 @@ export const LineChart: React.FC<LineChartProps> = ({ data, dataKey, color = '#3
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer>
         <ReLineChart data={data} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--color-app-border))" vertical={false} />
           <XAxis 
             dataKey="name" 
-            stroke="#71717a" 
+            stroke="rgb(var(--color-app-muted))" 
             fontSize={12} 
             tickLine={false} 
             axisLine={false} 
             dy={10}
           />
           <YAxis 
-            stroke="#71717a" 
+            stroke="rgb(var(--color-app-muted))" 
             fontSize={12} 
             tickLine={false} 
             axisLine={false}
             tickFormatter={(value) => `$${value}`}
           />
           <Tooltip 
-            contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#fff' }}
-            itemStyle={{ color: '#fff' }}
-            cursor={{ stroke: '#3f3f46', strokeWidth: 1 }}
+            contentStyle={{ backgroundColor: 'rgb(var(--color-app-card))', borderColor: 'rgb(var(--color-app-border))', borderRadius: '8px', color: 'rgb(var(--color-app-foreground))' }}
+            itemStyle={{ color: 'rgb(var(--color-app-foreground))' }}
+            cursor={{ stroke: 'rgb(var(--color-app-border))', strokeWidth: 1 }}
           />
           <Line 
             type="monotone" 
@@ -40,7 +40,7 @@ export const LineChart: React.FC<LineChartProps> = ({ data, dataKey, color = '#3
             stroke={color} 
             strokeWidth={3} 
             dot={false} 
-            activeDot={{ r: 6, fill: color, stroke: '#09090b', strokeWidth: 2 }} 
+            activeDot={{ r: 6, fill: color, stroke: 'rgb(var(--color-app-bg))', strokeWidth: 2 }} 
           />
         </ReLineChart>
       </ResponsiveContainer>

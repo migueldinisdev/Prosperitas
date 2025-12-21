@@ -13,25 +13,25 @@ export const BarChart: React.FC<BarChartProps> = ({ data, dataKey, color = '#3b8
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer>
         <ReBarChart data={data} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--color-app-border))" vertical={false} />
           <XAxis 
             dataKey="name" 
-            stroke="#71717a" 
+            stroke="rgb(var(--color-app-muted))" 
             fontSize={12} 
             tickLine={false} 
             axisLine={false} 
             dy={10}
           />
           <YAxis 
-            stroke="#71717a" 
+            stroke="rgb(var(--color-app-muted))" 
             fontSize={12} 
             tickLine={false} 
             axisLine={false}
             tickFormatter={(value) => `$${value}`}
           />
           <Tooltip 
-            cursor={{ fill: '#27272a', opacity: 0.4 }}
-            contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#fff' }}
+            cursor={{ fill: 'rgb(var(--color-app-border))', opacity: 0.4 }}
+            contentStyle={{ backgroundColor: 'rgb(var(--color-app-card))', borderColor: 'rgb(var(--color-app-border))', borderRadius: '8px', color: 'rgb(var(--color-app-foreground))' }}
           />
           <Bar 
             dataKey={dataKey} 
