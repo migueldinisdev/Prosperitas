@@ -31,21 +31,21 @@ const NavLink: React.FC<NavLinkProps> = ({ item, isActive, onClick }) => {
             onClick={onClick}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
                 isActive
-                    ? "bg-white/10 text-white"
-                    : "text-zinc-400 hover:text-zinc-100 hover:bg-white/5"
+                    ? "bg-app-primary/15 text-app-foreground"
+                    : "text-app-muted hover:text-app-foreground hover:bg-app-surface"
             }`}
         >
             <item.icon
                 size={20}
                 className={
                     isActive
-                        ? "text-white"
-                        : "text-zinc-500 group-hover:text-zinc-300"
+                        ? "text-app-primary"
+                        : "text-app-muted group-hover:text-app-foreground"
                 }
             />
             <span>{item.name}</span>
             {isActive && (
-                <ChevronRight size={14} className="ml-auto text-zinc-500" />
+                <ChevronRight size={14} className="ml-auto text-app-muted" />
             )}
         </Link>
     );

@@ -15,13 +15,13 @@ const App: React.FC = () => {
 
     return (
         <HashRouter>
-            <div className="flex min-h-screen bg-app-bg text-zinc-100 font-sans selection:bg-indigo-500/30 overflow-x-hidden">
+            <div className="flex min-h-screen bg-app-bg text-app-foreground font-sans selection:bg-app-primary/20">
                 <LateralMenu
                     isMobileOpen={isMobileMenuOpen}
                     setIsMobileOpen={setIsMobileMenuOpen}
                 />
 
-                <div className="flex-1 lg:ml-64 min-h-screen flex flex-col overflow-x-hidden">
+                <div className="flex-1 lg:ml-64 min-h-screen flex flex-col">
                     <Routes>
                         <Route
                             path="/"
@@ -79,7 +79,7 @@ const App: React.FC = () => {
                         <Route
                             path="/pies/:id"
                             element={
-                                <div className="p-10 text-center text-zinc-500">
+                                <div className="p-10 text-center text-app-muted">
                                     Pie Details Mock
                                 </div>
                             }

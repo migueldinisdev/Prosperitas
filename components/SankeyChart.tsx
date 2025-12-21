@@ -43,7 +43,7 @@ export const SankeyChart: React.FC<SankeyChartProps> = ({ data, height = 500 }) 
     const isSavings = index === nodes.length - 1;
     const isExpense = !isIncome && !isSavings;
 
-    const fill = isIncome ? '#3b82f6' : isSavings ? '#10b981' : '#ef4444';
+    const fill = isIncome ? 'rgb(var(--color-app-primary))' : isSavings ? '#10b981' : '#ef4444';
 
     return (
       <g>
@@ -99,15 +99,15 @@ export const SankeyChart: React.FC<SankeyChartProps> = ({ data, height = 500 }) 
           {data.source !== undefined ? (
             // Link tooltip
             <>
-              <p className="text-white font-medium text-sm">
+              <p className="text-app-foreground font-medium text-sm">
                 {nodes[data.source].name} → {nodes[data.target].name}
               </p>
-              <p className="text-zinc-400 text-sm">${data.value.toFixed(2)}</p>
+              <p className="text-app-muted text-sm">${data.value.toFixed(2)}</p>
             </>
           ) : (
             // Node tooltip
             <>
-              <p className="text-white font-medium text-sm">{data.name}</p>
+              <p className="text-app-foreground font-medium text-sm">{data.name}</p>
             </>
           )}
         </div>

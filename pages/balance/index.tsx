@@ -24,46 +24,44 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                 title="Balance"
                 subtitle="Manage income and expenses"
                 onMenuClick={onMenuClick}
+                action={
+                    <div className="flex gap-2">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={<SlidersHorizontal size={14} />}
+                            onClick={() => setCategoriesOpen(true)}
+                        >
+                            Categories
+                        </Button>
+                        <Button
+                            onClick={() => setAddTxOpen(true)}
+                            size="sm"
+                            icon={<Plus size={16} />}
+                        >
+                            Add
+                        </Button>
+                    </div>
+                }
             />
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <Card title="Quick Actions">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Button
-                            variant="primary"
-                            className="w-full"
-                            icon={<Plus size={16} />}
-                            onClick={() => setAddTxOpen(true)}
-                        >
-                            Add Transaction
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            className="w-full"
-                            icon={<SlidersHorizontal size={16} />}
-                            onClick={() => setCategoriesOpen(true)}
-                        >
-                            Manage Categories
-                        </Button>
-                    </div>
-                </Card>
-
                 <BalanceMonthSwitcher />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card title="Savings Rate">
                         <div className="flex items-end gap-2 mb-2">
-                            <span className="text-4xl font-bold text-white">
+                            <span className="text-4xl font-bold text-app-foreground">
                                 42%
                             </span>
-                            <span className="text-zinc-500 mb-1">
+                            <span className="text-app-muted mb-1">
                                 this month
                             </span>
                         </div>
-                        <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
-                            <div className="bg-emerald-500 h-full w-[42%]"></div>
+                        <div className="w-full bg-app-surface h-2 rounded-full overflow-hidden">
+                            <div className="bg-app-success h-full w-[42%]"></div>
                         </div>
-                        <p className="text-xs text-zinc-500 mt-2">
+                        <p className="text-xs text-app-muted mt-2">
                             +$450 vs monthly average
                         </p>
                     </Card>
@@ -71,20 +69,20 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                     <Card title="Cash Flow">
                         <div className="space-y-2 mt-2">
                             <div className="flex justify-between text-sm">
-                                <span className="text-zinc-400">Income</span>
-                                <span className="text-white font-medium">
+                                <span className="text-app-muted">Income</span>
+                                <span className="text-app-foreground font-medium">
                                     $4,200.00
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-zinc-400">Expenses</span>
-                                <span className="text-white font-medium">
+                                <span className="text-app-muted">Expenses</span>
+                                <span className="text-app-foreground font-medium">
                                     -$2,450.00
                                 </span>
                             </div>
                             <div className="h-px bg-app-border my-2"></div>
                             <div className="flex justify-between text-base font-semibold">
-                                <span className="text-zinc-300">
+                                <span className="text-app-foreground">
                                     Net Savings
                                 </span>
                                 <span className="text-app-success">

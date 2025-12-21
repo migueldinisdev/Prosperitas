@@ -17,8 +17,8 @@ export const HomeSummarySection: React.FC = () => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6">
         <Card className="md:col-span-1">
-          <p className="text-zinc-400 text-sm font-medium mb-1">Total Net Worth</p>
-          <h2 className="text-4xl font-bold text-white tracking-tight mb-2">$124,500.00</h2>
+          <p className="text-app-muted text-sm font-medium mb-1">Total Net Worth</p>
+          <h2 className="text-4xl font-bold text-app-foreground tracking-tight mb-2">$124,500.00</h2>
           <div className="flex items-center gap-1 text-app-success text-sm font-medium bg-emerald-500/10 w-fit px-2 py-1 rounded-full mb-4">
             <ArrowUpRight size={14} />
             <span>+5.2% this month</span>
@@ -30,7 +30,7 @@ export const HomeSummarySection: React.FC = () => {
                 <div className="p-1.5 bg-emerald-500/10 rounded-lg text-app-success">
                   <ArrowUpRight size={16} />
                 </div>
-                <p className="text-zinc-400 text-xs font-medium">Unrealized PnL</p>
+                <p className="text-app-muted text-xs font-medium">Unrealized PnL</p>
               </div>
               <p className="text-xl font-bold text-app-success">+$12,450.32</p>
             </div>
@@ -40,7 +40,7 @@ export const HomeSummarySection: React.FC = () => {
                 <div className="p-1.5 bg-rose-500/10 rounded-lg text-app-danger">
                   <ArrowDownRight size={16} />
                 </div>
-                <p className="text-zinc-400 text-xs font-medium">Realized PnL (YTD)</p>
+                <p className="text-app-muted text-xs font-medium">Realized PnL (YTD)</p>
               </div>
               <p className="text-xl font-bold text-app-danger">-$420.50</p>
             </div>
