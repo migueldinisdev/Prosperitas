@@ -119,7 +119,7 @@ export const MonthlyBalanceTransactionsList: React.FC = () => {
                         return (
                             <div
                                 key={t.id}
-                                className={`flex items-center justify-between px-5 transition-colors cursor-pointer ${
+                                className={`flex items-center justify-between pl-5 pr-7 transition-colors cursor-pointer ${
                                     isLast
                                         ? "py-4 pb-5"
                                         : "py-4 border-b border-app-border"
