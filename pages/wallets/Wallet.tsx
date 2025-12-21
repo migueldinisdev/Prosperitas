@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../ui/Card';
 import { LineChart } from '../../components/LineChart';
 import { Button } from '../../ui/Button';
@@ -12,7 +11,6 @@ import {
   ArrowRightLeft,
   Banknote,
   Calendar,
-  ChevronDown,
   Filter,
   Wallet as WalletIcon,
 } from 'lucide-react';
@@ -31,13 +29,6 @@ const pieData = [
   { name: 'BTC', value: 60, color: '#f59e0b' },
   { name: 'ETH', value: 30, color: '#6366f1' },
   { name: 'SOL', value: 10, color: '#10b981' },
-];
-
-const walletList = [
-  { id: 'coinbase', name: 'Coinbase', balance: 45230.5, currency: Currency.EUR },
-  { id: 'trading212', name: 'Trading212', balance: 28400, currency: Currency.EUR },
-  { id: 'binance', name: 'Binance', balance: 12500.25, currency: Currency.USD },
-  { id: 'chase', name: 'Chase Bank', balance: 8500, currency: Currency.USD },
 ];
 
 const fxRates: Record<Currency, number> = {
@@ -137,235 +128,199 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
       </div>
 
       <main className="p-6 max-w-7xl mx-auto space-y-6">
-        <div className="grid lg:grid-cols-[280px,1fr] gap-6">
-          <div className="space-y-4 lg:sticky lg:top-24 h-fit">
-            <Card title="Wallets">
-              <div className="space-y-3">
-                {walletList.map((wallet) => {
-                  const isActive = wallet.id.toLowerCase() === (id ?? '').toLowerCase();
-                  return (
-                    <Link
-                      key={wallet.id}
-                      to={`/wallets/${wallet.id}`}
-                      className={`flex items-center justify-between px-3 py-2 rounded-xl border transition-all ${
-                        isActive
-                          ? 'border-white/30 bg-white/5 text-white'
-                          : 'border-app-border text-zinc-400 hover:text-white hover:border-white/20'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-zinc-900 flex items-center justify-center text-sm font-semibold">
-                          {wallet.name[0]}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold">{wallet.name}</p>
-                          <p className="text-xs text-zinc-500">
-                            {formatCurrency(wallet.balance, wallet.currency)}
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronDown size={16} className="text-zinc-600" />
-                    </Link>
-                  );
-                })}
-              </div>
-            </Card>
-
-            <Card title="Quick Actions" className="space-y-3">
-              <Button
-                variant="primary"
-                className="w-full"
-                icon={<ArrowUpRight size={16} />}
-                onClick={() => setTradeOpen(true)}
-              >
-                Add Trade
-              </Button>
-              <Button
-                variant="secondary"
-                className="w-full"
-                icon={<WalletIcon size={16} />}
-                onClick={() => setDividendOpen(true)}
-              >
-                Add Dividend / Interest
-              </Button>
-              <Button
-                variant="secondary"
-                className="w-full"
-                icon={<ArrowRightLeft size={16} />}
-                onClick={() => setFxOpen(true)}
-              >
-                Add FX Operation
-              </Button>
-              <Button
-                variant="secondary"
-                className="w-full"
-                icon={<Banknote size={16} />}
-                onClick={() => setCashOpen(true)}
-              >
-                Deposit / Withdraw Cash
-              </Button>
-            </Card>
-          </div>
-
-          <div className="space-y-6">
-            {/* Statistics Header */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-4">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Current Value</p>
-                <p className="text-2xl font-bold text-white mt-1">{formatCurrency(totalValueDisplay)}</p>
-              </Card>
-              <Card className="p-4">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Invested</p>
-                <p className="text-2xl font-bold text-zinc-300 mt-1">{formatCurrency(42030)}</p>
-              </Card>
-              <Card className="p-4">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Total PnL</p>
-                <div className="flex items-center gap-1 mt-1 text-app-success">
-                  <ArrowUpRight size={18} />
-                  <span className="text-2xl font-bold">+{formatCurrency(3200.5)}</span>
-                </div>
-              </Card>
-              <Card className="p-4">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Cash Available</p>
-                <p className="text-2xl font-bold text-white mt-1">{formatCurrency(cashAvailable)}</p>
-                <p className="text-xs text-zinc-500 mt-1">Converted to {displayCurrency}</p>
-              </Card>
-            </div>
-
-            {/* Chart Section */}
-            <Card title="Performance History" action={<Button variant="ghost" size="sm" icon={<Calendar size={14} />}>Last 6 months</Button>}>
-              <LineChart data={chartData} dataKey="value" height={300} />
-            </Card>
-
-            {/* Holdings */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card title="Allocation" className="lg:col-span-1">
-                <PieChart data={pieData} height={250} />
-              </Card>
-              
-              <Card
-                title="Current Holdings"
-                className="lg:col-span-2"
-                action={
-                  <div className="flex flex-wrap gap-2">
-                    <select
-                      value={holdingFilter}
-                      onChange={(e) => setHoldingFilter(e.target.value)}
-                      className="bg-zinc-900 border border-app-border text-sm text-white rounded-lg px-3 py-2"
-                    >
-                      <option value="all">All types</option>
-                      <option value="cash">Cash</option>
-                      <option value="equity">Equity</option>
-                      <option value="crypto">Crypto</option>
-                    </select>
-                    <select
-                      value={holdingSort}
-                      onChange={(e) => setHoldingSort(e.target.value as 'allocation' | 'value' | 'ticker')}
-                      className="bg-zinc-900 border border-app-border text-sm text-white rounded-lg px-3 py-2"
-                    >
-                      <option value="value">Sort by Value</option>
-                      <option value="allocation">Sort by Allocation</option>
-                      <option value="ticker">Sort by Ticker</option>
-                    </select>
-                  </div>
-                }
-              >
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-zinc-500 uppercase border-b border-app-border">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">Asset</th>
-                        <th className="px-4 py-3 font-medium text-right">Units</th>
-                        <th className="px-4 py-3 font-medium text-right">DCA</th>
-                        <th className="px-4 py-3 font-medium text-right">Price</th>
-                        <th className="px-4 py-3 font-medium text-right">Value ({displayCurrency})</th>
-                        <th className="px-4 py-3 font-medium text-right">Allocation</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-app-border">
-                      {filteredHoldings.map((holding) => {
-                        const displayValue = toDisplayCurrency(holding.value, holding.currency);
-                        return (
-                          <tr key={holding.ticker} className="group hover:bg-white/5 transition-colors">
-                            <td className="px-4 py-3 font-medium text-white">
-                              <div className="flex flex-col">
-                                <span>{holding.name}</span>
-                                <span className="text-xs text-zinc-500">{holding.type}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right text-zinc-300">{holding.units.toLocaleString()}</td>
-                            <td className="px-4 py-3 text-right text-zinc-300">{formatCurrency(holding.dca, holding.currency)}</td>
-                            <td className="px-4 py-3 text-right text-zinc-300">{formatCurrency(holding.price, holding.currency)}</td>
-                            <td className="px-4 py-3 text-right text-white font-medium">{formatCurrency(displayValue, displayCurrency)}</td>
-                            <td className="px-4 py-3 text-right text-zinc-300">{holding.allocation}%</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </div>
-
-            {/* Transactions */}
-            <Card
-              title="Transaction History"
-              action={
-                <div className="flex flex-wrap gap-2">
-                  <select
-                    value={txFilter}
-                    onChange={(e) => setTxFilter(e.target.value)}
-                    className="bg-zinc-900 border border-app-border text-sm text-white rounded-lg px-3 py-2"
-                  >
-                    <option value="all">All types</option>
-                    <option value="BUY">Buy</option>
-                    <option value="SELL">Sell</option>
-                    <option value="DIVIDEND">Dividend</option>
-                    <option value="FX">FX</option>
-                    <option value="CASH">Cash</option>
-                  </select>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={<Filter size={14} />}
-                    onClick={() => setTxSort(txSort === 'desc' ? 'asc' : 'desc')}
-                  >
-                    Sort {txSort === 'desc' ? '↓' : '↑'}
-                  </Button>
-                </div>
-              }
+        <Card title="Quick Actions">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <Button
+              variant="primary"
+              className="w-full"
+              icon={<ArrowUpRight size={16} />}
+              onClick={() => setTradeOpen(true)}
             >
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-zinc-500 uppercase border-b border-app-border">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Date</th>
-                      <th className="px-4 py-3 font-medium">Type</th>
-                      <th className="px-4 py-3 font-medium">Description</th>
-                      <th className="px-4 py-3 font-medium text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-app-border">
-                    {filteredTransactions.map((tx) => (
-                      <tr key={tx.id} className="group hover:bg-white/5 transition-colors">
-                        <td className="px-4 py-3 text-white font-medium">{tx.date}</td>
-                        <td className="px-4 py-3">
-                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-white/5 border border-app-border text-white">
-                            {tx.type}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-zinc-300">{tx.description}</td>
-                        <td className="px-4 py-3 text-right text-white font-medium">
-                          {formatCurrency(toDisplayCurrency(tx.amount, tx.currency), displayCurrency)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+              Add Trade
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full"
+              icon={<WalletIcon size={16} />}
+              onClick={() => setDividendOpen(true)}
+            >
+              Add Dividend / Interest
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full"
+              icon={<ArrowRightLeft size={16} />}
+              onClick={() => setFxOpen(true)}
+            >
+              Add FX Operation
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full"
+              icon={<Banknote size={16} />}
+              onClick={() => setCashOpen(true)}
+            >
+              Deposit / Withdraw Cash
+            </Button>
           </div>
+        </Card>
+
+        {/* Statistics Header */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <Card className="p-4">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Current Value</p>
+            <p className="text-2xl font-bold text-white mt-1">{formatCurrency(totalValueDisplay)}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Invested</p>
+            <p className="text-2xl font-bold text-zinc-300 mt-1">{formatCurrency(42030)}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Total PnL</p>
+            <div className="flex items-center gap-1 mt-1 text-app-success">
+              <ArrowUpRight size={18} />
+              <span className="text-2xl font-bold">+{formatCurrency(3200.5)}</span>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Cash Available</p>
+            <p className="text-2xl font-bold text-white mt-1">{formatCurrency(cashAvailable)}</p>
+            <p className="text-xs text-zinc-500 mt-1">Converted to {displayCurrency}</p>
+          </Card>
         </div>
+
+        {/* Chart Section */}
+        <Card title="Performance History" action={<Button variant="ghost" size="sm" icon={<Calendar size={14} />}>Last 6 months</Button>}>
+          <LineChart data={chartData} dataKey="value" height={300} />
+        </Card>
+
+        {/* Holdings */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <Card title="Allocation" className="xl:col-span-1">
+            <PieChart data={pieData} height={250} />
+          </Card>
+          
+          <Card
+            title="Current Holdings"
+            className="xl:col-span-2"
+            action={
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={holdingFilter}
+                  onChange={(e) => setHoldingFilter(e.target.value)}
+                  className="bg-zinc-900 border border-app-border text-sm text-white rounded-lg px-3 py-2"
+                >
+                  <option value="all">All types</option>
+                  <option value="cash">Cash</option>
+                  <option value="equity">Equity</option>
+                  <option value="crypto">Crypto</option>
+                </select>
+                <select
+                  value={holdingSort}
+                  onChange={(e) => setHoldingSort(e.target.value as 'allocation' | 'value' | 'ticker')}
+                  className="bg-zinc-900 border border-app-border text-sm text-white rounded-lg px-3 py-2"
+                >
+                  <option value="value">Sort by Value</option>
+                  <option value="allocation">Sort by Allocation</option>
+                  <option value="ticker">Sort by Ticker</option>
+                </select>
+              </div>
+            }
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-zinc-500 uppercase border-b border-app-border">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Asset</th>
+                    <th className="px-4 py-3 font-medium text-right">Units</th>
+                    <th className="px-4 py-3 font-medium text-right">DCA</th>
+                    <th className="px-4 py-3 font-medium text-right">Price</th>
+                    <th className="px-4 py-3 font-medium text-right">Value ({displayCurrency})</th>
+                    <th className="px-4 py-3 font-medium text-right">Allocation</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-app-border">
+                  {filteredHoldings.map((holding) => {
+                    const displayValue = toDisplayCurrency(holding.value, holding.currency);
+                    return (
+                      <tr key={holding.ticker} className="group hover:bg-white/5 transition-colors">
+                        <td className="px-4 py-3 font-medium text-white">
+                          <div className="flex flex-col">
+                            <span>{holding.name}</span>
+                            <span className="text-xs text-zinc-500">{holding.type}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right text-zinc-300">{holding.units.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right text-zinc-300">{formatCurrency(holding.dca, holding.currency)}</td>
+                        <td className="px-4 py-3 text-right text-zinc-300">{formatCurrency(holding.price, holding.currency)}</td>
+                        <td className="px-4 py-3 text-right text-white font-medium">{formatCurrency(displayValue, displayCurrency)}</td>
+                        <td className="px-4 py-3 text-right text-zinc-300">{holding.allocation}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+
+        {/* Transactions */}
+        <Card
+          title="Transaction History"
+          action={
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={txFilter}
+                onChange={(e) => setTxFilter(e.target.value)}
+                className="bg-zinc-900 border border-app-border text-sm text-white rounded-lg px-3 py-2"
+              >
+                <option value="all">All types</option>
+                <option value="BUY">Buy</option>
+                <option value="SELL">Sell</option>
+                <option value="DIVIDEND">Dividend</option>
+                <option value="FX">FX</option>
+                <option value="CASH">Cash</option>
+              </select>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Filter size={14} />}
+                onClick={() => setTxSort(txSort === 'desc' ? 'asc' : 'desc')}
+              >
+                Sort {txSort === 'desc' ? '↓' : '↑'}
+              </Button>
+            </div>
+          }
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-zinc-500 uppercase border-b border-app-border">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
+                  <th className="px-4 py-3 font-medium">Description</th>
+                  <th className="px-4 py-3 font-medium text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-app-border">
+                {filteredTransactions.map((tx) => (
+                  <tr key={tx.id} className="group hover:bg-white/5 transition-colors">
+                    <td className="px-4 py-3 text-white font-medium">{tx.date}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-white/5 border border-app-border text-white">
+                        {tx.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-300">{tx.description}</td>
+                    <td className="px-4 py-3 text-right text-white font-medium">
+                      {formatCurrency(toDisplayCurrency(tx.amount, tx.currency), displayCurrency)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </main>
 
       <AddTradeModal isOpen={isTradeOpen} onClose={() => setTradeOpen(false)} />

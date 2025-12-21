@@ -53,6 +53,13 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({ isMobileOpen, setIsMob
     { name: 'Statistics', path: '/statistics', icon: BarChart3 },
   ];
 
+  const walletShortcuts = [
+    { name: 'Coinbase', path: '/wallets/coinbase' },
+    { name: 'Trading212', path: '/wallets/trading212' },
+    { name: 'Binance', path: '/wallets/binance' },
+    { name: 'Chase Bank', path: '/wallets/chase' },
+  ];
+
   const bottomItems = [
     { name: 'Help', path: '/help', icon: HelpCircle },
     { name: 'Settings', path: '/settings', icon: Settings },
@@ -99,6 +106,29 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({ isMobileOpen, setIsMob
               onClick={() => setIsMobileOpen(false)} 
             />
           ))}
+
+          <div className="mt-4 space-y-2">
+            <p className="text-xs uppercase tracking-wide text-zinc-500 px-3">Wallets</p>
+            <div className="space-y-1">
+              {walletShortcuts.map((wallet) => (
+                <Link
+                  key={wallet.path}
+                  to={wallet.path}
+                  onClick={() => setIsMobileOpen(false)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors border ${
+                    getIsActive(wallet.path)
+                      ? 'bg-white/10 border-white/20 text-white'
+                      : 'border-transparent text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <span className="h-8 w-8 rounded-lg bg-zinc-900 flex items-center justify-center text-xs font-semibold">
+                    {wallet.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="truncate">{wallet.name}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
         </nav>
 
         <div className="pt-6 border-t border-app-border space-y-1">
