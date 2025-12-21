@@ -1,66 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Prosperitas</title>
-    <script>
-      (() => {
-        const storedTheme = localStorage.getItem('prosperitas-theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const theme = storedTheme === 'light' || storedTheme === 'dark'
-          ? storedTheme
-          : prefersDark
-            ? 'dark'
-            : 'light';
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Prosperitas</title>
+        <script>
+            (() => {
+                const storedTheme = localStorage.getItem("prosperitas-theme");
+                const prefersDark = window.matchMedia(
+                    "(prefers-color-scheme: dark)"
+                ).matches;
+                const theme =
+                    storedTheme === "light" || storedTheme === "dark"
+                        ? storedTheme
+                        : prefersDark
+                        ? "dark"
+                        : "light";
 
-        document.documentElement.dataset.theme = theme;
-        document.documentElement.style.colorScheme = theme;
-      })();
-    </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
-            colors: {
-              app: {
-                bg: 'rgb(var(--color-app-bg) / <alpha-value>)',
-                card: 'rgb(var(--color-app-card) / <alpha-value>)',
-                surface: 'rgb(var(--color-app-surface) / <alpha-value>)',
-                border: 'rgb(var(--color-app-border) / <alpha-value>)',
-                foreground: 'rgb(var(--color-app-foreground) / <alpha-value>)',
-                muted: 'rgb(var(--color-app-muted) / <alpha-value>)',
-                primary: 'rgb(var(--color-app-primary) / <alpha-value>)',
-                accent: 'rgb(var(--color-app-accent) / <alpha-value>)',
-                success: 'rgb(var(--color-app-success) / <alpha-value>)',
-                danger: 'rgb(var(--color-app-danger) / <alpha-value>)',
-              }
+                document.documentElement.dataset.theme = theme;
+                document.documentElement.style.colorScheme = theme;
+            })();
+        </script>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ["Inter", "sans-serif"],
+                        },
+                        colors: {
+                            app: {
+                                bg: "rgb(var(--color-app-bg) / <alpha-value>)",
+                                card: "rgb(var(--color-app-card) / <alpha-value>)",
+                                surface:
+                                    "rgb(var(--color-app-surface) / <alpha-value>)",
+                                border: "rgb(var(--color-app-border) / <alpha-value>)",
+                                foreground:
+                                    "rgb(var(--color-app-foreground) / <alpha-value>)",
+                                muted: "rgb(var(--color-app-muted) / <alpha-value>)",
+                                primary:
+                                    "rgb(var(--color-app-primary) / <alpha-value>)",
+                                accent: "rgb(var(--color-app-accent) / <alpha-value>)",
+                                success:
+                                    "rgb(var(--color-app-success) / <alpha-value>)",
+                                danger: "rgb(var(--color-app-danger) / <alpha-value>)",
+                            },
+                        },
+                    },
+                },
+            };
+        </script>
+        <script type="importmap">
+            {
+                "imports": {
+                    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+                    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1",
+                    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+                    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+                    "react": "https://aistudiocdn.com/react@^19.2.1",
+                    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/"
+                }
             }
-          }
-        }
-      }
-    </script>
-  <script type="importmap">
-{
-  "imports": {
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-</head>
-  <body>
-    <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+        </script>
+        <link rel="stylesheet" href="/index.css" />
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/index.tsx"></script>
+    </body>
 </html>
