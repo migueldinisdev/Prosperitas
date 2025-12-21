@@ -6,6 +6,7 @@ import { LineChart } from '../../components/LineChart';
 import { Button } from '../../ui/Button';
 import { PieChart } from '../../components/PieChart';
 import { ArrowLeft, ArrowUpRight, DollarSign, Wallet as WalletIcon } from 'lucide-react';
+import { HoldingsTable, HoldingRow } from '../../components/HoldingsTable';
 
 // Mock data strictly for UI demo
 const chartData = [
@@ -20,6 +21,39 @@ const pieData = [
   { name: 'BTC', value: 60, color: '#f59e0b' },
   { name: 'ETH', value: 30, color: '#6366f1' },
   { name: 'SOL', value: 10, color: '#10b981' },
+];
+
+const holdings: HoldingRow[] = [
+  {
+    asset: 'Bitcoin',
+    ticker: 'BTC',
+    units: 0.8,
+    price: 34200,
+    value: 27360,
+    pnl: 2400,
+    pnlPercent: 9.6,
+    allocation: 60,
+  },
+  {
+    asset: 'Ethereum',
+    ticker: 'ETH',
+    units: 7.3,
+    price: 1850,
+    value: 13505,
+    pnl: 850,
+    pnlPercent: 6.7,
+    allocation: 30,
+  },
+  {
+    asset: 'Solana',
+    ticker: 'SOL',
+    units: 9.8,
+    price: 65,
+    value: 637,
+    pnl: -120,
+    pnlPercent: -15.8,
+    allocation: 10,
+  },
 ];
 
 interface Props {
@@ -82,32 +116,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
            </Card>
            
            <Card title="Holdings" className="lg:col-span-2">
-              <div className="overflow-x-auto">
-                 <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-app-muted uppercase border-b border-app-border">
-                       <tr>
-                          <th className="px-4 py-3 font-medium">Asset</th>
-                          <th className="px-4 py-3 font-medium text-right">Price</th>
-                          <th className="px-4 py-3 font-medium text-right">Value</th>
-                          <th className="px-4 py-3 font-medium text-right">PnL</th>
-                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-app-border">
-                       <tr className="group hover:bg-app-surface transition-colors">
-                          <td className="px-4 py-3 font-medium text-app-foreground">Bitcoin <span className="text-app-muted ml-1">BTC</span></td>
-                          <td className="px-4 py-3 text-right text-app-muted">$34,200.00</td>
-                          <td className="px-4 py-3 text-right text-app-foreground font-medium">$27,000.00</td>
-                          <td className="px-4 py-3 text-right text-app-success">+$2,400.00</td>
-                       </tr>
-                       <tr className="group hover:bg-app-surface transition-colors">
-                          <td className="px-4 py-3 font-medium text-app-foreground">Ethereum <span className="text-app-muted ml-1">ETH</span></td>
-                          <td className="px-4 py-3 text-right text-app-muted">$1,850.00</td>
-                          <td className="px-4 py-3 text-right text-app-foreground font-medium">$13,500.00</td>
-                          <td className="px-4 py-3 text-right text-app-success">+$850.00</td>
-                       </tr>
-                    </tbody>
-                 </table>
-              </div>
+              <HoldingsTable holdings={holdings} />
            </Card>
         </div>
       </main>
