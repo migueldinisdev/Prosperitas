@@ -29,7 +29,6 @@ Inputs
 - Add expense/income with associated category.
 - Month switcher (focus on current month).
 - Manage categories: add, edit, remove (+ category color).
-- Transfer money to a wallet (e.g., Coinbase, Binance, Trading212, Depósito Prazo).
 
 Info
 - List of latest transactions (expandable).
