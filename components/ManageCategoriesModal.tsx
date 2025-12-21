@@ -31,7 +31,7 @@ interface Props {
 // Mock initial categories
 const initialCategories: Category[] = [
   { id: '1', name: 'Groceries', icon: 'ShoppingCart', color: '#10b981' },
-  { id: '2', name: 'Rent', icon: 'Home', color: '#3b82f6' },
+  { id: '2', name: 'Rent', icon: 'Home', color: '#ff1493' },
   { id: '3', name: 'Transportation', icon: 'Car', color: '#f59e0b' },
   { id: '4', name: 'Entertainment', icon: 'Film', color: '#8b5cf6' },
   { id: '5', name: 'Dining', icon: 'Utensils', color: '#ef4444' },
@@ -63,7 +63,7 @@ const availableColors = [
   '#eab308', // yellow
   '#10b981', // emerald
   '#06b6d4', // cyan
-  '#3b82f6', // blue
+  '#ff1493', // primary pink
   '#8b5cf6', // violet
   '#ec4899', // pink
   '#6366f1', // indigo

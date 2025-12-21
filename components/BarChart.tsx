@@ -8,7 +8,7 @@ interface BarChartProps {
   height?: number;
 }
 
-export const BarChart: React.FC<BarChartProps> = ({ data, dataKey, color = '#3b82f6', height = 300 }) => {
+export const BarChart: React.FC<BarChartProps> = ({ data, dataKey, color = 'rgb(var(--color-app-primary))', height = 300 }) => {
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer>

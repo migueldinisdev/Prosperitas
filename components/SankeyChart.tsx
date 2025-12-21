@@ -43,7 +43,7 @@ export const SankeyChart: React.FC<SankeyChartProps> = ({ data, height = 500 }) 
     const isSavings = index === nodes.length - 1;
     const isExpense = !isIncome && !isSavings;
 
-    const fill = isIncome ? '#3b82f6' : isSavings ? '#10b981' : '#ef4444';
+    const fill = isIncome ? 'rgb(var(--color-app-primary))' : isSavings ? '#10b981' : '#ef4444';
 
     return (
       <g>
