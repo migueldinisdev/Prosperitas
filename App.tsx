@@ -6,6 +6,7 @@ import { BalancePage } from "./pages/balance";
 import { WalletsPage } from "./pages/wallets";
 import { WalletDetail } from "./pages/wallets/Wallet";
 import { PiesPage } from "./pages/pies";
+import { PieDetail } from "./pages/pies/PieDetail";
 import { StatisticsPage } from "./pages/statistics";
 import { HelpPage } from "./pages/help";
 import { SettingsPage } from "./pages/settings";
@@ -75,13 +76,14 @@ const App: React.FC = () => {
                                 />
                             }
                         />
-                        {/* Pie Detail would go here similar to WalletDetail */}
                         <Route
                             path="/pies/:id"
                             element={
-                                <div className="p-10 text-center text-app-muted">
-                                    Pie Details Mock
-                                </div>
+                                <PieDetail
+                                    onMenuClick={() =>
+                                        setIsMobileMenuOpen(true)
+                                    }
+                                />
                             }
                         />
 
