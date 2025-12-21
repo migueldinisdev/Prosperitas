@@ -4,7 +4,7 @@ import { Card } from '../../ui/Card';
 import { PieChart } from '../../components/PieChart';
 
 const assetTypeData = [
-  { name: 'Stocks', value: 45, color: '#ff1493' },
+  { name: 'Stocks', value: 45, color: '#d61544' },
   { name: 'Crypto', value: 30, color: '#f59e0b' },
   { name: 'Cash', value: 15, color: '#10b981' },
   { name: 'Real Estate', value: 10, color: '#8b5cf6' },
