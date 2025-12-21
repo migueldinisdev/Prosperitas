@@ -22,11 +22,11 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
       
       <main className="p-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           <AddWalletCard onClick={() => setAddOpen(true)} />
            <WalletCard name="Coinbase" balance={45230.50} pnl={3200.10} type="Crypto" />
            <WalletCard name="Trading212" balance={28400.00} pnl={-150.00} type="Stocks" />
            <WalletCard name="Binance" balance={12500.25} pnl={850.40} type="Crypto" />
            <WalletCard name="Chase Bank" balance={8500.00} pnl={0} type="Cash" />
+           <AddWalletCard onClick={() => setAddOpen(true)} />
         </div>
       </main>
 
