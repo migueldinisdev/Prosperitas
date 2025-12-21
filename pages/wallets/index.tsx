@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { PageHeader } from '../../components/PageHeader';
 import { WalletCard } from './WalletCard';
+import { AddWalletCard } from './AddWalletCard';
 import { Button } from '../../ui/Button';
-import { Plus } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
 
 interface Props {
@@ -18,11 +18,6 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
         title="Wallets" 
         subtitle="Your connected exchanges and accounts"
         onMenuClick={onMenuClick}
-        action={
-          <Button onClick={() => setAddOpen(true)} size="sm" icon={<Plus size={16} />}>
-            Add Wallet
-          </Button>
-        }
       />
       
       <main className="p-6 max-w-7xl mx-auto">
@@ -31,6 +26,7 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
            <WalletCard name="Trading212" balance={28400.00} pnl={-150.00} type="Stocks" />
            <WalletCard name="Binance" balance={12500.25} pnl={850.40} type="Crypto" />
            <WalletCard name="Chase Bank" balance={8500.00} pnl={0} type="Cash" />
+           <AddWalletCard onClick={() => setAddOpen(true)} />
         </div>
       </main>
 
