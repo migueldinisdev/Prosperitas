@@ -31,13 +31,13 @@ const NavLink: React.FC<NavLinkProps> = ({ item, isActive, onClick }) => {
       onClick={onClick}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
         isActive 
-          ? 'bg-zinc-200 dark:bg-white/10 text-zinc-900 dark:text-white' 
-          : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-white/5'
+          ? 'bg-app-card/50 text-app-text-primary' 
+          : 'text-app-text-secondary hover:text-app-text-primary hover:bg-app-card/30'
       }`}
     >
-      <item.icon size={20} className={isActive ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'} />
+      <item.icon size={20} className={isActive ? 'text-app-text-primary' : 'text-app-text-tertiary group-hover:text-app-text-secondary'} />
       <span>{item.name}</span>
-      {isActive && <ChevronRight size={14} className="ml-auto text-zinc-500" />}
+      {isActive && <ChevronRight size={14} className="ml-auto text-app-text-tertiary" />}
     </Link>
   );
 };
@@ -74,7 +74,7 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({ isMobileOpen, setIsMob
 
       {/* Sidebar */}
       <aside className={`
-        fixed top-0 left-0 h-full w-64 bg-zinc-50 dark:bg-app-bg border-r border-zinc-200 dark:border-app-border p-6 flex flex-col z-50
+        fixed top-0 left-0 h-full w-64 bg-app-bg border-r border-app-border p-6 flex flex-col z-50
         transition-transform duration-300 ease-in-out
         ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
@@ -83,9 +83,9 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({ isMobileOpen, setIsMob
             <div className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-violet-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">
               P
             </div>
-            <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">Prosperitas</span>
+            <span className="text-xl font-bold tracking-tight text-app-text-primary">Prosperitas</span>
           </div>
-          <button onClick={() => setIsMobileOpen(false)} className="lg:hidden text-zinc-600 dark:text-zinc-400">
+          <button onClick={() => setIsMobileOpen(false)} className="lg:hidden text-app-text-secondary">
             <X size={20} />
           </button>
         </div>
@@ -101,7 +101,7 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({ isMobileOpen, setIsMob
           ))}
         </nav>
 
-        <div className="pt-6 border-t border-zinc-200 dark:border-app-border space-y-1">
+        <div className="pt-6 border-t border-app-border space-y-1">
           {bottomItems.map((item) => (
             <NavLink 
               key={item.path} 

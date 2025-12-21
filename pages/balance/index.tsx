@@ -35,28 +35,28 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
            <Card title="Savings Rate">
               <div className="flex items-end gap-2 mb-2">
-                 <span className="text-4xl font-bold text-zinc-900 dark:text-white">42%</span>
-                 <span className="text-zinc-600 dark:text-zinc-500 mb-1">this month</span>
+                 <span className="text-4xl font-bold text-app-text-primary">42%</span>
+                 <span className="text-app-text-secondary mb-1">this month</span>
               </div>
-              <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-app-card h-2 rounded-full overflow-hidden">
                  <div className="bg-emerald-500 h-full w-[42%]"></div>
               </div>
-              <p className="text-xs text-zinc-600 dark:text-zinc-500 mt-2">+$450 vs monthly average</p>
+              <p className="text-xs text-app-text-secondary mt-2">+$450 vs monthly average</p>
            </Card>
            
            <Card title="Cash Flow">
               <div className="space-y-2 mt-2">
                  <div className="flex justify-between text-sm">
-                    <span className="text-zinc-600 dark:text-zinc-400">Income</span>
-                    <span className="text-zinc-900 dark:text-white font-medium">$4,200.00</span>
+                    <span className="text-app-text-secondary">Income</span>
+                    <span className="text-app-text-primary font-medium">$4,200.00</span>
                  </div>
                  <div className="flex justify-between text-sm">
-                    <span className="text-zinc-600 dark:text-zinc-400">Expenses</span>
-                    <span className="text-zinc-900 dark:text-white font-medium">-$2,450.00</span>
+                    <span className="text-app-text-secondary">Expenses</span>
+                    <span className="text-app-text-primary font-medium">-$2,450.00</span>
                  </div>
-                 <div className="h-px bg-zinc-200 dark:bg-app-border my-2"></div>
+                 <div className="h-px bg-app-border my-2"></div>
                  <div className="flex justify-between text-base font-semibold">
-                    <span className="text-zinc-700 dark:text-zinc-300">Net Savings</span>
+                    <span className="text-app-text-secondary">Net Savings</span>
                     <span className="text-app-success">+$1,750.00</span>
                  </div>
               </div>

@@ -13,13 +13,13 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({ isOpen, onClose })
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add Transaction">
       <div className="space-y-4">
-        <div className="flex bg-zinc-100 dark:bg-zinc-900 p-1 rounded-lg">
+        <div className="flex bg-app-bg p-1 rounded-lg">
           {['expense', 'income'].map((t) => (
             <button
               key={t}
               onClick={() => setType(t)}
               className={`flex-1 py-1.5 text-sm font-medium rounded-md capitalize transition-all ${
-                type === t ? 'bg-zinc-300 dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-600 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
+                type === t ? 'bg-app-card text-app-text-primary shadow-sm' : 'text-app-text-secondary hover:text-app-text-primary'
               }`}
             >
               {t}
@@ -28,17 +28,17 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({ isOpen, onClose })
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Amount</label>
+          <label className="block text-xs font-medium text-app-text-secondary mb-1">Amount</label>
           <input 
             type="number" 
             placeholder="0.00" 
-            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-app-border rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white"
+            className="w-full bg-app-bg border border-app-border rounded-lg px-3 py-2 text-app-text-primary focus:outline-none focus:ring-1 focus:ring-app-primary"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Category</label>
-          <select className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-app-border rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white">
+          <label className="block text-xs font-medium text-app-text-secondary mb-1">Category</label>
+          <select className="w-full bg-app-bg border border-app-border rounded-lg px-3 py-2 text-app-text-primary focus:outline-none focus:ring-1 focus:ring-app-primary">
             <option>Groceries</option>
             <option>Rent</option>
             <option>Entertainment</option>

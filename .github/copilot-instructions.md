@@ -1,7 +1,7 @@
 # Copilot Instructions for Prosperitas
 
 ## Project Overview
-Prosperitas is a premium financial tracker app for managing net worth, investment portfolios, and expense balancing with a dark UI aesthetic.
+Prosperitas is a premium financial tracker app for managing net worth, investment portfolios, and expense balancing.
 
 **Stack**: React 19 + TypeScript + Vite + React Router + Tailwind CSS (via CDN)
 
@@ -43,38 +43,126 @@ export const HomePage: React.FC<Props> = ({ onMenuClick }) => { ... }
 - Local component state with `useState` only - no global state library
 - Modal visibility controlled at page level
 - Currency/display preferences via `DisplayCurrencySelector` component
+- Theme management via `data-theme` attribute on `document.documentElement`
+
+## Theme System
+
+### Architecture
+**CRITICAL**: We use a **CSS variable-based theme system** with `data-theme` attribute, NOT Tailwind's `dark:` classes.
+
+### How It Works
+1. **Theme Attribute**: The `data-theme` attribute on `<html>` element controls the theme (`"light"` or `"dark"`)
+2. **CSS Variables**: Defined in `index.html` for each theme, scoped by `[data-theme="light"]` and `[data-theme="dark"]`
+3. **Tailwind Tokens**: Use semantic app color tokens that reference CSS variables
+4. **No dark: prefix**: We DO NOT use Tailwind's `dark:` utility classes
+
+### CSS Variables (defined in index.html)
+```css
+/* Light theme */
+[data-theme="light"] {
+  --color-bg: 250 250 250;           /* Zinc 50 */
+  --color-card: 255 255 255;         /* White */
+  --color-border: 228 228 231;       /* Zinc 200 */
+  --color-text-primary: 24 24 27;    /* Zinc 900 */
+  --color-text-secondary: 82 82 91;  /* Zinc 500 */
+  --color-text-tertiary: 161 161 170;/* Zinc 400 */
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --color-bg: 9 9 11;                /* Zinc 950 */
+  --color-card: 24 24 27;            /* Zinc 900 */
+  --color-border: 39 39 42;          /* Zinc 800 */
+  --color-text-primary: 244 244 245; /* Zinc 100 */
+  --color-text-secondary: 161 161 170;/* Zinc 400 */
+  --color-text-tertiary: 113 113 122;/* Zinc 500 */
+}
+```
+
+### Tailwind Configuration
+Tailwind config (in `index.html`) extends colors with app tokens that reference CSS variables:
+```javascript
+colors: {
+  app: {
+    bg: 'rgb(var(--color-bg) / <alpha-value>)',
+    card: 'rgb(var(--color-card) / <alpha-value>)',
+    border: 'rgb(var(--color-border) / <alpha-value>)',
+    'text-primary': 'rgb(var(--color-text-primary) / <alpha-value>)',
+    'text-secondary': 'rgb(var(--color-text-secondary) / <alpha-value>)',
+    'text-tertiary': 'rgb(var(--color-text-tertiary) / <alpha-value>)',
+    primary: '#3b82f6',  // Blue 500
+    accent: '#8b5cf6',   // Violet 500
+    success: '#10b981',  // Emerald 500
+    danger: '#f43f5e',   // Rose 500
+  }
+}
+```
 
 ## Styling System
 
 ### Tailwind via CDN
 **CRITICAL**: Tailwind is loaded via CDN in `index.html` - NOT via PostCSS. Do not create `tailwind.config.js` or suggest PostCSS setup.
 
-### Design Tokens (defined in `index.html`)
-```javascript
-colors: {
-  app: {
-    bg: '#09090b',      // Zinc 950 - main background
-    card: '#18181b',    // Zinc 900 - card backgrounds
-    border: '#27272a',  // Zinc 800 - borders
-    primary: '#3b82f6', // Blue 500
-    accent: '#8b5cf6',  // Violet 500
-    success: '#10b981', // Emerald 500
-    danger: '#f43f5e',  // Rose 500
-  }
-}
+### Theming Conventions
+**NEVER use Tailwind's `dark:` prefix classes.** Instead:
+
+#### ✅ CORRECT - Use app color tokens:
+```tsx
+// Backgrounds
+<div className="bg-app-bg">        // Main background
+<div className="bg-app-card">      // Card background
+<div className="border-app-border">// Borders
+
+// Text colors
+<h1 className="text-app-text-primary">    // Primary text (headings, important)
+<p className="text-app-text-secondary">   // Secondary text (descriptions)
+<span className="text-app-text-tertiary"> // Tertiary text (labels, muted)
+
+// Hover states (use opacity or conditional classes)
+<button className="hover:opacity-90">
+<button className="hover:bg-app-card/50">
 ```
 
-### Styling Conventions
-- **Always use**: `bg-app-bg`, `bg-app-card`, `border-app-border` for backgrounds/borders
+#### ❌ WRONG - Do NOT use:
+```tsx
+<div className="dark:bg-zinc-900">        // ❌ NO dark: prefix
+<div className="bg-white dark:bg-black">  // ❌ NO dark: prefix
+<p className="text-black dark:text-white"> // ❌ NO dark: prefix
+```
+
+### Design Tokens
+- **Backgrounds**: `bg-app-bg`, `bg-app-card`
+- **Borders**: `border-app-border`
+- **Text**: `text-app-text-primary`, `text-app-text-secondary`, `text-app-text-tertiary`
+- **Accent colors**: `text-app-primary`, `text-app-accent`, `text-app-success`, `text-app-danger`
 - **Spacing**: Generous padding (`p-6`, `p-5`) and rounded corners (`rounded-2xl`, `rounded-xl`)
-- **Typography**: `text-zinc-100` (main), `text-zinc-400` (secondary), `text-zinc-500` (tertiary)
-- **Interactive states**: `hover:bg-zinc-800`, `transition-all duration-200`
-- **Cards**: Use `Card` component with built-in styling, not raw divs
+- **Interactive states**: Use `hover:opacity-90`, `hover:bg-app-card/50`, etc. (NOT `dark:` variants)
+
+### Theme Toggle Implementation
+To toggle theme (example from Settings page):
+```tsx
+const toggleTheme = () => {
+  const newTheme = theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+  setTheme(newTheme);
+};
+```
+
+Theme initialization (in `index.html <head>`):
+```html
+<script>
+  (function() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  })();
+</script>
+```
 
 ## UI Component Patterns
 
 ### Button Component (`ui/Button.tsx`)
-- **Variants**: `primary` (white bg), `secondary` (border), `ghost`, `danger`
+- **Variants**: `primary`, `secondary`, `ghost`, `danger`
 - **Sizes**: `sm`, `md`, `lg`
 - **Icon support**: Pass `icon` prop (Lucide React component)
 ```tsx
@@ -123,7 +211,7 @@ import { IconName } from 'lucide-react';
 ## Data Flow
 - **No backend**: App uses mock data only (hardcoded in components)
 - **No API calls**: All data is static
-- **No persistence**: No localStorage/sessionStorage currently implemented
+- **Theme persistence**: Via localStorage with `data-theme` attribute
 
 ## Path Aliases
 - `@/` resolves to project root (configured in `vite.config.ts` and `tsconfig.json`)
@@ -131,7 +219,8 @@ import { IconName } from 'lucide-react';
 
 ## Important Notes
 - **React 19**: Uses new JSX runtime, no need for explicit React import in most cases
-- **No CSS files**: All styling via Tailwind utility classes
+- **No CSS files**: All styling via Tailwind utility classes with app tokens
 - **Mobile-first**: Fixed sidebar on desktop, slide-out menu on mobile
 - **Currency**: Multi-currency support via `Currency` enum (EUR, USD, GBP, CHF)
 - **Charts**: Using Recharts library for data visualization components
+- **Theme System**: CSS variables + data-theme attribute (NO `dark:` classes)
