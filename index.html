@@ -1,73 +1,76 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Prosperitas</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
-            colors: {
-              app: {
-                bg: '#09090b', // Zinc 950
-                card: '#18181b', // Zinc 900
-                border: '#27272a', // Zinc 800
-                primary: '#3b82f6', // Blue 500
-                accent: '#8b5cf6', // Violet 500
-                success: '#10b981', // Emerald 500
-                danger: '#f43f5e', // Rose 500
-              }
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Prosperitas</title>
+        <script>
+            (() => {
+                const storedTheme = localStorage.getItem("prosperitas-theme");
+                const prefersDark = window.matchMedia(
+                    "(prefers-color-scheme: dark)"
+                ).matches;
+                const theme =
+                    storedTheme === "light" || storedTheme === "dark"
+                        ? storedTheme
+                        : prefersDark
+                        ? "dark"
+                        : "light";
+
+                document.documentElement.dataset.theme = theme;
+                document.documentElement.style.colorScheme = theme;
+            })();
+        </script>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ["Inter", "sans-serif"],
+                        },
+                        colors: {
+                            app: {
+                                bg: "rgb(var(--color-app-bg) / <alpha-value>)",
+                                card: "rgb(var(--color-app-card) / <alpha-value>)",
+                                surface:
+                                    "rgb(var(--color-app-surface) / <alpha-value>)",
+                                border: "rgb(var(--color-app-border) / <alpha-value>)",
+                                foreground:
+                                    "rgb(var(--color-app-foreground) / <alpha-value>)",
+                                muted: "rgb(var(--color-app-muted) / <alpha-value>)",
+                                primary:
+                                    "rgb(var(--color-app-primary) / <alpha-value>)",
+                                accent: "rgb(var(--color-app-accent) / <alpha-value>)",
+                                success:
+                                    "rgb(var(--color-app-success) / <alpha-value>)",
+                                danger: "rgb(var(--color-app-danger) / <alpha-value>)",
+                            },
+                        },
+                    },
+                },
+            };
+        </script>
+        <script type="importmap">
+            {
+                "imports": {
+                    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+                    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1",
+                    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+                    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+                    "react": "https://aistudiocdn.com/react@^19.2.1",
+                    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/"
+                }
             }
-          }
-        }
-      }
-    </script>
-    <style>
-      body {
-        background-color: #09090b;
-        color: #f4f4f5;
-        font-family: 'Inter', sans-serif;
-        -webkit-font-smoothing: antialiased;
-      }
-      /* Custom scrollbar for premium feel */
-      ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #3f3f46;
-        border-radius: 3px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #52525b;
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-</head>
-  <body>
-    <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+        </script>
+        <link rel="stylesheet" href="/index.css" />
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/index.tsx"></script>
+    </body>
 </html>

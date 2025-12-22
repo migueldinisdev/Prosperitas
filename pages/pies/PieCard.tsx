@@ -1,7 +1,8 @@
 import React from 'react';
 import { Card } from '../../ui/Card';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { formatCurrency } from '../../utils/formatters';
 
 interface PieCardProps {
   name: string;
@@ -12,27 +13,29 @@ interface PieCardProps {
 }
 
 export const PieCard: React.FC<PieCardProps> = ({ name, desc, risk, value, growth }) => {
+  const isPositive = growth >= 0;
+
   return (
     <Link to={`/pies/${name.toLowerCase().replace(/\s/g, '-')}`}>
-      <Card className="hover:bg-zinc-900/80 transition-colors cursor-pointer h-full flex flex-col justify-between">
+      <Card className="hover:bg-app-surface transition-colors cursor-pointer h-full flex flex-col justify-between">
         <div>
            <div className="flex justify-between items-start mb-2">
-              <h3 className="text-lg font-bold text-white">{name}</h3>
+              <h3 className="text-lg font-bold text-app-foreground">{name}</h3>
               <div className="flex gap-1">
                  {[1,2,3,4,5].map(i => (
-                    <div key={i} className={`w-1 h-3 rounded-full ${i <= risk ? 'bg-indigo-500' : 'bg-zinc-800'}`} />
+                    <div key={i} className={`w-1 h-3 rounded-full ${i <= risk ? 'bg-app-primary' : 'bg-app-border'}`} />
                  ))}
               </div>
            </div>
-           <p className="text-sm text-zinc-400 mb-6">{desc}</p>
+           <p className="text-sm text-app-muted mb-6">{desc}</p>
         </div>
         
         <div>
-           <p className="text-xs text-zinc-500 uppercase font-medium">Total Value</p>
+           <p className="text-xs text-app-muted uppercase font-medium">Total Value</p>
            <div className="flex justify-between items-end mt-1">
-              <span className="text-xl font-bold text-white">${value.toLocaleString()}</span>
-              <span className="text-sm font-medium text-app-success flex items-center">
-                 <ArrowUpRight size={14} /> {growth}%
+              <span className="text-xl font-bold text-app-foreground">{formatCurrency(value)}</span>
+              <span className={`text-sm font-medium flex items-center ${isPositive ? 'text-app-success' : 'text-app-danger'}`}>
+                 {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />} {growth}%
               </span>
            </div>
         </div>
