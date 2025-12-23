@@ -7,6 +7,7 @@ import { Button } from '../../ui/Button';
 import { PieChart } from '../../components/PieChart';
 import { ArrowLeft, ArrowUpRight, DollarSign, Wallet as WalletIcon } from 'lucide-react';
 import { HoldingsTable, HoldingRow } from '../../components/HoldingsTable';
+import { useWalletData } from '../../hooks/useWalletData';
 
 // Mock data strictly for UI demo
 const chartData = [
@@ -63,6 +64,7 @@ interface Props {
 export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
   const { id } = useParams();
   const walletName = id ? id.charAt(0).toUpperCase() + id.slice(1) : 'Wallet';
+  const { wallet, walletCash, walletTransactions } = useWalletData(id);
 
   return (
     <div className="pb-20">
@@ -75,6 +77,31 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
       <main className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Statistics Header */}
+        <Card title="Wallet State (Redux)">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">Name</p>
+              <p className="text-lg font-semibold text-app-foreground">{wallet?.name ?? 'Unknown wallet'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">Transactions</p>
+              <p className="text-lg font-semibold text-app-foreground">{walletTransactions.length}</p>
+            </div>
+            <div>
+              <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">Cash Buckets</p>
+              <div className="space-y-1">
+                {walletCash
+                  ? Object.entries(walletCash).map(([currency, amount]) => (
+                      <p key={currency} className="text-sm text-app-foreground">
+                        {currency}: {amount}
+                      </p>
+                    ))
+                  : <p className="text-sm text-app-muted">No cash data</p>}
+              </div>
+            </div>
+          </div>
+        </Card>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
            <Card className="p-4">
               <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">Current Value</p>

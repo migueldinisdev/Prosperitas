@@ -5,6 +5,7 @@ import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { Plus } from "lucide-react";
 import { AddBalanceTransactionModal } from "../../components/AddBalanceTransactionModal";
+import { StateSnapshotCard } from "../../components/StateSnapshotCard";
 
 interface Props {
     onMenuClick: () => void;
@@ -34,6 +35,7 @@ export const HomePage: React.FC<Props> = ({ onMenuClick }) => {
                         </Button>
                     </div>
                 </Card>
+                <StateSnapshotCard />
 
                 <HomeSummarySection />
             </main>

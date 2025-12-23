@@ -21,7 +21,9 @@ import {
   Laptop,
   Smartphone
 } from 'lucide-react';
-import type { Category } from '../types';
+import type { Category } from '../core/types';
+
+type EditableCategory = Category & { icon: string };
 
 interface Props {
   isOpen: boolean;
@@ -29,13 +31,13 @@ interface Props {
 }
 
 // Mock initial categories
-const initialCategories: Category[] = [
-  { id: '1', name: 'Groceries', icon: 'ShoppingCart', color: '#10b981' },
-  { id: '2', name: 'Rent', icon: 'Home', color: '#d61544' },
-  { id: '3', name: 'Transportation', icon: 'Car', color: '#f59e0b' },
-  { id: '4', name: 'Entertainment', icon: 'Film', color: '#8b5cf6' },
-  { id: '5', name: 'Dining', icon: 'Utensils', color: '#ef4444' },
-  { id: '6', name: 'Utilities', icon: 'Zap', color: '#06b6d4' },
+const initialCategories: EditableCategory[] = [
+  { id: '1', name: 'Groceries', icon: 'ShoppingCart', color: '#10b981', type: 'expense' },
+  { id: '2', name: 'Rent', icon: 'Home', color: '#d61544', type: 'expense' },
+  { id: '3', name: 'Transportation', icon: 'Car', color: '#f59e0b', type: 'expense' },
+  { id: '4', name: 'Entertainment', icon: 'Film', color: '#8b5cf6', type: 'expense' },
+  { id: '5', name: 'Dining', icon: 'Utensils', color: '#ef4444', type: 'expense' },
+  { id: '6', name: 'Utilities', icon: 'Zap', color: '#06b6d4', type: 'expense' },
 ];
 
 // Available icons mapping
@@ -71,7 +73,7 @@ const availableColors = [
 ];
 
 export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [categories, setCategories] = useState<EditableCategory[]>(initialCategories);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   
@@ -91,11 +93,12 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const handleAdd = () => {
     if (!formName.trim()) return;
     
-    const newCategory: Category = {
+    const newCategory: EditableCategory = {
       id: Date.now().toString(),
       name: formName,
       icon: formIcon,
       color: formColor,
+      type: 'expense',
     };
     
     setCategories([...categories, newCategory]);
