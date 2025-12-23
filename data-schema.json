@@ -1,0 +1,184 @@
+{
+  "schemaVersion": "0.1",
+
+  "meta": {
+    "createdAt": "2025-12-22T00:00:00.000Z",
+    "updatedAt": "2025-12-22T00:00:00.000Z"
+  },
+  "settings": {
+    "balanceCurrency": "EUR",
+    "visualCurrency": "EUR",
+    "locale": "en-PT",
+    "timezone": "GMT+0",
+    "numberFormat": {
+      "useGrouping": true,
+      "maxFractionDigits": 2
+    }
+  },
+  "account": {
+    "name": "Miguel"
+  },
+  "categories": {
+    "cat_0": {
+      "id": "cat_0",
+      "name": "Salary",
+      "type": "income",
+      "color": "#2ECC71"
+    },
+    "cat_1": {
+      "id": "cat_1",
+      "name": "Food",
+      "type": "expense",
+      "color": "#E74C3C"
+    }
+  },
+  "balance": {
+    "2025-12": {
+      "month": "2025-12",
+      "txs": [
+        {
+          "date": "2025-12-01",
+          "type": "income",
+          "categoryId": "cat_0",
+          "amount": { "value": 1500, "currency": "EUR" },
+          "description": "December salary",
+          "createdAt": "2025-12-01T10:00:00.000Z"
+        },
+        {
+          "date": "2025-12-01",
+          "type": "expense",
+          "categoryId": "cat_1",
+          "amount": { "value": 3.95, "currency": "EUR" },
+          "description": "coffee",
+          "createdAt": "2025-12-20T10:00:00.000Z"
+        }
+      ]
+    },
+    "2026-01": {
+      "month": "2026-01",
+      "txs": []
+    }
+  },
+
+  "assets": {
+    "a_0": {
+      "id": "a_0",
+      "ticker": "BTC",
+      "exchange": null,
+      "tradingCurrency": "USD",
+      "name": "Bitcoin",
+      "assetType": "crypto",
+      "decimals": 8,
+      "amount": 0.0,
+      "avgCost": { "value": 0, "currency": "USD" },
+      "txIds": [],
+      "createdAt": "2025-12-22T00:00:00.000Z",
+      "updatedAt": "2025-12-22T00:00:00.000Z"
+    },
+    "a_1": {
+      "id": "a_1",
+      "ticker": "VUAA",
+      "exchange": "MIL",
+      "tradingCurrency": "EUR",
+      "name": "Vanguard S&P 500 UCITS ETF",
+      "assetType": "etf",
+      "decimals": 6,
+      "amount": 0.0,
+      "avgCost": { "value": 0, "currency": "EUR" },
+      "txIds": [],
+      "createdAt": "2025-12-22T00:00:00.000Z",
+      "updatedAt": "2025-12-22T00:00:00.000Z"
+    }
+  },
+
+  "wallets": {
+    "wallet_0": {
+      "id": "wallet_0",
+      "name": "Coinbase",
+      "description": "Crypto exchange",
+      "cash": { "EUR": 0, "USD": 0 },
+      "txIds": []
+    },
+    "wallet_1": {
+      "id": "wallet_1",
+      "name": "Binance",
+      "description": "Another crypto exchange",
+      "cash": { "EUR": 0, "USD": 0 },
+      "txIds": []
+    }
+  },
+
+  "walletPositions": {
+    "wallet_0": {
+      "a_0": { "amount": 0.0, "avgCost": { "value": 0, "currency": "USD" } },
+      "a_1": { "amount": 0.0, "avgCost": { "value": 0, "currency": "EUR" } }
+    },
+    "wallet_1": {
+      "a_0": { "amount": 0.0, "avgCost": { "value": 0, "currency": "USD" } }
+    }
+  },
+
+  "walletTx": {
+    "tx_0": {
+      "id": "tx_0",
+      "walletId": "wallet_0",
+      "type": "deposit",
+      "date": "2025-12-10",
+      "amount": { "value": 500, "currency": "EUR" },
+      "createdAt": "2025-12-10T12:00:00.000Z"
+    },
+    "tx_1": {
+      "id": "tx_1",
+      "walletId": "wallet_0",
+      "type": "forex",
+      "date": "2025-12-11",
+      "from": { "value": 300, "currency": "EUR" },
+      "to": { "value": 330, "currency": "USD" },
+      "fees": { "value": 1.0, "currency": "EUR" },
+      "createdAt": "2025-12-11T12:00:00.000Z"
+    },
+    "tx_2": {
+      "id": "tx_2",
+      "walletId": "wallet_0",
+      "type": "buy",
+      "date": "2025-12-12",
+      "assetId": "a_0",
+      "quantity": 0.01,
+      "price": { "value": 45000, "currency": "USD" },
+      "fees": { "value": 1.5, "currency": "EUR" },
+      "createdAt": "2025-12-12T12:00:00.000Z"
+    },
+    "tx_3": {
+      "id": "tx_3",
+      "walletId": "wallet_0",
+      "type": "sell",
+      "date": "2025-12-20",
+      "assetId": "a_0",
+      "quantity": 0.005,
+      "price": { "value": 52000, "currency": "USD" },
+      "fees": { "value": 1.2, "currency": "EUR" },
+      "createdAt": "2025-12-20T12:00:00.000Z"
+    },
+    "tx_4": {
+      "id": "tx_4",
+      "walletId": "wallet_0",
+      "type": "withdraw",
+      "date": "2025-12-21",
+      "amount": { "value": 50, "currency": "EUR" },
+      "createdAt": "2025-12-21T12:00:00.000Z"
+    }
+  },
+
+  "pies": {
+    "pie_0": {
+      "id": "pie_0",
+      "name": "pie1",
+      "assetIds": ["a_0", "a_1"]
+    },
+    "pie_1": {
+      "id": "pie_1",
+      "name": "pie2",
+      "assetIds": []
+    }
+  }
+}
