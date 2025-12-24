@@ -1,4 +1,4 @@
-import { WalletTx, Money, WalletPosition } from "../../core/types";
+import { WalletTx, Money, WalletPosition } from "../../core/schema-types";
 import { AppThunk, AppDispatch, RootState } from "../index";
 import {
     addWalletTx,
@@ -47,7 +47,8 @@ const adjustWalletCash = (
     if (!wallet) {
         return;
     }
-    const currentCash = wallet.cash[currency] ?? 0;
+    const cashEntry = (wallet.cash || []).find((m) => m.currency === currency);
+    const currentCash = cashEntry ? cashEntry.value : 0;
     dispatch(
         setWalletCashValue({
             id: walletId,
@@ -74,7 +75,7 @@ const updatePositions = (
     const currentAmount = currentWalletPosition?.amount ?? 0;
     const currentAvgCost =
         currentWalletPosition?.avgCost ??
-        price ?? { value: 0, currency: asset?.tradingCurrency ?? "" };
+        price ?? { value: 0, currency: (asset?.tradingCurrency ?? 'EUR') as any };
 
     const nextAmount = Math.max(currentAmount + quantityDelta, 0);
     const nextAvgCost =
@@ -122,7 +123,8 @@ const applyWalletTransactionEffects = (
     tx: WalletTx,
     direction: 1 | -1,
     getState: () => RootState,
-    dispatch: AppDispatch
+    // dispatch can be a thunk dispatch; keep flexible to avoid strict type mismatch
+    dispatch: any
 ) => {
     switch (tx.type) {
         case "deposit":

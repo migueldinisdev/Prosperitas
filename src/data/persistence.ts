@@ -1,4 +1,4 @@
-import { ProsperitasState } from "../core/types";
+import { ProsperitasState } from "../core/schema-types";
 import { CURRENT_SCHEMA_VERSION } from "../store/initialState";
 
 const requiredKeys: (keyof ProsperitasState)[] = [

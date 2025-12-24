@@ -12,7 +12,7 @@ import walletPositionsReducer from "./slices/walletPositionsSlice";
 import walletTxReducer from "./slices/walletTxSlice";
 import piesReducer from "./slices/piesSlice";
 import { defaultState } from "./initialState";
-import { ProsperitasState } from "../core/types";
+import { ProsperitasState } from "../core/schema-types";
 import {
     createIndexedDbStorage,
     persistReducer,
@@ -63,7 +63,7 @@ export const store = configureStore({
     preloadedState: defaultState,
 });
 
-export const persistor = persistStore(store);
+export const persistor = persistStore(store, persistConfig);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

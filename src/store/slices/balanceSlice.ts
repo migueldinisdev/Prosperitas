@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { BalanceState, BalanceTransaction, BalanceMonth } from "../../core/types";
+import { BalanceState, BalanceTransaction, BalanceMonth } from "../../core/schema-types";
 import { defaultState } from "../initialState";
 
 const balanceSlice = createSlice({

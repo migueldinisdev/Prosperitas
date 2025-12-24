@@ -139,7 +139,11 @@ class SimplePersistor<S> {
             if (serialized) {
                 const parsed = JSON.parse(serialized) as S;
                 const nextState = migrate ? migrate(parsed) : parsed;
-                this.store.dispatch(replaceState(nextState as unknown as S));
+                // replaceState is strongly typed to the app state type; the persistor
+                // is generic so cast dispatch to any to avoid a type mismatch here.
+                // This preserves runtime behavior while keeping the persist logic
+                // usable across generic store shapes.
+                (this.store.dispatch as any)(replaceState(nextState as unknown as any));
             }
         } catch (error) {
             console.error("Failed to rehydrate state", error);

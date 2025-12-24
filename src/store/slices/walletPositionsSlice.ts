@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { WalletPosition, WalletPositionsState } from "../../core/types";
+import { WalletPosition, WalletPositionsState } from "../../core/schema-types";
 import { defaultState } from "../initialState";
 
 const walletPositionsSlice = createSlice({

@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Category } from "../../core/types";
+import { Category } from "../../core/schema-types";
 import { defaultState } from "../initialState";
 
 export type CategoriesState = Record<string, Category>;

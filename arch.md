@@ -172,12 +172,44 @@ General Statistics
 ---
 
 ## 5) Data Model & Entities (Planned)
-- Transaction: base entity for balance and wallet events (BUY/SELL/FX/dividend/interest/transfer in/out).
-- Holding/Position: per asset ticker within a wallet (units, DCA, DCA in display currency, etc.).
-- Wallet: name, description, FIAT buckets, holdings, transactions.
-- Pie: name, description, risk 1-5, associated holdings view.
-- Settings: base currency (EUR), display preferences.
-- Prices: live and historical for tickers; FX pairs historical per date.
+
+Schema Types (`src/core/schema-types/`)
+These types define the Redux store structure and match `data-schema.json`. The app state is normalized with entities stored as `Record<id, Entity>` for fast lookup.
+
+Core Types
+- `Currency`: `'EUR' | 'USD'` (extensible to GBP, CHF, etc.)
+- `Money`: `{ value: number, currency: Currency }`
+- `CategoryType`: `'income' | 'expense'`
+- `AssetType`: `'stock' | 'etf' | 'crypto' | 'bond' | 'cash' | 'other'`
+
+State Structure
+```typescript
+ProsperitasState {
+  schemaVersion: string
+  meta: Meta                                    // createdAt, updatedAt
+  settings: Settings                            // currencies, locale, timezone, number format
+  account: Account                              // name
+  categories: Record<id, Category>              // income/expense categories with colors
+  balance: Record<month, BalanceMonth>          // monthly transactions (YYYY-MM → { month, txs[] })
+  assets: Record<id, Asset>                     // ticker, exchange, tradingCurrency, assetType, amount, avgCost, txIds
+  wallets: Record<id, Wallet>                   // name, description, cash: Record<Currency, number>, txIds
+  walletPositions: Record<walletId, Record<assetId, WalletPosition>>  // amount, avgCost
+  walletTx: Record<id, WalletTx>                // deposit/withdraw/forex/buy/sell transactions
+  pies: Record<id, Pie>                         // name, assetIds, description, risk
+}
+```
+
+Key Relationships
+- `Transaction` → `categoryId` references `categories[id]`
+- `WalletTx` → `walletId` references `wallets[id]`, `assetId` references `assets[id]`, optional `pieId` references `pies[id]`
+- `Asset` → `txIds[]` references `walletTx[id]`
+- `Wallet` → `txIds[]` references `walletTx[id]`
+- `Wallet.cash`: Record of currency balances (e.g., `{ EUR: 1000, USD: 500 }`)
+
+Transaction Types
+- Balance: income/expense/transfer with category, amount (Money), date
+- Wallet: deposit/withdraw/forex/buy/sell with amounts (Money), optional fees/tax, no notes field
+- All wallet transactions include `walletId`, `date`, `createdAt`, optional `pieId`
 
 ---
 
@@ -203,30 +235,38 @@ Current Implementation
 Proposed Modular Architecture (future state)
 ```
 src/
-  core/           # Domain (no IO/React)
-    finance/      # getCurrentValue, getPnL, getAllocation, etc.
-    types/        # Transaction, Holding, Position, Settings, etc.
+  core/                # Domain logic (no IO/React)
+    schema-types/      # Redux state types matching data-schema.json
+                       # Normalized structure: Record<id, Entity> for all slices
+    finance/           # Pure calculations: getCurrentValue, getPnL, getAllocation, etc.
 
-  data/           # IO: API + cache + IndexedDB
-    api/          # priceApi.ts, fxApi.ts
-    cache/        # priceCache.ts, fxCache.ts
-    db/           # indexedDb.ts
-    prices.ts     # Unified price module (live/historical, fx)
+  data/                # IO: API + cache + IndexedDB
+    api/               # priceApi.ts, fxApi.ts
+    cache/             # priceCache.ts, fxCache.ts
+    db/                # indexedDb.ts
+    prices.ts          # Unified price module (live/historical, fx)
 
-  store/          # Redux Toolkit + persist
-    slices/       # transactions, holdings, prices (live only), settings
-    selectors/    # priceSelectors, financeSelectors (pure + core/finance)
-    index.ts      # configureStore + persist config
+  store/               # Redux Toolkit + persist
+    slices/            # balance, assets, wallets, walletPositions, walletTx, pies, settings
+    selectors/         # priceSelectors, financeSelectors (use core/finance)
+    index.ts           # configureStore + persist config
 
-  hooks/          # React-friendly facade over store/data/core
+  hooks/               # React-friendly facade over store/data/core
     usePrices.ts, useHoldings.ts, useTransactions.ts,
     useSettings.ts, usePortfolioSummary.ts,
     usePriceHistory.ts, useClosedPositionGain.ts
 
-  components/     # Reusable UI pieces (tables, charts, forms)
-  pages/          # Screens composed from hooks + components
-  utils/          # date, format, export/import utilities
+  components/          # Reusable UI pieces (tables, charts, forms)
+  pages/               # Screens composed from hooks + components
+  utils/               # date, format, export/import utilities
 ```
+
+Key Points
+- `core/schema-types/`: TypeScript types mirror `data-schema.json`; normalized Records for fast lookup
+- `core/finance/`: Pure functions operating on typed state
+- `data/`: External data sources and caching
+- `store/`: Redux state following schema structure
+- Relationships tracked via IDs (e.g., `walletTx.walletId` → `wallets[id]`)
 
 Responsibilities
 - `core`: pure calculations and types.
@@ -235,6 +275,27 @@ Responsibilities
 - `hooks`: single entry for UI to read/update state and fetch data.
 - `components/pages`: UI composition.
 - `utils`: generic helpers (formatting, date, import/export).
+
+## Type File Guidelines
+
+When to create a dedicated `*.ts` types file and where to put it. Follow these rules so future contributors keep the codebase consistent and avoid unnecessary files.
+
+- **Central schema (required):** keep the Redux/data schema in `src/core/schema-types/index.ts`. This file defines the canonical store slices (entities, Records, relationships) and matches `data-schema.json`.
+- **Create domain type files only when reused:** add a `core/<domain>/types.ts` (for example `core/finance/types.ts`) only when two or more modules need the same domain shapes or when the domain contains pure logic (calculations, selectors) that operates on shared types.
+- **API response types:** put provider/API response types in `src/data/api/types.ts` only when multiple data modules or caches consume the same provider responses.
+- **UI types:** colocate small UI-specific types with the component or in `src/ui/types.ts` when multiple UI components share them. Do NOT create UI type files for single-component-only shapes.
+- **Page-level types:** create `src/pages/<page>/types.ts` only when the page exposes shared payloads or props used by child components (e.g., `AddTransactionPayload`). Otherwise keep interfaces local to the page component.
+- **Prefer inline types for one-off shapes:** if a shape is used only in one function or component, prefer an inline type or anonymous interface — avoid creating a file for single-use shapes.
+- **Use `Record` for normalized entities:** store entities as `Record<string, Entity>` in the schema-types for fast lookup and serializability (this is already applied across the schema).
+- **Barrels (optional):** add `index.ts` barrels only for folders that are actually reused by multiple modules to keep imports tidy; avoid barrels for very small or single-file folders.
+- **Naming:** suffix domain files with `types.ts` (e.g., `finance/types.ts`, `api/types.ts`) when they hold only types; if they also hold pure helpers, put them in a `core/finance` module alongside `types.ts`.
+
+Checklist before adding a new types file:
+- Is the shape used in 2+ consumers? If yes, extract.
+- Is it a public boundary (store slice, API contract, component prop)? If yes, extract.
+- Will the shape evolve independently (API changes, domain complexity)? If yes, extract.
+- Otherwise: keep it inline or colocated.
+
 
 ---
 

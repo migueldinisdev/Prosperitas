@@ -90,13 +90,22 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             <div>
               <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">Cash Buckets</p>
               <div className="space-y-1">
-                {walletCash
-                  ? Object.entries(walletCash).map(([currency, amount]) => (
-                      <p key={currency} className="text-sm text-app-foreground">
-                        {currency}: {amount}
-                      </p>
-                    ))
-                  : <p className="text-sm text-app-muted">No cash data</p>}
+                {walletCash && Array.isArray(walletCash) ? (
+                  walletCash.map((m) => (
+                    <p key={m.currency} className="text-sm text-app-foreground">
+                      {m.currency}: {m.value.toFixed(2)}
+                    </p>
+                  ))
+                ) : walletCash && typeof walletCash === 'object' ? (
+                  // fallback for older shape (object map)
+                  Object.entries(walletCash as unknown as Record<string, number>).map(([currency, amount]) => (
+                    <p key={currency} className="text-sm text-app-foreground">
+                      {currency}: {Number(amount).toFixed(2)}
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-sm text-app-muted">No cash data</p>
+                )}
               </div>
             </div>
           </div>

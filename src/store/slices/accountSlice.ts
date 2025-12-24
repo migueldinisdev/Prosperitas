@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Account } from "../../core/types";
+import { Account } from "../../core/schema-types";
 import { defaultState } from "../initialState";
 
 const accountSlice = createSlice({

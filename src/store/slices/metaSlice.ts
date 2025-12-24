@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Meta } from "../../core/types";
+import { Meta } from "../../core/schema-types";
 import { defaultState } from "../initialState";
 
 const metaSlice = createSlice({

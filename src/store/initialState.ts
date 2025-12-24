@@ -1,4 +1,4 @@
-import { ProsperitasState } from "../core/types";
+import { ProsperitasState } from "../core/schema-types";
 
 export const CURRENT_SCHEMA_VERSION = "0.1";
 
@@ -97,14 +97,20 @@ export const defaultState: ProsperitasState = {
             id: "wallet_0",
             name: "Coinbase",
             description: "Crypto exchange",
-            cash: { EUR: 0, USD: 0 },
+            cash: [
+                { value: 0, currency: "EUR" },
+                { value: 0, currency: "USD" },
+            ],
             txIds: [],
         },
         wallet_1: {
             id: "wallet_1",
             name: "Binance",
             description: "Another crypto exchange",
-            cash: { EUR: 0, USD: 0 },
+            cash: [
+                { value: 0, currency: "EUR" },
+                { value: 0, currency: "USD" },
+            ],
             txIds: [],
         },
     },

@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Settings } from "../../core/types";
+import { Settings } from "../../core/schema-types";
 import { defaultState } from "../initialState";
 
 const settingsSlice = createSlice({

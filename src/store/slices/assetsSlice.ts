@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Asset, AssetsState, Money } from "../../core/types";
+import { Asset, AssetsState, Money } from "../../core/schema-types";
 import { defaultState } from "../initialState";
 
 const assetsSlice = createSlice({

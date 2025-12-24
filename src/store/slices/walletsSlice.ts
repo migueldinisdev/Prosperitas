@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Wallet, WalletsState } from "../../core/types";
+import { Wallet, WalletsState, Money } from "../../core/schema-types";
 import { defaultState } from "../initialState";
 
 const walletsSlice = createSlice({
@@ -25,7 +25,7 @@ const walletsSlice = createSlice({
         },
         setWalletCash: (
             state,
-            action: PayloadAction<{ id: string; cash: Record<string, number> }>
+            action: PayloadAction<{ id: string; cash: Money[] }>
         ) => {
             if (state[action.payload.id]) {
                 state[action.payload.id].cash = action.payload.cash;
@@ -40,9 +40,15 @@ const walletsSlice = createSlice({
             }>
         ) => {
             const { id, currency, amount } = action.payload;
-            if (state[id]) {
-                state[id].cash[currency] = amount;
+            if (!state[id]) return;
+            const cashArr = state[id].cash || [];
+            const existingIdx = cashArr.findIndex((m) => m.currency === currency);
+            if (existingIdx >= 0) {
+                cashArr[existingIdx].value = amount;
+            } else {
+                cashArr.push({ value: amount, currency: currency as any });
             }
+            state[id].cash = cashArr;
         },
         addWalletTxId: (
             state,

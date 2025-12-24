@@ -11,14 +11,16 @@
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",
     "lucide-react": "^0.556.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.10.1",
-    "recharts": "^3.5.1",
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1"
+    "recharts": "^3.5.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"

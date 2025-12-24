@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { WalletTx, WalletTxState } from "../../core/types";
+import { WalletTx, WalletTxState } from "../../core/schema-types";
 import { defaultState } from "../initialState";
 
 const walletTxSlice = createSlice({
@@ -17,7 +17,9 @@ const walletTxSlice = createSlice({
         ) => {
             const { id, changes } = action.payload;
             if (state[id]) {
-                state[id] = { ...state[id], ...changes };
+                // Merge changes into existing tx. Cast to WalletTx to satisfy TypeScript
+                // We keep this simple; callers should provide a valid discriminated union shape.
+                state[id] = ({ ...state[id], ...changes } as unknown) as WalletTx;
             }
         },
         removeWalletTx: (state, action: PayloadAction<string>) => {

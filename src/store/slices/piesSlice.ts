@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Pie, PiesState } from "../../core/types";
+import { Pie, PiesState } from "../../core/schema-types";
 import { defaultState } from "../initialState";
 
 const piesSlice = createSlice({
