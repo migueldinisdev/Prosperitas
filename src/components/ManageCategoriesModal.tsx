@@ -1,23 +1,20 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import type { Category } from "../core/schema-types";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import { selectCategories } from "../store/selectors";
+import {
+    addCategory,
+    removeCategory,
+    updateCategory,
+} from "../store/slices/categoriesSlice";
 
 interface Props {
     isOpen: boolean;
     onClose: () => void;
 }
-
-// Mock initial categories
-const initialCategories: Category[] = [
-    { id: "1", name: "Groceries", color: "#10b981", type: "expense" },
-    { id: "2", name: "Rent", color: "#d61544", type: "expense" },
-    { id: "3", name: "Transportation", color: "#f59e0b", type: "expense" },
-    { id: "4", name: "Entertainment", color: "#8b5cf6", type: "expense" },
-    { id: "5", name: "Dining", color: "#ef4444", type: "expense" },
-    { id: "6", name: "Utilities", color: "#06b6d4", type: "expense" },
-];
 
 const availableColors = [
     "#ef4444", // red
@@ -33,20 +30,36 @@ const availableColors = [
 ];
 
 export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
-    const [categories, setCategories] = useState<Category[]>(initialCategories);
+    const dispatch = useAppDispatch();
+    const categoriesMap = useAppSelector(selectCategories);
+    const categories = useMemo(
+        () =>
+            Object.values(categoriesMap).sort((a, b) =>
+                a.name.localeCompare(b.name)
+            ),
+        [categoriesMap]
+    );
     const [editingId, setEditingId] = useState<string | null>(null);
     const [isAdding, setIsAdding] = useState(false);
 
     // Form state
     const [formName, setFormName] = useState("");
     const [formColor, setFormColor] = useState("#10b981");
+    const [formType, setFormType] = useState<Category["type"]>("expense");
 
     const resetForm = () => {
         setFormName("");
         setFormColor("#10b981");
+        setFormType("expense");
         setIsAdding(false);
         setEditingId(null);
     };
+
+    useEffect(() => {
+        if (!isOpen) {
+            resetForm();
+        }
+    }, [isOpen]);
 
     const handleAdd = () => {
         if (!formName.trim()) return;
@@ -55,10 +68,10 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
             id: Date.now().toString(),
             name: formName,
             color: formColor,
-            type: "expense",
+            type: formType,
         };
 
-        setCategories([...categories, newCategory]);
+        dispatch(addCategory(newCategory));
         resetForm();
     };
 
@@ -66,29 +79,29 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
         setEditingId(category.id);
         setFormName(category.name);
         setFormColor(category.color);
+        setFormType(category.type);
         setIsAdding(false);
     };
 
     const handleUpdate = () => {
         if (!formName.trim() || !editingId) return;
 
-        setCategories(
-            categories.map((cat) =>
-                cat.id === editingId
-                    ? {
-                          ...cat,
-                          name: formName,
-                          color: formColor,
-                      }
-                    : cat
-            )
+        dispatch(
+            updateCategory({
+                id: editingId,
+                changes: {
+                    name: formName,
+                    color: formColor,
+                    type: formType,
+                },
+            })
         );
         resetForm();
     };
 
     const handleDelete = (id: string) => {
         if (confirm("Are you sure you want to delete this category?")) {
-            setCategories(categories.filter((cat) => cat.id !== id));
+            dispatch(removeCategory(id));
             if (editingId === id) resetForm();
         }
     };
@@ -105,42 +118,55 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <div className="space-y-4">
                 {/* Categories List */}
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {categories.map((category) => {
-                        return (
-                            <div
-                                key={category.id}
-                                className="flex items-center justify-between p-3 bg-app-surface rounded-lg border border-app-border hover:border-app-primary/40 transition-colors"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div
-                                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                                        style={{
-                                            backgroundColor: `${category.color}20`,
-                                        }}
-                                    />
-                                    <span className="text-sm font-medium text-app-foreground">
-                                        {category.name}
-                                    </span>
+                    {categories.length === 0 ? (
+                        <p className="text-sm text-app-muted">
+                            No categories yet. Add one to get started.
+                        </p>
+                    ) : (
+                        categories.map((category) => {
+                            return (
+                                <div
+                                    key={category.id}
+                                    className="flex items-center justify-between p-3 bg-app-surface rounded-lg border border-app-border hover:border-app-primary/40 transition-colors"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className="w-8 h-8 rounded-lg flex items-center justify-center"
+                                            style={{
+                                                backgroundColor: `${category.color}20`,
+                                            }}
+                                        />
+                                        <div>
+                                            <span className="text-sm font-medium text-app-foreground">
+                                                {category.name}
+                                            </span>
+                                            <p className="text-xs text-app-muted capitalize">
+                                                {category.type}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <button
+                                            onClick={() =>
+                                                handleEdit(category)
+                                            }
+                                            className="p-1.5 text-app-muted hover:text-app-foreground hover:bg-app-card rounded-md transition-colors"
+                                        >
+                                            <Edit2 size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() =>
+                                                handleDelete(category.id)
+                                            }
+                                            className="p-1.5 text-app-muted hover:text-app-danger hover:bg-app-danger/10 rounded-md transition-colors"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex gap-1">
-                                    <button
-                                        onClick={() => handleEdit(category)}
-                                        className="p-1.5 text-app-muted hover:text-app-foreground hover:bg-app-card rounded-md transition-colors"
-                                    >
-                                        <Edit2 size={14} />
-                                    </button>
-                                    <button
-                                        onClick={() =>
-                                            handleDelete(category.id)
-                                        }
-                                        className="p-1.5 text-app-muted hover:text-app-danger hover:bg-app-danger/10 rounded-md transition-colors"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })
+                    )}
                 </div>
 
                 {/* Add/Edit Form */}
@@ -161,6 +187,31 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                 placeholder="Category name"
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground text-sm focus:outline-none focus:ring-1 focus:ring-app-primary"
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Type
+                            </label>
+                            <div className="flex bg-app-surface p-1 rounded-lg">
+                                {["expense", "income"].map((entry) => (
+                                    <button
+                                        key={entry}
+                                        onClick={() =>
+                                            setFormType(
+                                                entry as Category["type"]
+                                            )
+                                        }
+                                        className={`flex-1 py-1.5 text-sm font-medium rounded-md capitalize transition-all ${
+                                            formType === entry
+                                                ? "bg-app-primary text-white shadow-sm"
+                                                : "text-app-muted hover:text-app-foreground"
+                                        }`}
+                                    >
+                                        {entry}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <div>

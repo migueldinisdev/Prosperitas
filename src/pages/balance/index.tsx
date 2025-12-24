@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { PageHeader } from "../../components/PageHeader";
 import { BalanceMonthSwitcher } from "./BalanceMonthSwitcher";
 import { MonthlyBalanceTransactionsList } from "./MonthlyBalanceTransactionsList";
@@ -9,6 +9,11 @@ import { Button } from "../../ui/Button";
 import { Plus, SlidersHorizontal } from "lucide-react";
 import { AddBalanceTransactionModal } from "../../components/AddBalanceTransactionModal";
 import { ManageCategoriesModal } from "../../components/ManageCategoriesModal";
+import { getMonthKey } from "../../utils/dates";
+import { useBalanceData } from "../../hooks/useBalanceData";
+import { formatCurrency } from "../../utils/formatters";
+import { useAppSelector } from "../../store/hooks";
+import { selectSettings } from "../../store/selectors";
 
 interface Props {
     onMenuClick: () => void;
@@ -17,6 +22,28 @@ interface Props {
 export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
     const [isAddTxOpen, setAddTxOpen] = useState(false);
     const [isCategoriesOpen, setCategoriesOpen] = useState(false);
+    const [monthKey, setMonthKey] = useState(() => getMonthKey(new Date()));
+    const { monthData } = useBalanceData(monthKey);
+    const { balanceCurrency } = useAppSelector(selectSettings);
+
+    const cashFlow = useMemo(() => {
+        let income = 0;
+        let expenses = 0;
+
+        (monthData?.txs ?? []).forEach((tx) => {
+            if (tx.type === "income") {
+                income += tx.amount.value;
+            } else if (tx.type === "expense") {
+                expenses += tx.amount.value;
+            }
+        });
+
+        return {
+            income,
+            expenses,
+            netSavings: income - expenses,
+        };
+    }, [monthData]);
 
     return (
         <div className="pb-20">
@@ -48,7 +75,10 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                     </div>
                 </Card>
 
-                <BalanceMonthSwitcher />
+                <BalanceMonthSwitcher
+                    monthKey={monthKey}
+                    onChange={setMonthKey}
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card title="Savings Rate">
@@ -73,13 +103,20 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                             <div className="flex justify-between text-sm">
                                 <span className="text-app-muted">Income</span>
                                 <span className="text-app-foreground font-medium">
-                                    $4,200.00
+                                    {formatCurrency(
+                                        cashFlow.income,
+                                        balanceCurrency
+                                    )}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-app-muted">Expenses</span>
                                 <span className="text-app-foreground font-medium">
-                                    -$2,450.00
+                                    -
+                                    {formatCurrency(
+                                        cashFlow.expenses,
+                                        balanceCurrency
+                                    )}
                                 </span>
                             </div>
                             <div className="h-px bg-app-border my-2"></div>
@@ -87,8 +124,18 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                                 <span className="text-app-foreground">
                                     Net Savings
                                 </span>
-                                <span className="text-app-success">
-                                    +$1,750.00
+                                <span
+                                    className={
+                                        cashFlow.netSavings >= 0
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }
+                                >
+                                    {cashFlow.netSavings >= 0 ? "+" : "-"}
+                                    {formatCurrency(
+                                        Math.abs(cashFlow.netSavings),
+                                        balanceCurrency
+                                    )}
                                 </span>
                             </div>
                         </div>
@@ -97,23 +144,24 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
 
                 {/* Transactions List - Full Width with Scrollable Container */}
                 <div className="w-full">
-                    <MonthlyBalanceTransactionsList />
+                    <MonthlyBalanceTransactionsList monthKey={monthKey} />
                 </div>
 
                 {/* Spending by Category - Full Width */}
                 <div className="w-full">
-                    <BalanceCategorySpendingSection />
+                    <BalanceCategorySpendingSection monthKey={monthKey} />
                 </div>
 
                 {/* Sankey Flow Chart - Full Width */}
                 <div className="w-full">
-                    <BalanceSankeySection />
+                    <BalanceSankeySection monthKey={monthKey} />
                 </div>
             </main>
 
             <AddBalanceTransactionModal
                 isOpen={isAddTxOpen}
                 onClose={() => setAddTxOpen(false)}
+                monthKey={monthKey}
             />
             <ManageCategoriesModal
                 isOpen={isCategoriesOpen}
