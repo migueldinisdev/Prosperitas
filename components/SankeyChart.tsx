@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ResponsiveContainer, Sankey, Tooltip } from 'recharts';
+import { chartTooltipStyle, formatCurrency } from './chartUtils';
 
 interface SankeyData {
   income: number;
@@ -12,38 +13,45 @@ interface SankeyChartProps {
   height?: number;
 }
 
-export const SankeyChart: React.FC<SankeyChartProps> = ({ data, height = 500 }) => {
-  // Build nodes array: 0 = Income, 1-N = expense categories, N+1 = Savings
-  const nodes = [
-    { name: 'Income' },
-    ...data.expenses.map(exp => ({ name: exp.category })),
-    { name: 'Savings' }
-  ];
+export const SankeyChart: React.FC<SankeyChartProps> = ({ data, height = 480 }) => {
+  const expensePalette = ['#a855f7', '#22c55e', '#0ea5e9', '#f97316', '#f43f5e', '#06b6d4', '#f59e0b'];
 
-  // Build links array: Income -> each expense category, and Income -> Savings
-  const links = [
-    ...data.expenses.map((exp, i) => ({
-      source: 0, // Income
-      target: i + 1, // Expense category
-      value: exp.value
-    })),
-    {
-      source: 0, // Income
-      target: nodes.length - 1, // Savings
-      value: data.savings
-    }
-  ];
+  const nodes = useMemo(
+    () => [
+      { name: 'Income', color: '#6366f1' },
+      ...data.expenses.map((expense, index) => ({
+        name: expense.category,
+        color: expensePalette[index % expensePalette.length],
+      })),
+      { name: 'Savings', color: '#22c55e' },
+    ],
+    [data.expenses]
+  );
 
-  const sankeyData = { nodes, links };
+  const links = useMemo(
+    () => [
+      ...data.expenses.map((expense, index) => ({
+        source: 0,
+        target: index + 1,
+        value: expense.value,
+      })),
+      {
+        source: 0,
+        target: nodes.length - 1,
+        value: data.savings,
+      },
+    ],
+    [data.expenses, data.savings, nodes.length]
+  );
 
-  // Custom node rendering for color coding
-  const renderNode = (props: any) => {
-    const { x, y, width, height, index, payload } = props;
-    const isIncome = index === 0;
-    const isSavings = index === nodes.length - 1;
-    const isExpense = !isIncome && !isSavings;
+  const totalFlow = useMemo(
+    () => links.reduce((sum, link) => sum + (typeof link.value === 'number' ? link.value : 0), 0),
+    [links]
+  );
 
-    const fill = isIncome ? 'rgb(var(--color-app-primary))' : isSavings ? '#10b981' : '#ef4444';
+  const renderNode = (nodeProps: any) => {
+    const { x, y, width, height, index, payload } = nodeProps;
+    const fill = payload.color || nodes[index]?.color || 'rgb(var(--color-app-primary))';
 
     return (
       <g>
@@ -52,18 +60,20 @@ export const SankeyChart: React.FC<SankeyChartProps> = ({ data, height = 500 }) 
           y={y}
           width={width}
           height={height}
+          rx={10}
           fill={fill}
-          fillOpacity={0.8}
-          rx={4}
+          fillOpacity={0.9}
+          stroke="rgba(255,255,255,0.18)"
+          strokeWidth={1.5}
         />
         <text
-          x={x + width / 2}
+          x={x + width + 12}
           y={y + height / 2}
-          textAnchor="middle"
+          textAnchor="start"
           dominantBaseline="middle"
           fontSize={12}
-          fill="#ffffff"
-          fontWeight="500"
+          fontWeight={600}
+          fill="rgb(var(--color-app-foreground))"
         >
           {payload.name}
         </text>
@@ -71,62 +81,86 @@ export const SankeyChart: React.FC<SankeyChartProps> = ({ data, height = 500 }) 
     );
   };
 
-  // Custom link rendering for gradient colors
-  const renderLink = (props: any) => {
-    const { sourceX, sourceY, targetX, targetY, sourceControlX, targetControlX, linkWidth, index } = props;
-    const isSavingsLink = props.target === nodes.length - 1;
-    const linkColor = isSavingsLink ? '#10b981' : '#ef4444';
+  const renderLink = (linkProps: any) => {
+    const {
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      sourceControlX,
+      targetControlX,
+      linkWidth,
+      index,
+      payload,
+    } = linkProps;
+
+    const targetNode = nodes[payload.target];
+    const linkColor = targetNode?.color || 'rgb(var(--color-app-primary))';
+    const gradientId = `sankey-link-${index}`;
 
     return (
-      <path
-        d={`
-          M${sourceX},${sourceY}
-          C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}
-        `}
-        stroke={linkColor}
-        strokeWidth={linkWidth}
-        fill="none"
-        strokeOpacity={0.3}
-      />
+      <g opacity={0.55}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={linkColor} stopOpacity={0.25} />
+            <stop offset="100%" stopColor={linkColor} stopOpacity={0.75} />
+          </linearGradient>
+        </defs>
+        <path
+          d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
+          fill="none"
+          stroke={`url(#${gradientId})`}
+          strokeWidth={Math.max(linkWidth, 2)}
+          strokeLinecap="round"
+        />
+      </g>
     );
   };
 
   const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
+    if (!active || !payload || !payload.length) return null;
+
+    const datum = payload[0].payload;
+    const isLink = datum.source !== undefined && datum.target !== undefined;
+
+    if (isLink) {
+      const value = datum.value || 0;
+      const percent = totalFlow ? ((value / totalFlow) * 100).toFixed(1) : '0.0';
       return (
-        <div className="bg-app-card border border-app-border rounded-lg p-3 shadow-lg">
-          {data.source !== undefined ? (
-            // Link tooltip
-            <>
-              <p className="text-app-foreground font-medium text-sm">
-                {nodes[data.source].name} → {nodes[data.target].name}
-              </p>
-              <p className="text-app-muted text-sm">${data.value.toFixed(2)}</p>
-            </>
-          ) : (
-            // Node tooltip
-            <>
-              <p className="text-app-foreground font-medium text-sm">{data.name}</p>
-            </>
-          )}
+        <div className="p-3 rounded-xl border shadow-lg bg-app-card border-app-border">
+          <p className="text-sm font-semibold text-app-foreground">
+            {nodes[datum.source].name} → {nodes[datum.target].name}
+          </p>
+          <p className="text-sm text-app-muted mt-1">
+            {formatCurrency(value)} ({percent}%)
+          </p>
         </div>
       );
     }
-    return null;
+
+    return (
+      <div className="p-3 rounded-xl border shadow-lg bg-app-card border-app-border">
+        <p className="text-sm font-semibold text-app-foreground">{datum.name}</p>
+        {datum.value !== undefined && (
+          <p className="text-sm text-app-muted mt-1">{formatCurrency(datum.value)}</p>
+        )}
+      </div>
+    );
   };
 
   return (
     <div className="w-full" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <Sankey
-          data={sankeyData}
+          data={{ nodes, links }}
           node={renderNode}
           link={renderLink}
-          nodePadding={50}
-          margin={{ top: 20, right: 150, bottom: 20, left: 150 }}
+          nodePadding={40}
+          nodeWidth={14}
+          iterations={64}
+          margin={{ top: 30, right: 150, bottom: 30, left: 40 }}
         >
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip />} wrapperStyle={chartTooltipStyle} />
         </Sankey>
       </ResponsiveContainer>
     </div>
