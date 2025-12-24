@@ -187,6 +187,15 @@ const applyWalletTransactionEffects = (
                     dispatch
                 );
             }
+            if (tx.tax) {
+                adjustWalletCash(
+                    tx.walletId,
+                    tx.tax.currency,
+                    -direction * tx.tax.value,
+                    getState,
+                    dispatch
+                );
+            }
             updatePositions(
                 tx.walletId,
                 tx.assetId,
@@ -219,6 +228,15 @@ const applyWalletTransactionEffects = (
                     dispatch
                 );
             }
+            if (tx.tax) {
+                adjustWalletCash(
+                    tx.walletId,
+                    tx.tax.currency,
+                    -direction * tx.tax.value,
+                    getState,
+                    dispatch
+                );
+            }
             updatePositions(
                 tx.walletId,
                 tx.assetId,
@@ -232,6 +250,24 @@ const applyWalletTransactionEffects = (
                 dispatch(addAssetTxId({ assetId: tx.assetId, txId: tx.id }));
             } else {
                 dispatch(removeAssetTxId({ assetId: tx.assetId, txId: tx.id }));
+            }
+            break;
+        case "dividend":
+            adjustWalletCash(
+                tx.walletId,
+                tx.amount.currency,
+                direction * tx.amount.value,
+                getState,
+                dispatch
+            );
+            if (tx.tax) {
+                adjustWalletCash(
+                    tx.walletId,
+                    tx.tax.currency,
+                    -direction * tx.tax.value,
+                    getState,
+                    dispatch
+                );
             }
             break;
     }
