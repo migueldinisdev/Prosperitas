@@ -3,6 +3,7 @@ import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import type { Category } from "../core/schema-types";
+import { generateUniqueId } from "../utils/id";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { selectCategories } from "../store/selectors";
 import {
@@ -65,7 +66,7 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
         if (!formName.trim()) return;
 
         const newCategory: Category = {
-            id: Date.now().toString(),
+            id: generateUniqueId("cat_"),
             name: formName,
             color: formColor,
             type: formType,
@@ -147,9 +148,7 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                     </div>
                                     <div className="flex gap-1">
                                         <button
-                                            onClick={() =>
-                                                handleEdit(category)
-                                            }
+                                            onClick={() => handleEdit(category)}
                                             className="p-1.5 text-app-muted hover:text-app-foreground hover:bg-app-card rounded-md transition-colors"
                                         >
                                             <Edit2 size={14} />
