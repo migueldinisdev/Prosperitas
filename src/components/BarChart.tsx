@@ -6,9 +6,16 @@ interface BarChartProps {
   dataKey: string;
   color?: string;
   height?: number;
+  tickFormatter?: (value: number) => string;
 }
 
-export const BarChart: React.FC<BarChartProps> = ({ data, dataKey, color = 'rgb(var(--color-app-primary))', height = 300 }) => {
+export const BarChart: React.FC<BarChartProps> = ({
+  data,
+  dataKey,
+  color = 'rgb(var(--color-app-primary))',
+  height = 300,
+  tickFormatter,
+}) => {
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer>
@@ -27,7 +34,7 @@ export const BarChart: React.FC<BarChartProps> = ({ data, dataKey, color = 'rgb(
             fontSize={12} 
             tickLine={false} 
             axisLine={false}
-            tickFormatter={(value) => `$${value}`}
+            tickFormatter={tickFormatter}
           />
           <Tooltip 
             cursor={{ fill: 'rgb(var(--color-app-border))', opacity: 0.4 }}
