@@ -2,6 +2,7 @@ import { ProsperitasState } from "../core/schema-types";
 
 export const CURRENT_SCHEMA_VERSION = "0.1";
 
+/*
 export const defaultState: ProsperitasState = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     meta: {
@@ -185,4 +186,33 @@ export const defaultState: ProsperitasState = {
             assetIds: [],
         },
     },
+};
+*/
+
+export const defaultState: ProsperitasState = {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    meta: {
+        createdAt: "2025-12-27T00:00:00.000Z",
+        updatedAt: "2025-12-27T00:00:00.000Z",
+    },
+    settings: {
+        balanceCurrency: "EUR",
+        visualCurrency: "EUR",
+        locale: "en",
+        timezone: "UTC",
+        numberFormat: {
+            useGrouping: true,
+            maxFractionDigits: 2,
+        },
+    },
+    account: {
+        name: "",
+    },
+    categories: {},
+    balance: {},
+    assets: {},
+    wallets: {},
+    walletPositions: {},
+    walletTx: {},
+    pies: {},
 };
