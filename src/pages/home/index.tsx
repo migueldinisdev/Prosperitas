@@ -6,6 +6,7 @@ import { Card } from "../../ui/Card";
 import { Plus } from "lucide-react";
 import { AddBalanceTransactionModal } from "../../components/AddBalanceTransactionModal";
 import { StateSnapshotCard } from "../../components/StateSnapshotCard";
+import { getMonthKey } from "../../utils/dates";
 
 interface Props {
     onMenuClick: () => void;
@@ -43,6 +44,7 @@ export const HomePage: React.FC<Props> = ({ onMenuClick }) => {
             <AddBalanceTransactionModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
+                monthKey={getMonthKey(new Date())}
             />
         </div>
     );
