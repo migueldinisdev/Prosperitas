@@ -151,7 +151,6 @@ export interface BuyWalletTx extends WalletTxBase {
     fxPair?: string;
     fxRate?: number;
     fees?: Money;
-    tax?: Money;
 }
 
 export interface SellWalletTx extends WalletTxBase {
@@ -162,14 +161,12 @@ export interface SellWalletTx extends WalletTxBase {
     fxPair?: string;
     fxRate?: number;
     fees?: Money;
-    tax?: Money;
 }
 
 export interface DividendWalletTx extends WalletTxBase {
     type: "dividend";
     amount: Money;
     assetId?: string;
-    tax?: Money;
 }
 
 export type WalletTx =

@@ -43,7 +43,7 @@ export const WalletTransactionsTable: React.FC<WalletTransactionsTableProps> = (
                             Amount
                         </th>
                         <th className="px-4 py-3 font-medium text-right">
-                            Fees/Tax
+                            Fees
                         </th>
                         <th className="px-4 py-3 font-medium text-right">FX</th>
                     </tr>
@@ -70,7 +70,6 @@ export const WalletTransactionsTable: React.FC<WalletTransactionsTableProps> = (
 
                         if (tx.type === "dividend") {
                             amount = formatMoney(tx.amount);
-                            fees = formatMoney(tx.tax);
                         }
 
                         if (tx.type === "forex") {
@@ -87,12 +86,7 @@ export const WalletTransactionsTable: React.FC<WalletTransactionsTableProps> = (
                                 tx.price.value * tx.quantity,
                                 tx.price.currency
                             );
-                            fees = [
-                                tx.fees ? formatMoney(tx.fees) : null,
-                                tx.tax ? formatMoney(tx.tax) : null,
-                            ]
-                                .filter(Boolean)
-                                .join(" / ") || "-";
+                            fees = tx.fees ? formatMoney(tx.fees) : "-";
                             fx =
                                 tx.fxPair && tx.fxRate
                                     ? `${tx.fxPair} @ ${tx.fxRate}`
