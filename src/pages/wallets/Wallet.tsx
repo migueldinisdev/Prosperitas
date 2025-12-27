@@ -77,6 +77,9 @@ export const WalletDetail: React.FC<Props> = () => {
     const [tradeFees, setTradeFees] = useState(0);
     const [tradeFeesCurrency, setTradeFeesCurrency] =
         useState<Currency>("USD");
+    const [tradeFxFee, setTradeFxFee] = useState(0);
+    const [tradeFxFeeCurrency, setTradeFxFeeCurrency] =
+        useState<Currency>("USD");
     const [tradeFxRate, setTradeFxRate] = useState("");
     const [tradePieId, setTradePieId] = useState("");
     const [tradeDate, setTradeDate] = useState(
@@ -134,15 +137,8 @@ export const WalletDetail: React.FC<Props> = () => {
     }, [tradeFundingCurrency]);
 
     useEffect(() => {
-        if (!fxEnabled) {
-            setTradeFundingAmount(tradeTotal);
-            setTradeFxRate("");
-            return;
-        }
-        if (tradeFundingAmount > 0 && tradeTotal > 0) {
-            setTradeFxRate((tradeTotal / tradeFundingAmount).toFixed(4));
-        }
-    }, [fxEnabled, tradeFundingAmount, tradeTotal]);
+        setTradeFxFeeCurrency(tradeFundingCurrency);
+    }, [tradeFundingCurrency]);
 
     const holdings = useMemo<HoldingRow[]>(() => {
         const entries = Object.entries(walletPositions ?? {});
@@ -279,6 +275,14 @@ export const WalletDetail: React.FC<Props> = () => {
                         value: tradeTotal,
                         currency: tradeCurrency,
                     },
+                    fees:
+                        tradeFxFee > 0
+                            ? {
+                                  value: tradeFxFee,
+                                  currency: tradeFxFeeCurrency,
+                              }
+                            : undefined,
+                    fxRate: tradeFxRate ? Number(tradeFxRate) : undefined,
                     createdAt: new Date().toISOString(),
                 })
             );
@@ -310,6 +314,7 @@ export const WalletDetail: React.FC<Props> = () => {
         setTradeQuantity(0);
         setTradePrice(0);
         setTradeFees(0);
+        setTradeFxFee(0);
         setTradeFundingAmount(0);
         setTradeFxRate("");
     };
@@ -853,6 +858,45 @@ export const WalletDetail: React.FC<Props> = () => {
                             </div>
                         </div>
                     )}
+                    {fxEnabled && (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-app-muted mb-1">
+                                    FX Fee
+                                </label>
+                                <input
+                                    type="number"
+                                    value={tradeFxFee}
+                                    onChange={(event) =>
+                                        setTradeFxFee(
+                                            Number(event.target.value)
+                                        )
+                                    }
+                                    className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-app-muted mb-1">
+                                    FX Fee Currency
+                                </label>
+                                <select
+                                    value={tradeFxFeeCurrency}
+                                    onChange={(event) =>
+                                        setTradeFxFeeCurrency(
+                                            event.target.value as Currency
+                                        )
+                                    }
+                                    className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                                >
+                                    {currencyOptions.map((currency) => (
+                                        <option key={currency} value={currency}>
+                                            {currency}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-medium text-app-muted mb-1">
@@ -937,6 +981,15 @@ export const WalletDetail: React.FC<Props> = () => {
                                     {tradeFundingAmount.toFixed(2)}{" "}
                                     {tradeFundingCurrency} →{" "}
                                     {tradeTotal.toFixed(2)} {tradeCurrency}
+                                </span>
+                            </p>
+                        )}
+                        {tradeFxFee > 0 && fxEnabled && (
+                            <p>
+                                FX Fees:{" "}
+                                <span className="text-app-foreground">
+                                    {tradeFxFee.toFixed(2)}{" "}
+                                    {tradeFxFeeCurrency}
                                 </span>
                             </p>
                         )}

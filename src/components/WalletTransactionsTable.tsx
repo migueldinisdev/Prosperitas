@@ -77,6 +77,7 @@ export const WalletTransactionsTable: React.FC<WalletTransactionsTableProps> = (
                                 tx.to
                             )}`;
                             fees = formatMoney(tx.fees);
+                            fx = tx.fxRate ? `Rate ${tx.fxRate}` : "-";
                         }
 
                         if (tx.type === "buy" || tx.type === "sell") {

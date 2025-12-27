@@ -141,6 +141,7 @@ export interface ForexWalletTx extends WalletTxBase {
     from: Money;
     to: Money;
     fees?: Money;
+    fxRate?: number;
 }
 
 export interface BuyWalletTx extends WalletTxBase {
