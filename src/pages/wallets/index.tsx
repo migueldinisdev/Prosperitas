@@ -1,44 +1,112 @@
-import React, { useState } from 'react';
-import { PageHeader } from '../../components/PageHeader';
-import { WalletCard } from './WalletCard';
-import { AddWalletCard } from './AddWalletCard';
-import { Button } from '../../ui/Button';
-import { Modal } from '../../ui/Modal';
+import React, { useMemo, useState } from "react";
+import { PageHeader } from "../../components/PageHeader";
+import { WalletCard } from "./WalletCard";
+import { AddWalletCard } from "./AddWalletCard";
+import { Button } from "../../ui/Button";
+import { Modal } from "../../ui/Modal";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { selectSettings, selectWallets } from "../../store/selectors";
+import { addWallet } from "../../store/slices/walletsSlice";
+import { Money } from "../../core/schema-types";
 
 interface Props {
-  onMenuClick: () => void;
+    onMenuClick: () => void;
 }
 
+const sumCash = (cash: Money[] | Record<string, number> | undefined) => {
+    if (!cash) return 0;
+    if (Array.isArray(cash)) {
+        return cash.reduce((total, entry) => total + entry.value, 0);
+    }
+    return Object.values(cash).reduce((total, value) => total + value, 0);
+};
+
 export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
-  const [isAddOpen, setAddOpen] = useState(false);
+    const wallets = useAppSelector(selectWallets);
+    const settings = useAppSelector(selectSettings);
+    const dispatch = useAppDispatch();
 
-  return (
-    <div className="pb-20">
-      <PageHeader 
-        title="Wallets" 
-        subtitle="Your connected exchanges and accounts"
-        onMenuClick={onMenuClick}
-      />
-      
-      <main className="p-6 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           <WalletCard name="Coinbase" balance={45230.50} pnl={3200.10} type="Crypto" />
-           <WalletCard name="Trading212" balance={28400.00} pnl={-150.00} type="Stocks" />
-           <WalletCard name="Binance" balance={12500.25} pnl={850.40} type="Crypto" />
-           <WalletCard name="Chase Bank" balance={8500.00} pnl={0} type="Cash" />
-           <AddWalletCard onClick={() => setAddOpen(true)} />
-        </div>
-      </main>
+    const [isAddOpen, setAddOpen] = useState(false);
+    const [walletName, setWalletName] = useState("");
+    const [walletDescription, setWalletDescription] = useState("");
 
-      <Modal isOpen={isAddOpen} onClose={() => setAddOpen(false)} title="Add New Wallet">
-        <div className="space-y-4">
-           <div>
-              <label className="block text-xs font-medium text-app-muted mb-1">Platform Name</label>
-              <input type="text" className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary" />
-           </div>
-           <Button className="w-full">Create Wallet</Button>
+    const walletList = useMemo(() => Object.values(wallets), [wallets]);
+
+    const handleCreateWallet = () => {
+        const id = `wallet_${Date.now()}`;
+        dispatch(
+            addWallet({
+                id,
+                name: walletName || "New Wallet",
+                description: walletDescription || undefined,
+                cash: [{ value: 0, currency: settings.balanceCurrency }],
+                txIds: [],
+            })
+        );
+        setWalletName("");
+        setWalletDescription("");
+        setAddOpen(false);
+    };
+
+    return (
+        <div className="pb-20">
+            <PageHeader
+                title="Wallets"
+                subtitle="Your connected exchanges and accounts"
+                onMenuClick={onMenuClick}
+            />
+
+            <main className="p-6 max-w-7xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {walletList.map((wallet) => (
+                        <WalletCard
+                            key={wallet.id}
+                            walletId={wallet.id}
+                            name={wallet.name}
+                            balance={sumCash(wallet.cash)}
+                            pnl={0}
+                            type={wallet.description}
+                        />
+                    ))}
+                    <AddWalletCard onClick={() => setAddOpen(true)} />
+                </div>
+            </main>
+
+            <Modal
+                isOpen={isAddOpen}
+                onClose={() => setAddOpen(false)}
+                title="Add New Wallet"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Platform Name
+                        </label>
+                        <input
+                            type="text"
+                            value={walletName}
+                            onChange={(event) => setWalletName(event.target.value)}
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Description
+                        </label>
+                        <input
+                            type="text"
+                            value={walletDescription}
+                            onChange={(event) =>
+                                setWalletDescription(event.target.value)
+                            }
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                    </div>
+                    <Button className="w-full" onClick={handleCreateWallet}>
+                        Create Wallet
+                    </Button>
+                </div>
+            </Modal>
         </div>
-      </Modal>
-    </div>
-  );
+    );
 };

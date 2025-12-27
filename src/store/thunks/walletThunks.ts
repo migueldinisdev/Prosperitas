@@ -234,6 +234,15 @@ const applyWalletTransactionEffects = (
                 dispatch(removeAssetTxId({ assetId: tx.assetId, txId: tx.id }));
             }
             break;
+        case "dividend":
+            adjustWalletCash(
+                tx.walletId,
+                tx.amount.currency,
+                direction * tx.amount.value,
+                getState,
+                dispatch
+            );
+            break;
     }
 
     if (direction === 1) {
