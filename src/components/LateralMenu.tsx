@@ -9,9 +9,12 @@ import {
     HelpCircle,
     Landmark,
     ChevronRight,
+    Download,
     Menu,
     X,
 } from "lucide-react";
+import { exportStateToFile } from "../data/persistence";
+import { useAppSelector } from "../store/hooks";
 
 interface LateralMenuProps {
     isMobileOpen: boolean;
@@ -56,6 +59,7 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
     setIsMobileOpen,
 }) => {
     const location = useLocation();
+    const state = useAppSelector((storeState) => storeState);
 
     const navItems = [
         { name: "Home", path: "/", icon: LayoutDashboard },
@@ -124,6 +128,20 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
                 </nav>
 
                 <div className="pt-6 border-t border-app-border space-y-1">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            exportStateToFile(state);
+                            setIsMobileOpen(false);
+                        }}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full"
+                    >
+                        <Download
+                            size={20}
+                            className="text-app-muted group-hover:text-app-foreground"
+                        />
+                        <span>Export</span>
+                    </button>
                     {bottomItems.map((item) => (
                         <NavLink
                             key={item.path}
