@@ -90,6 +90,14 @@ export const WalletDetail: React.FC<Props> = () => {
     const tradeTotal = tradeQuantity * tradePrice;
     const fxEnabled = tradeFundingCurrency !== tradeCurrency;
     const fxPair = `${tradeFundingCurrency}${tradeCurrency}`;
+    const hasTradeBasics =
+        tradeQuantity > 0 &&
+        tradePrice > 0 &&
+        Boolean(tradeName || tradeTicker);
+    const hasFxDetails = fxEnabled
+        ? tradeFundingAmount > 0 && Boolean(tradeFxRate)
+        : true;
+    const showTradeSummary = hasTradeBasics && hasFxDetails;
 
     const existingAssets = useMemo(
         () => Object.values(assets).sort((a, b) => a.ticker.localeCompare(b.ticker)),
@@ -967,70 +975,86 @@ export const WalletDetail: React.FC<Props> = () => {
                             />
                         </div>
                     </div>
-                    <div className="rounded-lg border border-app-border bg-app-surface px-4 py-3 text-xs text-app-muted space-y-1">
-                        {tradeType === "buy" ? (
-                            <p>
-                                Purchased{" "}
-                                <span className="text-app-foreground">
-                                    {tradeQuantity.toFixed(2)}
-                                </span>{" "}
-                                units of{" "}
-                                <span className="text-app-foreground">
-                                    {tradeName || tradeTicker || "this asset"}
-                                </span>{" "}
-                                at{" "}
-                                <span className="text-app-foreground">
-                                    {tradePrice.toFixed(2)} {tradeCurrency}
-                                </span>{" "}
-                                per unit
-                                {fxEnabled
-                                    ? `, using ${tradeFundingCurrency === "EUR" ? "€" : ""}${tradeFundingAmount.toFixed(
-                                          2
-                                      )} ${tradeFundingCurrency} converted at an FX rate of ${tradeFxRate || "-"}`
-                                    : "."}
-                            </p>
-                        ) : (
-                            <p>
-                                Sold{" "}
-                                <span className="text-app-foreground">
-                                    {tradeQuantity.toFixed(2)}
-                                </span>{" "}
-                                units of{" "}
-                                <span className="text-app-foreground">
-                                    {tradeName || tradeTicker || "this asset"}
-                                </span>{" "}
-                                at{" "}
-                                <span className="text-app-foreground">
-                                    {tradePrice.toFixed(2)} {tradeCurrency}
-                                </span>{" "}
-                                per unit
-                                {fxEnabled
-                                    ? `, with proceeds converted to ${tradeFundingCurrency === "EUR" ? "€" : ""}${tradeFundingAmount.toFixed(
-                                          2
-                                      )} ${tradeFundingCurrency} at an FX rate of ${tradeFxRate || "-"}`
-                                    : "."}
-                            </p>
-                        )}
-                        {(tradeFxFee > 0 || tradeFees > 0) && (
-                            <p>
-                                Fees applied:{" "}
-                                <span className="text-app-foreground">
-                                    {tradeFxFee > 0
-                                        ? `${tradeFxFee.toFixed(
-                                              2
-                                          )} ${tradeFxFeeCurrency} FX fee`
-                                        : ""}
-                                    {tradeFxFee > 0 && tradeFees > 0
-                                        ? " and "
-                                        : ""}
-                                    {tradeFees > 0
-                                        ? `${tradeFees.toFixed(
-                                              2
-                                          )} ${tradeFeesCurrency} transaction fee`
-                                        : ""}
-                                    .
-                                </span>
-                            </p>
+                    <div
+                        className={`rounded-lg border border-app-border bg-app-surface px-4 py-3 text-xs text-app-muted space-y-1 transition-all duration-200 overflow-hidden ${
+                            showTradeSummary
+                                ? "max-h-48 opacity-100"
+                                : "max-h-0 opacity-0"
+                        }`}
+                    >
+                        {showTradeSummary && (
+                            <>
+                                {tradeType === "buy" ? (
+                                    <p>
+                                        Purchased{" "}
+                                        <span className="text-app-foreground">
+                                            {tradeQuantity.toFixed(2)}
+                                        </span>{" "}
+                                        units of{" "}
+                                        <span className="text-app-foreground">
+                                            {tradeName ||
+                                                tradeTicker ||
+                                                "this asset"}
+                                        </span>{" "}
+                                        at{" "}
+                                        <span className="text-app-foreground">
+                                            {tradePrice.toFixed(2)}{" "}
+                                            {tradeCurrency}
+                                        </span>{" "}
+                                        per unit
+                                        {fxEnabled
+                                            ? `, using ${tradeFundingCurrency === "EUR" ? "€" : ""}${tradeFundingAmount.toFixed(
+                                                  2
+                                              )} ${tradeFundingCurrency} converted at an FX rate of ${tradeFxRate || "-"}`
+                                            : "."}
+                                    </p>
+                                ) : (
+                                    <p>
+                                        Sold{" "}
+                                        <span className="text-app-foreground">
+                                            {tradeQuantity.toFixed(2)}
+                                        </span>{" "}
+                                        units of{" "}
+                                        <span className="text-app-foreground">
+                                            {tradeName ||
+                                                tradeTicker ||
+                                                "this asset"}
+                                        </span>{" "}
+                                        at{" "}
+                                        <span className="text-app-foreground">
+                                            {tradePrice.toFixed(2)}{" "}
+                                            {tradeCurrency}
+                                        </span>{" "}
+                                        per unit
+                                        {fxEnabled
+                                            ? `, with proceeds converted to ${tradeFundingCurrency === "EUR" ? "€" : ""}${tradeFundingAmount.toFixed(
+                                                  2
+                                              )} ${tradeFundingCurrency} at an FX rate of ${tradeFxRate || "-"}`
+                                            : "."}
+                                    </p>
+                                )}
+                                {(tradeFxFee > 0 || tradeFees > 0) && (
+                                    <p>
+                                        Fees applied:{" "}
+                                        <span className="text-app-foreground">
+                                            {tradeFxFee > 0
+                                                ? `${tradeFxFee.toFixed(
+                                                      2
+                                                  )} ${tradeFxFeeCurrency} FX fee`
+                                                : ""}
+                                            {tradeFxFee > 0 && tradeFees > 0
+                                                ? " and "
+                                                : ""}
+                                            {tradeFees > 0
+                                                ? `${tradeFees.toFixed(
+                                                      2
+                                                  )} ${tradeFeesCurrency} transaction fee`
+                                                : ""}
+                                            .
+                                        </span>
+                                    </p>
+                                )}
+                            </>
                         )}
                     </div>
                     <Button
