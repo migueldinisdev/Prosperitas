@@ -32,13 +32,17 @@ const migrateState = (state: ProsperitasState): ProsperitasState => {
     };
 };
 
-export const saveStateToFile = (state: ProsperitasState) => {
-    const serialized = JSON.stringify(state, null, 2);
+export const exportStateToFile = (state: ProsperitasState) => {
+    const payload = {
+        version: Date.now(),
+        ...state,
+    };
+    const serialized = JSON.stringify(payload, null, 2);
     const blob = new Blob([serialized], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `prosperitas-${state.schemaVersion}.json`;
+    link.download = "prosperitas.json";
     link.click();
     URL.revokeObjectURL(url);
 };
