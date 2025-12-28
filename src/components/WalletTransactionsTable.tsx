@@ -13,10 +13,9 @@ const formatMoney = (money?: Money) =>
 const formatType = (type: WalletTx["type"]) =>
     type.charAt(0).toUpperCase() + type.slice(1);
 
-export const WalletTransactionsTable: React.FC<WalletTransactionsTableProps> = ({
-    transactions,
-    assets,
-}) => {
+export const WalletTransactionsTable: React.FC<
+    WalletTransactionsTableProps
+> = ({ transactions, assets }) => {
     if (transactions.length === 0) {
         return (
             <div className="text-sm text-app-muted">
@@ -49,83 +48,100 @@ export const WalletTransactionsTable: React.FC<WalletTransactionsTableProps> = (
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-app-border">
-                    {transactions.map((tx) => {
-                        const asset =
-                            "assetId" in tx && tx.assetId
-                                ? assets[tx.assetId]
-                                : undefined;
-                        const assetLabel = asset
-                            ? `${asset.ticker} • ${asset.name}`
-                            : "-";
-
-                        let quantity: string | number = "-";
-                        let price = "-";
-                        let amount = "-";
-                        let fees = "-";
-                        let fx = "-";
-
-                        if (tx.type === "deposit" || tx.type === "withdraw") {
-                            amount = formatMoney(tx.amount);
-                        }
-
-                        if (tx.type === "dividend") {
-                            amount = formatMoney(tx.amount);
-                        }
-
-                        if (tx.type === "forex") {
-                            amount = `${formatMoney(tx.from)} → ${formatMoney(
-                                tx.to
-                            )}`;
-                            fees = formatMoney(tx.fees);
-                            fx = tx.fxRate ? `Rate ${tx.fxRate}` : "-";
-                        }
-
-                        if (tx.type === "buy" || tx.type === "sell") {
-                            quantity = tx.quantity.toLocaleString();
-                            price = formatMoney(tx.price);
-                            amount = formatCurrency(
-                                tx.price.value * tx.quantity,
-                                tx.price.currency
+                    {transactions
+                        .slice()
+                        .sort((a, b) => {
+                            const dateDiff =
+                                new Date(b.date).getTime() -
+                                new Date(a.date).getTime();
+                            if (dateDiff !== 0) return dateDiff;
+                            return (
+                                new Date(b.createdAt).getTime() -
+                                new Date(a.createdAt).getTime()
                             );
-                            fees = tx.fees ? formatMoney(tx.fees) : "-";
-                            fx =
-                                tx.fxPair && tx.fxRate
-                                    ? `${tx.fxPair} @ ${tx.fxRate}`
-                                    : "-";
-                        }
+                        })
+                        .map((tx) => {
+                            const asset =
+                                "assetId" in tx && tx.assetId
+                                    ? assets[tx.assetId]
+                                    : undefined;
+                            const assetLabel = asset
+                                ? `${asset.ticker} • ${asset.name}`
+                                : "-";
 
-                        return (
-                            <tr
-                                key={tx.id}
-                                className="group hover:bg-app-surface transition-colors"
-                            >
-                                <td className="px-4 py-3 text-app-muted">
-                                    {tx.date}
-                                </td>
-                                <td className="px-4 py-3 text-app-foreground font-medium">
-                                    {formatType(tx.type)}
-                                </td>
-                                <td className="px-4 py-3 text-app-muted">
-                                    {assetLabel}
-                                </td>
-                                <td className="px-4 py-3 text-right text-app-muted">
-                                    {quantity}
-                                </td>
-                                <td className="px-4 py-3 text-right text-app-muted">
-                                    {price}
-                                </td>
-                                <td className="px-4 py-3 text-right text-app-foreground font-medium">
-                                    {amount}
-                                </td>
-                                <td className="px-4 py-3 text-right text-app-muted">
-                                    {fees}
-                                </td>
-                                <td className="px-4 py-3 text-right text-app-muted">
-                                    {fx}
-                                </td>
-                            </tr>
-                        );
-                    })}
+                            let quantity: string | number = "-";
+                            let price = "-";
+                            let amount = "-";
+                            let fees = "-";
+                            let fx = "-";
+
+                            if (
+                                tx.type === "deposit" ||
+                                tx.type === "withdraw"
+                            ) {
+                                amount = formatMoney(tx.amount);
+                            }
+
+                            if (tx.type === "dividend") {
+                                amount = formatMoney(tx.amount);
+                            }
+
+                            if (tx.type === "forex") {
+                                amount = `${formatMoney(
+                                    tx.from
+                                )} → ${formatMoney(tx.to)}`;
+                                fees = formatMoney(tx.fees);
+                                fx = tx.fxRate
+                                    ? `${tx.from.currency}/${tx.to.currency} @ ${tx.fxRate}`
+                                    : "-";
+                            }
+
+                            if (tx.type === "buy" || tx.type === "sell") {
+                                quantity = tx.quantity.toLocaleString();
+                                price = formatMoney(tx.price);
+                                amount = formatCurrency(
+                                    tx.price.value * tx.quantity,
+                                    tx.price.currency
+                                );
+                                fees = tx.fees ? formatMoney(tx.fees) : "-";
+                                fx =
+                                    tx.fxPair && tx.fxRate
+                                        ? `${tx.fxPair} @ ${tx.fxRate}`
+                                        : "-";
+                            }
+
+                            return (
+                                <tr
+                                    key={tx.id}
+                                    className="group hover:bg-app-surface transition-colors"
+                                >
+                                    <td className="px-4 py-3 text-app-muted">
+                                        {tx.date}
+                                    </td>
+                                    <td className="px-4 py-3 text-app-foreground font-medium">
+                                        {formatType(tx.type)}
+                                    </td>
+                                    <td className="px-4 py-3 text-app-muted">
+                                        {assetLabel}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-app-muted">
+                                        {quantity}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-app-muted">
+                                        {price}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-app-foreground font-medium">
+                                        {amount}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-app-muted">
+                                        {fees}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-app-muted">
+                                        {fx}
+                                    </td>
+                                </tr>
+                            );
+                        })}
                 </tbody>
             </table>
         </div>
