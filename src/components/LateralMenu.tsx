@@ -58,7 +58,7 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
     const location = useLocation();
 
     const navItems = [
-        { name: "Home", path: "/", icon: LayoutDashboard },
+        { name: "Home", path: "/home", icon: LayoutDashboard },
         { name: "Balance", path: "/balance", icon: Landmark },
         { name: "Wallets", path: "/wallets", icon: Wallet },
         { name: "Pies", path: "/pies", icon: PieChart },

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { LateralMenu } from "./components/LateralMenu";
 import { HomePage } from "./pages/home";
+import { LandingPage } from "./pages/landing";
 import { BalancePage } from "./pages/balance";
 import { WalletsPage } from "./pages/wallets";
 import { WalletDetail } from "./pages/wallets/Wallet";
@@ -11,117 +12,135 @@ import { StatisticsPage } from "./pages/statistics";
 import { HelpPage } from "./pages/help";
 import { SettingsPage } from "./pages/settings";
 
+const AppRoutes: React.FC<{
+    isMobileMenuOpen: boolean;
+    setIsMobileMenuOpen: (value: boolean) => void;
+}> = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
+    const location = useLocation();
+    const isLanding = location.pathname === "/";
+
+    return (
+        <div className="flex min-h-screen bg-app-bg text-app-foreground font-sans selection:bg-app-primary/20">
+            {!isLanding && (
+                <LateralMenu
+                    isMobileOpen={isMobileMenuOpen}
+                    setIsMobileOpen={setIsMobileMenuOpen}
+                />
+            )}
+
+            <div className={isLanding ? "flex-1" : "flex-1 lg:ml-64 min-h-screen flex flex-col"}>
+                <Routes>
+                    <Route path="/" element={<LandingPage />} />
+                    <Route
+                        path="/home"
+                        element={
+                            <HomePage
+                                onMenuClick={() =>
+                                    setIsMobileMenuOpen(true)
+                                }
+                            />
+                        }
+                    />
+                    <Route
+                        path="/balance"
+                        element={
+                            <BalancePage
+                                onMenuClick={() =>
+                                    setIsMobileMenuOpen(true)
+                                }
+                            />
+                        }
+                    />
+
+                    <Route
+                        path="/wallets"
+                        element={
+                            <WalletsPage
+                                onMenuClick={() =>
+                                    setIsMobileMenuOpen(true)
+                                }
+                            />
+                        }
+                    />
+                    <Route
+                        path="/wallets/:id"
+                        element={
+                            <WalletDetail
+                                onMenuClick={() =>
+                                    setIsMobileMenuOpen(true)
+                                }
+                            />
+                        }
+                    />
+
+                    <Route
+                        path="/pies"
+                        element={
+                            <PiesPage
+                                onMenuClick={() =>
+                                    setIsMobileMenuOpen(true)
+                                }
+                            />
+                        }
+                    />
+                    <Route
+                        path="/pies/:id"
+                        element={
+                            <PieDetail
+                                onMenuClick={() =>
+                                    setIsMobileMenuOpen(true)
+                                }
+                            />
+                        }
+                    />
+
+                    <Route
+                        path="/statistics"
+                        element={
+                            <StatisticsPage
+                                onMenuClick={() =>
+                                    setIsMobileMenuOpen(true)
+                                }
+                            />
+                        }
+                    />
+                    <Route
+                        path="/help"
+                        element={
+                            <HelpPage
+                                onMenuClick={() =>
+                                    setIsMobileMenuOpen(true)
+                                }
+                            />
+                        }
+                    />
+                    <Route
+                        path="/settings"
+                        element={
+                            <SettingsPage
+                                onMenuClick={() =>
+                                    setIsMobileMenuOpen(true)
+                                }
+                            />
+                        }
+                    />
+
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </div>
+        </div>
+    );
+};
+
 const App: React.FC = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     return (
         <HashRouter>
-            <div className="flex min-h-screen bg-app-bg text-app-foreground font-sans selection:bg-app-primary/20">
-                <LateralMenu
-                    isMobileOpen={isMobileMenuOpen}
-                    setIsMobileOpen={setIsMobileMenuOpen}
-                />
-
-                <div className="flex-1 lg:ml-64 min-h-screen flex flex-col">
-                    <Routes>
-                        <Route
-                            path="/"
-                            element={
-                                <HomePage
-                                    onMenuClick={() =>
-                                        setIsMobileMenuOpen(true)
-                                    }
-                                />
-                            }
-                        />
-                        <Route
-                            path="/balance"
-                            element={
-                                <BalancePage
-                                    onMenuClick={() =>
-                                        setIsMobileMenuOpen(true)
-                                    }
-                                />
-                            }
-                        />
-
-                        <Route
-                            path="/wallets"
-                            element={
-                                <WalletsPage
-                                    onMenuClick={() =>
-                                        setIsMobileMenuOpen(true)
-                                    }
-                                />
-                            }
-                        />
-                        <Route
-                            path="/wallets/:id"
-                            element={
-                                <WalletDetail
-                                    onMenuClick={() =>
-                                        setIsMobileMenuOpen(true)
-                                    }
-                                />
-                            }
-                        />
-
-                        <Route
-                            path="/pies"
-                            element={
-                                <PiesPage
-                                    onMenuClick={() =>
-                                        setIsMobileMenuOpen(true)
-                                    }
-                                />
-                            }
-                        />
-                        <Route
-                            path="/pies/:id"
-                            element={
-                                <PieDetail
-                                    onMenuClick={() =>
-                                        setIsMobileMenuOpen(true)
-                                    }
-                                />
-                            }
-                        />
-
-                        <Route
-                            path="/statistics"
-                            element={
-                                <StatisticsPage
-                                    onMenuClick={() =>
-                                        setIsMobileMenuOpen(true)
-                                    }
-                                />
-                            }
-                        />
-                        <Route
-                            path="/help"
-                            element={
-                                <HelpPage
-                                    onMenuClick={() =>
-                                        setIsMobileMenuOpen(true)
-                                    }
-                                />
-                            }
-                        />
-                        <Route
-                            path="/settings"
-                            element={
-                                <SettingsPage
-                                    onMenuClick={() =>
-                                        setIsMobileMenuOpen(true)
-                                    }
-                                />
-                            }
-                        />
-
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
-                </div>
-            </div>
+            <AppRoutes
+                isMobileMenuOpen={isMobileMenuOpen}
+                setIsMobileMenuOpen={setIsMobileMenuOpen}
+            />
         </HashRouter>
     );
 };
