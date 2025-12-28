@@ -16,18 +16,28 @@ interface HoldingsTableProps {
     holdings: HoldingRow[];
 }
 
-export const HoldingsTable: React.FC<HoldingsTableProps> = ({ holdings }) => {
+export const HoldingsTable = React.memo(({ holdings }: HoldingsTableProps) => {
     return (
         <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
                 <thead className="text-xs text-app-muted uppercase border-b border-app-border">
                     <tr>
                         <th className="px-4 py-3 font-medium">Asset</th>
-                        <th className="px-4 py-3 font-medium text-right">Units</th>
-                        <th className="px-4 py-3 font-medium text-right">Price</th>
-                        <th className="px-4 py-3 font-medium text-right">Value</th>
-                        <th className="px-4 py-3 font-medium text-right">PnL</th>
-                        <th className="px-4 py-3 font-medium text-right">Allocation</th>
+                        <th className="px-4 py-3 font-medium text-right">
+                            Units
+                        </th>
+                        <th className="px-4 py-3 font-medium text-right">
+                            Price
+                        </th>
+                        <th className="px-4 py-3 font-medium text-right">
+                            Value
+                        </th>
+                        <th className="px-4 py-3 font-medium text-right">
+                            PnL
+                        </th>
+                        <th className="px-4 py-3 font-medium text-right">
+                            Allocation
+                        </th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-app-border">
@@ -59,7 +69,9 @@ export const HoldingsTable: React.FC<HoldingsTableProps> = ({ holdings }) => {
                                 <td className="px-4 py-3 text-right text-app-foreground font-medium">
                                     {formatCurrency(holding.value)}
                                 </td>
-                                <td className={`px-4 py-3 text-right ${pnlColor}`}>
+                                <td
+                                    className={`px-4 py-3 text-right ${pnlColor}`}
+                                >
                                     {holding.pnl > 0 ? "+" : ""}
                                     {formatCurrency(holding.pnl)}
                                     {holding.pnlPercent !== undefined && (
@@ -80,4 +92,4 @@ export const HoldingsTable: React.FC<HoldingsTableProps> = ({ holdings }) => {
             </table>
         </div>
     );
-};
+});
