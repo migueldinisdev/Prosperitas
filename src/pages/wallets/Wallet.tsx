@@ -689,6 +689,7 @@ export const WalletDetail: React.FC<Props> = () => {
                             handleAddCash("deposit");
                             setDepositOpen(false);
                         }}
+                        disabled={!cashAmount || Number(cashAmount) <= 0} // Disable button if amount is zero or empty
                     >
                         Add Deposit
                     </Button>
@@ -738,6 +739,7 @@ export const WalletDetail: React.FC<Props> = () => {
                             handleAddCash("withdraw");
                             setWithdrawOpen(false);
                         }}
+                        disabled={!cashAmount || Number(cashAmount) <= 0} // Disable button if amount is zero or empty
                     >
                         Add Withdrawal
                     </Button>
