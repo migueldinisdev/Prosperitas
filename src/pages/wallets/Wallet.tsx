@@ -89,13 +89,17 @@ export const WalletDetail: React.FC<Props> = () => {
     const walletName = wallet?.name ?? "Wallet";
     const tradeTotal = tradeQuantity * tradePrice;
     const fxEnabled = tradeFundingCurrency !== tradeCurrency;
-    const fxPair = `${tradeFundingCurrency}${tradeCurrency}`;
+    const fxPair =
+        tradeType === "sell"
+            ? `${tradeCurrency}${tradeFundingCurrency}`
+            : `${tradeFundingCurrency}${tradeCurrency}`;
     const hasTradeBasics =
         tradeQuantity > 0 &&
         tradePrice > 0 &&
         Boolean(tradeName || tradeTicker);
     const hasFxDetails = fxEnabled
-        ? tradeFundingAmount > 0 && Boolean(tradeFxRate)
+        ? Boolean(tradeFxRate) &&
+          (tradeType === "sell" || tradeFundingAmount > 0)
         : true;
     const showTradeSummary = hasTradeBasics && hasFxDetails;
 
@@ -147,6 +151,17 @@ export const WalletDetail: React.FC<Props> = () => {
     useEffect(() => {
         setTradeFxFeeCurrency(tradeFundingCurrency);
     }, [tradeFundingCurrency]);
+
+    useEffect(() => {
+        if (!fxEnabled) {
+            setTradeFundingAmount(tradeTotal);
+            return;
+        }
+        if (tradeType === "sell") {
+            const rate = Number(tradeFxRate);
+            setTradeFundingAmount(rate > 0 ? tradeTotal * rate : 0);
+        }
+    }, [fxEnabled, tradeFxRate, tradeTotal, tradeType]);
 
     const holdings = useMemo<HoldingRow[]>(() => {
         const entries = Object.entries(walletPositions ?? {});
@@ -267,7 +282,11 @@ export const WalletDetail: React.FC<Props> = () => {
         }
         if (!assetId || tradeQuantity <= 0 || tradePrice <= 0) return;
 
-        if (fxEnabled && tradeFundingAmount > 0) {
+        if (
+            fxEnabled &&
+            tradeFxRate &&
+            (tradeType === "sell" || tradeFundingAmount > 0)
+        ) {
             const forexId = `tx_${Date.now()}_fx`;
             dispatch(
                 addWalletTransaction({
@@ -275,14 +294,20 @@ export const WalletDetail: React.FC<Props> = () => {
                     walletId: id,
                     type: "forex",
                     date: tradeDate,
-                    from: {
-                        value: tradeFundingAmount,
-                        currency: tradeFundingCurrency,
-                    },
-                    to: {
-                        value: tradeTotal,
-                        currency: tradeCurrency,
-                    },
+                    from:
+                        tradeType === "sell"
+                            ? { value: tradeTotal, currency: tradeCurrency }
+                            : {
+                                  value: tradeFundingAmount,
+                                  currency: tradeFundingCurrency,
+                              },
+                    to:
+                        tradeType === "sell"
+                            ? {
+                                  value: tradeFundingAmount,
+                                  currency: tradeFundingCurrency,
+                              }
+                            : { value: tradeTotal, currency: tradeCurrency },
                     fees:
                         tradeFxFee > 0
                             ? {
@@ -833,7 +858,7 @@ export const WalletDetail: React.FC<Props> = () => {
                                         Number(event.target.value)
                                     )
                                 }
-                                disabled={!fxEnabled}
+                                disabled={!fxEnabled || tradeType === "sell"}
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                             />
                         </div>
@@ -1003,7 +1028,7 @@ export const WalletDetail: React.FC<Props> = () => {
                                         </span>{" "}
                                         per unit
                                         {fxEnabled
-                                            ? `, using ${tradeFundingCurrency === "EUR" ? "€" : ""}${tradeFundingAmount.toFixed(
+                                            ? `, using ${tradeFundingAmount.toFixed(
                                                   2
                                               )} ${tradeFundingCurrency} converted at an FX rate of ${tradeFxRate || "-"}`
                                             : "."}
@@ -1026,11 +1051,11 @@ export const WalletDetail: React.FC<Props> = () => {
                                             {tradeCurrency}
                                         </span>{" "}
                                         per unit
-                                        {fxEnabled
-                                            ? `, with proceeds converted to ${tradeFundingCurrency === "EUR" ? "€" : ""}${tradeFundingAmount.toFixed(
-                                                  2
-                                              )} ${tradeFundingCurrency} at an FX rate of ${tradeFxRate || "-"}`
-                                            : "."}
+                                {fxEnabled
+                                    ? `, with proceeds converted to ${tradeFundingAmount.toFixed(
+                                          2
+                                      )} ${tradeFundingCurrency} at an FX rate of ${tradeFxRate || "-"}`
+                                    : "."}
                                     </p>
                                 )}
                                 {(tradeFxFee > 0 || tradeFees > 0) && (
