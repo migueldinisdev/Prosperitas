@@ -14,6 +14,7 @@ interface SankeyChartProps {
 
 export const SankeyChart = React.memo(
     ({ data, height = 500 }: SankeyChartProps) => {
+        console.log("SankeyChart re-rendered");
         // Build nodes array: 0 = Income, 1-N = expense categories, N+1 = Savings
         const nodes = [
             { name: "Income" },

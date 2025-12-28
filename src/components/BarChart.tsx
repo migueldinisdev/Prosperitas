@@ -25,6 +25,8 @@ export const BarChart = React.memo(
         height = 300,
         tickFormatter,
     }: BarChartProps) => {
+        console.log("BarChart re-rendered");
+
         return (
             <div style={{ width: "100%", height }}>
                 <ResponsiveContainer>

@@ -23,6 +23,8 @@ export const LineChart = React.memo(
         color = "rgb(var(--color-app-primary))",
         height = 300,
     }: LineChartProps) => {
+        console.log("LineChart re-rendered");
+
         return (
             <div style={{ width: "100%", height }}>
                 <ResponsiveContainer>

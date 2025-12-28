@@ -15,6 +15,8 @@ const formatType = (type: WalletTx["type"]) =>
 
 export const WalletTransactionsTable = React.memo(
     ({ transactions, assets }: WalletTransactionsTableProps) => {
+        console.log("WalletTransactionsTable re-rendered");
+
         const [currentPage, setCurrentPage] = useState(1);
         const [transactionsPerPage, setTransactionsPerPage] = useState(10);
 

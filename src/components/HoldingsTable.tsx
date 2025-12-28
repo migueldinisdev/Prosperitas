@@ -17,6 +17,8 @@ interface HoldingsTableProps {
 }
 
 export const HoldingsTable = React.memo(({ holdings }: HoldingsTableProps) => {
+    console.log("HoldingsTable re-rendered");
+
     return (
         <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
