@@ -49,11 +49,12 @@ const adjustWalletCash = (
     }
     const cashEntry = (wallet.cash || []).find((m) => m.currency === currency);
     const currentCash = cashEntry ? cashEntry.value : 0;
+    const nextCash = Math.round((currentCash + delta) * 100) / 100;
     dispatch(
         setWalletCashValue({
             id: walletId,
             currency,
-            amount: currentCash + delta,
+            amount: nextCash,
         })
     );
 };
@@ -171,6 +172,7 @@ const applyWalletTransactionEffects = (
             }
             break;
         case "buy":
+			
             adjustWalletCash(
                 tx.walletId,
                 tx.price.currency,
@@ -210,6 +212,7 @@ const applyWalletTransactionEffects = (
                 getState,
                 dispatch
             );
+
             if (tx.fees) {
                 adjustWalletCash(
                     tx.walletId,
@@ -233,6 +236,15 @@ const applyWalletTransactionEffects = (
             } else {
                 dispatch(removeAssetTxId({ assetId: tx.assetId, txId: tx.id }));
             }
+            break;
+        case "dividend":
+            adjustWalletCash(
+                tx.walletId,
+                tx.amount.currency,
+                direction * tx.amount.value,
+                getState,
+                dispatch
+            );
             break;
     }
 
