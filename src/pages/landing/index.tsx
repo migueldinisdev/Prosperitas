@@ -1,31 +1,60 @@
-import React, { useState } from "react";
+import React, { useRef } from "react";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import importSaveImage from "../../assets/landing/import-save.svg";
-import googleLoginImage from "../../assets/landing/google-login.svg";
-import guestStartImage from "../../assets/landing/guest-start.svg";
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { replaceState } from "../../store/actions";
+import { defaultState } from "../../store/initialState";
 
 const landingOptions = [
     {
         title: "Import save file",
         description: "Restore your wallets and charts from an existing backup.",
         buttonLabel: "Upload file",
-        image: importSaveImage,
+        //image: importSaveImage,
     },
     {
         title: "Log-in with Google",
         description: "Sync your data and continue across any device instantly.",
         buttonLabel: "Continue with Google",
-        image: googleLoginImage,
+        //image: googleLoginImage,
     },
     {
         title: "Start as Guest",
         description: "Jump in quickly and explore without signing in.",
         buttonLabel: "Start now",
-        image: guestStartImage,
+        //image: guestStartImage,
     },
 ];
 
 export const LandingPage: React.FC = () => {
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        try {
+            const text = await file.text();
+            const parsed = JSON.parse(text);
+            dispatch(replaceState(parsed));
+            navigate("/home");
+        } catch (err) {
+            window.alert("Failed to read file — ensure it's valid JSON.");
+        }
+    };
+
+    const handleUploadClick = () => fileInputRef.current?.click();
+    const handleStartNow = () => {
+        dispatch(replaceState(defaultState));
+        navigate("/home");
+    };
+    const handleContinueWithGoogle = () => {
+        // Placeholder: initialize empty store and continue to app
+        dispatch(replaceState(defaultState));
+        navigate("/home");
+    };
+
     return (
         <div className="min-h-screen bg-app-bg text-app-foreground">
             <div className="flex min-h-screen flex-col">
@@ -67,8 +96,17 @@ export const LandingPage: React.FC = () => {
                             </div>
 
                             <div className="grid gap-3 sm:grid-cols-3">
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="application/json"
+                                    className="hidden"
+                                    onChange={handleFileChange}
+                                />
+
                                 <button
                                     type="button"
+                                    onClick={handleUploadClick}
                                     className="rounded-xl bg-app-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-app-primary/90"
                                 >
                                     Upload file
@@ -76,6 +114,7 @@ export const LandingPage: React.FC = () => {
 
                                 <button
                                     type="button"
+                                    onClick={handleContinueWithGoogle}
                                     className="rounded-xl border border-app-border bg-app-card px-4 py-2 text-sm font-semibold hover:bg-app-surface"
                                 >
                                     Continue with Google
@@ -83,6 +122,7 @@ export const LandingPage: React.FC = () => {
 
                                 <button
                                     type="button"
+                                    onClick={handleStartNow}
                                     className="rounded-xl border border-app-border bg-app-card px-4 py-2 text-sm font-semibold hover:bg-app-surface"
                                 >
                                     Start now
