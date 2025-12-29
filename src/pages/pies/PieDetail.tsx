@@ -1,80 +1,14 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowUpRight, BarChart3, PieChart as PieIcon } from "lucide-react";
+import { ArrowLeft, PieChart as PieIcon } from "lucide-react";
 import { Card } from "../../ui/Card";
 import { PieChart } from "../../components/PieChart";
-import { LineChart } from "../../components/LineChart";
 import { Button } from "../../ui/Button";
 import { HoldingsTable, HoldingRow } from "../../components/HoldingsTable";
-
-// Mock data strictly for UI demo
-const performanceHistory = [
-    { name: "Jan", value: 12000 },
-    { name: "Feb", value: 12450 },
-    { name: "Mar", value: 12800 },
-    { name: "Apr", value: 13210 },
-    { name: "May", value: 13820 },
-];
-
-const allocation = [
-    { name: "Tech", value: 40, color: "#6366f1" },
-    { name: "Dividends", value: 30, color: "#10b981" },
-    { name: "Energy", value: 20, color: "#f59e0b" },
-    { name: "Emerging", value: 10, color: "#ef4444" },
-];
-
-const holdings: HoldingRow[] = [
-    {
-        asset: "Apple",
-        ticker: "AAPL",
-        units: 25,
-        price: 182.4,
-        value: 4560,
-        pnl: 620,
-        pnlPercent: 15.7,
-        allocation: 22,
-    },
-    {
-        asset: "Microsoft",
-        ticker: "MSFT",
-        units: 12,
-        price: 405.1,
-        value: 4861,
-        pnl: 410,
-        pnlPercent: 9.2,
-        allocation: 24,
-    },
-    {
-        asset: "Vanguard High Dividend",
-        ticker: "VYM",
-        units: 40,
-        price: 112.3,
-        value: 4492,
-        pnl: 190,
-        pnlPercent: 4.4,
-        allocation: 22,
-    },
-    {
-        asset: "iShares Clean Energy",
-        ticker: "ICLN",
-        units: 80,
-        price: 17.6,
-        value: 1408,
-        pnl: -96,
-        pnlPercent: -6.4,
-        allocation: 7,
-    },
-    {
-        asset: "Emerging Markets",
-        ticker: "EEM",
-        units: 55,
-        price: 38.4,
-        value: 2112,
-        pnl: 52,
-        pnlPercent: 2.5,
-        allocation: 11,
-    },
-];
+import { usePieData } from "../../hooks/usePieData";
+import { useAppSelector } from "../../store/hooks";
+import { selectSettings } from "../../store/selectors";
+import { formatCurrency } from "../../utils/formatters";
 
 interface Props {
     onMenuClick: () => void;
@@ -82,12 +16,59 @@ interface Props {
 
 export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
     const { id } = useParams();
-    const formattedName = id
-        ? id
-              .split("-")
-              .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-              .join(" ")
-        : "Pie";
+    const { pie, assets } = usePieData(id);
+    const settings = useAppSelector(selectSettings);
+
+    const totalValue = useMemo(
+        () =>
+            assets.reduce(
+                (total, asset) => total + asset.amount * asset.avgCost.value,
+                0
+            ),
+        [assets]
+    );
+
+    const allocation = useMemo(() => {
+        const colors = [
+            "#6366f1",
+            "#10b981",
+            "#f59e0b",
+            "#ef4444",
+            "#8b5cf6",
+            "#14b8a6",
+        ];
+
+        return assets
+            .map((asset, index) => ({
+                name: asset.ticker,
+                value: asset.amount * asset.avgCost.value,
+                color: colors[index % colors.length],
+            }))
+            .filter((entry) => entry.value > 0);
+    }, [assets]);
+
+    const holdings = useMemo<HoldingRow[]>(() => {
+        return assets.map((asset) => {
+            const value = asset.amount * asset.avgCost.value;
+            const allocationPercent =
+                totalValue > 0 ? Math.round((value / totalValue) * 100) : 0;
+
+            return {
+                asset: asset.name,
+                ticker: asset.ticker,
+                units: asset.amount,
+                price: asset.avgCost.value,
+                value,
+                pnl: 0,
+                pnlPercent: 0,
+                allocation: totalValue > 0 ? allocationPercent : undefined,
+            };
+        });
+    }, [assets, totalValue]);
+
+    const riskValue = pie?.risk ?? 0;
+    const formattedName = pie?.name ?? "Pie";
+    const description = pie?.description || "No description added yet.";
 
     return (
         <div className="pb-20">
@@ -101,7 +82,8 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                 <h1 className="text-xl font-bold text-app-foreground flex items-center gap-3">
                     <span>{formattedName}</span>
                     <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-app-surface border border-app-border text-app-muted">
-                        <PieIcon size={14} /> Balanced
+                        <PieIcon size={14} />{" "}
+                        {pie?.risk ? `Risk ${pie.risk}/5` : "Risk N/A"}
                     </span>
                 </h1>
                 <div className="flex-1" />
@@ -116,35 +98,35 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
                             Current Value
                         </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">$13,820.00</p>
+                        <p className="text-2xl font-bold text-app-foreground mt-1">
+                            {formatCurrency(
+                                totalValue,
+                                settings.balanceCurrency
+                            )}
+                        </p>
                     </Card>
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Invested
+                            Assets
                         </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">$12,400.00</p>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Total PnL
+                        <p className="text-2xl font-bold text-app-foreground mt-1">
+                            {assets.length}
                         </p>
-                        <div className="flex items-center gap-1 mt-1 text-app-success">
-                            <ArrowUpRight size={18} />
-                            <span className="text-2xl font-bold">+$1,420.00</span>
-                        </div>
                     </Card>
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
                             Risk Score
                         </p>
                         <div className="flex items-center gap-2 mt-1">
-                            <span className="text-lg font-semibold text-app-foreground">3/5</span>
+                            <span className="text-lg font-semibold text-app-foreground">
+                                {pie?.risk ? `${pie.risk}/5` : "N/A"}
+                            </span>
                             <div className="flex gap-1">
                                 {[1, 2, 3, 4, 5].map((level) => (
                                     <div
                                         key={level}
                                         className={`w-1 h-3 rounded-full ${
-                                            level <= 3
+                                            level <= riskValue
                                                 ? "bg-app-primary"
                                                 : "bg-app-border"
                                         }`}
@@ -153,33 +135,36 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                             </div>
                         </div>
                     </Card>
+                    <Card className="p-4">
+                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                            Description
+                        </p>
+                        <p className="text-sm text-app-foreground mt-1">
+                            {description}
+                        </p>
+                    </Card>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card title="Allocation" className="lg:col-span-1">
-                        <PieChart data={allocation} height={250} />
+                        {allocation.length > 0 ? (
+                            <PieChart data={allocation} height={250} />
+                        ) : (
+                            <p className="text-sm text-app-muted">
+                                Add assets to see allocation breakdowns.
+                            </p>
+                        )}
                     </Card>
-
-                    <Card title="Performance History" className="lg:col-span-2">
-                        <LineChart
-                            data={performanceHistory}
-                            dataKey="value"
-                            height={260}
-                        />
-                    </Card>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                    <Button variant="primary" icon={<ArrowUpRight size={16} />}>
-                        Add Trade
-                    </Button>
-                    <Button variant="secondary" icon={<BarChart3 size={16} />}>
-                        View Analytics
-                    </Button>
                 </div>
 
                 <Card title="Holdings">
-                    <HoldingsTable holdings={holdings} />
+                    {holdings.length > 0 ? (
+                        <HoldingsTable holdings={holdings} />
+                    ) : (
+                        <p className="text-sm text-app-muted">
+                            No assets added to this pie yet.
+                        </p>
+                    )}
                 </Card>
             </main>
         </div>
