@@ -1,5 +1,5 @@
 import React from "react";
-import { useGoogleDriveSync } from "../../integrations/googleDrive/useGoogleDriveSync";
+import { useGoogleDriveSync } from "../../hooks/useGoogleDriveSync";
 
 export const SaveStatusBadge: React.FC = () => {
     const { isDirty } = useGoogleDriveSync();

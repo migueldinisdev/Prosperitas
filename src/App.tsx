@@ -14,7 +14,7 @@ import { SettingsPage } from "./pages/settings";
 import {
     GoogleDriveSyncProvider,
     useGoogleDriveSync,
-} from "./integrations/googleDrive/useGoogleDriveSync";
+} from "./hooks/useGoogleDriveSync";
 
 const GoogleDriveInitializer: React.FC = () => {
     const { trySilentSignIn, loadFromDrive } = useGoogleDriveSync();
@@ -39,17 +39,23 @@ const AppRoutes: React.FC<{
 }> = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
     const location = useLocation();
     const isLanding = location.pathname === "/";
+    const { isAuthenticated, hasAttemptedSilentSignIn } =
+        useGoogleDriveSync();
+    const shouldForceLanding =
+        hasAttemptedSilentSignIn && !isAuthenticated && !isLanding;
+    const showLanding = isLanding || shouldForceLanding;
 
     return (
         <div className="flex min-h-screen bg-app-bg text-app-foreground font-sans selection:bg-app-primary/20">
-            {!isLanding && (
+            {shouldForceLanding && <Navigate to="/" replace />}
+            {!showLanding && (
                 <LateralMenu
                     isMobileOpen={isMobileMenuOpen}
                     setIsMobileOpen={setIsMobileMenuOpen}
                 />
             )}
 
-            <div className={isLanding ? "flex-1" : "flex-1 lg:ml-64 min-h-screen flex flex-col"}>
+            <div className={showLanding ? "flex-1" : "flex-1 lg:ml-64 min-h-screen flex flex-col"}>
                 <Routes>
                     <Route path="/" element={<LandingPage />} />
                     <Route

@@ -14,7 +14,7 @@ import {
     findFileInAppData,
     updateFile,
     DriveFileMetadata,
-} from "./googleDriveClient";
+} from "../data/googleDrive/googleDriveClient";
 import { exportSaveJson } from "../../store/saveSerialization";
 import { hydrateStoreFromJson } from "../../store/hydrateFromSave";
 import { defaultState } from "../../store/initialState";
@@ -42,6 +42,7 @@ type GoogleDriveSyncState = {
     accessToken: string | null;
     fileMeta: DriveFileMetadata | null;
     isDirty: boolean;
+    hasAttemptedSilentSignIn: boolean;
     trySilentSignIn: () => Promise<boolean>;
     signInInteractive: () => Promise<boolean>;
     loadFromDrive: () => Promise<boolean>;
@@ -109,6 +110,8 @@ export const GoogleDriveSyncProvider: React.FC<{
     const [error, setError] = useState<string | null>(null);
     const [accessToken, setAccessToken] = useState<string | null>(null);
     const [fileMeta, setFileMeta] = useState<DriveFileMetadata | null>(null);
+    const [hasAttemptedSilentSignIn, setHasAttemptedSilentSignIn] =
+        useState(false);
     const [currentSnapshotHash, setCurrentSnapshotHash] = useState(() =>
         hashString(exportSaveJson(store.getState()))
     );
@@ -202,6 +205,8 @@ export const GoogleDriveSyncProvider: React.FC<{
                 setError(null);
             }
             return false;
+        } finally {
+            setHasAttemptedSilentSignIn(true);
         }
     }, [requestAccessToken]);
 
@@ -273,8 +278,14 @@ export const GoogleDriveSyncProvider: React.FC<{
                 setLastSavedSnapshotHash(hashString(json));
             } else {
                 const defaultJson = JSON.stringify(defaultState);
+                const metadata = await createFileInAppData(
+                    accessToken,
+                    SAVE_FILE_NAME,
+                    SAVE_MIME_TYPE,
+                    defaultJson
+                );
                 hydrateStoreFromJson(defaultJson);
-                setFileMeta(null);
+                setFileMeta(metadata);
                 setLastSavedSnapshotHash(hashString(defaultJson));
             }
             setStatus("ready");
@@ -350,6 +361,7 @@ export const GoogleDriveSyncProvider: React.FC<{
             accessToken,
             fileMeta,
             isDirty,
+            hasAttemptedSilentSignIn,
             trySilentSignIn,
             signInInteractive,
             loadFromDrive,
@@ -363,6 +375,7 @@ export const GoogleDriveSyncProvider: React.FC<{
             accessToken,
             fileMeta,
             isDirty,
+            hasAttemptedSilentSignIn,
             trySilentSignIn,
             signInInteractive,
             loadFromDrive,

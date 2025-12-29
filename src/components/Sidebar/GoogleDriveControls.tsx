@@ -1,6 +1,6 @@
 import React from "react";
 import { LogOut, Save, ShieldCheck } from "lucide-react";
-import { useGoogleDriveSync } from "../../integrations/googleDrive/useGoogleDriveSync";
+import { useGoogleDriveSync } from "../../hooks/useGoogleDriveSync";
 import { exportSaveJson } from "../../store/saveSerialization";
 import { store } from "../../store";
 
