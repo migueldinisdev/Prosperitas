@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
     LayoutDashboard,
@@ -13,8 +13,10 @@ import {
     Menu,
     X,
 } from "lucide-react";
-import { exportStateToFile } from "../data/persistence";
+import { exportStateToFile, importStateFromFile } from "../data/persistence";
 import { useAppSelector } from "../store/hooks";
+import { useGoogleDriveSync } from "../hooks/useGoogleDriveSync";
+import { exportSaveJson } from "../store/saveSerialization";
 
 interface LateralMenuProps {
     isMobileOpen: boolean;
@@ -60,6 +62,13 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
 }) => {
     const location = useLocation();
     const state = useAppSelector((storeState) => storeState);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const { accessToken, signInInteractive, loadFromDrive, saveToDrive, status } =
+        useGoogleDriveSync();
+    const isBusy =
+        status === "authenticating" ||
+        status === "loading" ||
+        status === "saving";
 
     const navItems = [
         { name: "Home", path: "/home", icon: LayoutDashboard },
@@ -128,19 +137,104 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
                 </nav>
 
                 <div className="pt-6 border-t border-app-border space-y-1">
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="application/json"
+                        className="hidden"
+                        onChange={async (event) => {
+                            const file = event.target.files?.[0];
+                            if (!file) return;
+                            try {
+                                await importStateFromFile(file);
+                            } catch (error) {
+                                console.error("Failed to import file", error);
+                            } finally {
+                                event.target.value = "";
+                                setIsMobileOpen(false);
+                            }
+                        }}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => {
+                            fileInputRef.current?.click();
+                        }}
+                        disabled={isBusy}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full disabled:opacity-60"
+                    >
+                        <Download
+                            size={20}
+                            className="text-app-muted group-hover:text-app-foreground"
+                        />
+                        <span>Import from File</span>
+                    </button>
                     <button
                         type="button"
                         onClick={() => {
                             exportStateToFile(state);
                             setIsMobileOpen(false);
                         }}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full"
+                        disabled={isBusy}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full disabled:opacity-60"
                     >
                         <Download
                             size={20}
                             className="text-app-muted group-hover:text-app-foreground"
                         />
-                        <span>Export</span>
+                        <span>Export to File</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            try {
+                                const token =
+                                    accessToken ?? (await signInInteractive());
+                                if (!token) return;
+                                await loadFromDrive(token);
+                            } catch (error) {
+                                console.error(
+                                    "Failed to import from Google Drive",
+                                    error
+                                );
+                            } finally {
+                                setIsMobileOpen(false);
+                            }
+                        }}
+                        disabled={isBusy}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full disabled:opacity-60"
+                    >
+                        <Download
+                            size={20}
+                            className="text-app-muted group-hover:text-app-foreground"
+                        />
+                        <span>Import from Google Drive</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            try {
+                                const token =
+                                    accessToken ?? (await signInInteractive());
+                                if (!token) return;
+                                await saveToDrive(exportSaveJson(state), token);
+                            } catch (error) {
+                                console.error(
+                                    "Failed to export to Google Drive",
+                                    error
+                                );
+                            } finally {
+                                setIsMobileOpen(false);
+                            }
+                        }}
+                        disabled={isBusy}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full disabled:opacity-60"
+                    >
+                        <Download
+                            size={20}
+                            className="text-app-muted group-hover:text-app-foreground"
+                        />
+                        <span>Export to Google Drive</span>
                     </button>
                     {bottomItems.map((item) => (
                         <NavLink
