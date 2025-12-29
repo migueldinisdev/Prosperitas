@@ -34,8 +34,11 @@ const migrateState = (state: ProsperitasState): ProsperitasState => {
 
 export const serializeState = (state: ProsperitasState): string => {
     const payload = {
-        version: Date.now(),
         ...state,
+        meta: {
+            ...state.meta,
+            updatedAt: new Date().toISOString(),
+        },
     };
 
     return JSON.stringify(payload, null, 2);
