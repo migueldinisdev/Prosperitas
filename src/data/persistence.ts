@@ -32,12 +32,30 @@ const migrateState = (state: ProsperitasState): ProsperitasState => {
     };
 };
 
-export const exportStateToFile = (state: ProsperitasState) => {
+export const serializeState = (state: ProsperitasState): string => {
     const payload = {
-        version: Date.now(),
         ...state,
+        meta: {
+            ...state.meta,
+            updatedAt: new Date().toISOString(),
+        },
     };
-    const serialized = JSON.stringify(payload, null, 2);
+
+    return JSON.stringify(payload, null, 2);
+};
+
+export const hydrateState = (raw: string): ProsperitasState => {
+    const parsed = JSON.parse(raw);
+
+    if (!validateStateShape(parsed)) {
+        throw new Error("Imported state is missing required keys.");
+    }
+
+    return migrateState(parsed as ProsperitasState);
+};
+
+export const exportStateToFile = (state: ProsperitasState) => {
+    const serialized = serializeState(state);
     const blob = new Blob([serialized], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -51,11 +69,5 @@ export const loadStateFromFile = async (
     file: File
 ): Promise<ProsperitasState> => {
     const raw = await file.text();
-    const parsed = JSON.parse(raw);
-
-    if (!validateStateShape(parsed)) {
-        throw new Error("Imported state is missing required keys.");
-    }
-
-    return migrateState(parsed as ProsperitasState);
+    return hydrateState(raw);
 };
