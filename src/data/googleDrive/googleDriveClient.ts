@@ -4,12 +4,23 @@ export interface DriveFileMetadata {
     name?: string;
 }
 
+export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
+export const assertGoogleClientId = (): void => {
+    if (!GOOGLE_CLIENT_ID) {
+        throw new Error(
+            "Missing Google OAuth client ID. Set VITE_GOOGLE_CLIENT_ID in your environment."
+        );
+    }
+};
+
 const DRIVE_API_BASE = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD_BASE = "https://www.googleapis.com/upload/drive/v3";
 
 const throwForStatus = async (response: Response): Promise<void> => {
     if (!response.ok) {
         const message = await response.text();
+        console.error("[GoogleDriveClient] HTTP error", response.status, message || response.statusText);
         const error = new Error(message || response.statusText) as Error & {
             status?: number;
         };
@@ -42,6 +53,7 @@ export const findFileInAppData = async (
     accessToken: string,
     fileName: string
 ): Promise<DriveFileMetadata | null> => {
+    console.debug("[GoogleDriveClient] findFileInAppData", { fileName });
     const query = encodeURIComponent(
         `name='${fileName}' and trashed=false`
     );
@@ -57,6 +69,7 @@ export const findFileInAppData = async (
     const data = (await response.json()) as {
         files?: DriveFileMetadata[];
     };
+    console.debug("[GoogleDriveClient] findFileInAppData result", data.files?.[0] ?? null);
     return data.files?.[0] ?? null;
 };
 
@@ -64,6 +77,7 @@ export const downloadFile = async (
     accessToken: string,
     fileId: string
 ): Promise<string> => {
+    console.debug("[GoogleDriveClient] downloadFile", { fileId });
     const response = await fetch(
         `${DRIVE_API_BASE}/files/${fileId}?alt=media`,
         {
@@ -73,7 +87,9 @@ export const downloadFile = async (
         }
     );
     await throwForStatus(response);
-    return response.text();
+    const text = await response.text();
+    console.debug("[GoogleDriveClient] downloadFile size=", text.length);
+    return text;
 };
 
 export const createFileInAppData = async (
@@ -82,6 +98,7 @@ export const createFileInAppData = async (
     mimeType: string,
     content: string
 ): Promise<DriveFileMetadata> => {
+    console.debug("[GoogleDriveClient] createFileInAppData", { fileName, size: content.length });
     const boundary = `prosperitas_${Date.now()}`;
     const metadata = { name: fileName, parents: ["appDataFolder"] };
     const body = createMultipartBody(metadata, mimeType, content, boundary);
@@ -97,7 +114,9 @@ export const createFileInAppData = async (
         }
     );
     await throwForStatus(response);
-    return (await response.json()) as DriveFileMetadata;
+    const result = (await response.json()) as DriveFileMetadata;
+    console.debug("[GoogleDriveClient] createFileInAppData result", result);
+    return result;
 };
 
 export const updateFile = async (
@@ -106,6 +125,7 @@ export const updateFile = async (
     mimeType: string,
     content: string
 ): Promise<DriveFileMetadata> => {
+    console.debug("[GoogleDriveClient] updateFile", { fileId, size: content.length });
     const boundary = `prosperitas_${Date.now()}`;
     const metadata = {};
     const body = createMultipartBody(metadata, mimeType, content, boundary);
@@ -121,5 +141,7 @@ export const updateFile = async (
         }
     );
     await throwForStatus(response);
-    return (await response.json()) as DriveFileMetadata;
+    const result = (await response.json()) as DriveFileMetadata;
+    console.debug("[GoogleDriveClient] updateFile result", result);
+    return result;
 };

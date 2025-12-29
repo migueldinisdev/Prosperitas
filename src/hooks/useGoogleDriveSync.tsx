@@ -7,7 +7,7 @@ import React, {
     useRef,
     useState,
 } from "react";
-import { GOOGLE_CLIENT_ID } from "../../config/google";
+import { GOOGLE_CLIENT_ID } from "../data/googleDrive/googleDriveClient";
 import {
     createFileInAppData,
     downloadFile,
@@ -15,11 +15,11 @@ import {
     updateFile,
     DriveFileMetadata,
 } from "../data/googleDrive/googleDriveClient";
-import { exportSaveJson } from "../../store/saveSerialization";
-import { hydrateStoreFromJson } from "../../store/hydrateFromSave";
-import { defaultState } from "../../store/initialState";
-import { store } from "../../store";
-import { hashString } from "../../utils/hash";
+import { exportSaveJson } from "../store/saveSerialization";
+import { hydrateStoreFromJson } from "../store/hydrateFromSave";
+import { defaultState } from "../store/initialState";
+import { store } from "../store";
+import { hashString } from "../utils/hash";
 
 type SyncStatus =
     | "idle"
@@ -64,10 +64,7 @@ declare global {
                         scope: string;
                         callback: () => void;
                     }) => unknown;
-                    revoke?: (
-                        accessToken: string,
-                        done: () => void
-                    ) => void;
+                    revoke?: (accessToken: string, done: () => void) => void;
                 };
             };
         };
@@ -78,22 +75,35 @@ let gisScriptPromise: Promise<void> | null = null;
 
 const loadGisScript = (): Promise<void> => {
     if (typeof window === "undefined") {
-        return Promise.reject(new Error("Google Identity Services requires a browser"));
+        return Promise.reject(
+            new Error("Google Identity Services requires a browser")
+        );
     }
 
     if (window.google?.accounts?.oauth2) {
+        console.debug("[GoogleDrive] GIS script already available");
         return Promise.resolve();
     }
 
     if (!gisScriptPromise) {
         gisScriptPromise = new Promise((resolve, reject) => {
+            console.debug(
+                "[GoogleDrive] Loading Google Identity Services script..."
+            );
             const script = document.createElement("script");
             script.src = "https://accounts.google.com/gsi/client";
             script.async = true;
             script.defer = true;
-            script.onload = () => resolve();
-            script.onerror = () =>
+            script.onload = () => {
+                console.debug("[GoogleDrive] GIS script loaded");
+                resolve();
+            };
+            script.onerror = () => {
+                console.error(
+                    "[GoogleDrive] Failed to load Google Identity Services script"
+                );
                 reject(new Error("Failed to load Google Identity Services"));
+            };
             document.head.appendChild(script);
         });
     }
@@ -153,12 +163,14 @@ export const GoogleDriveSyncProvider: React.FC<{
         await loadGisScript();
 
         if (!tokenClientRef.current) {
+            console.debug("[GoogleDrive] Initializing token client");
             const client = window.google.accounts.oauth2.initTokenClient({
                 client_id: GOOGLE_CLIENT_ID,
                 scope: DRIVE_SCOPE,
                 callback: () => undefined,
             });
             tokenClientRef.current = client as TokenClient;
+            console.debug("[GoogleDrive] Token client initialized");
         }
 
         return tokenClientRef.current;
@@ -169,17 +181,26 @@ export const GoogleDriveSyncProvider: React.FC<{
             const client = await ensureTokenClient();
             return new Promise((resolve, reject) => {
                 client.callback = (response) => {
+                    console.debug(
+                        "[GoogleDrive] token client callback",
+                        response
+                    );
                     if (response?.access_token) {
+                        console.debug("[GoogleDrive] received access token");
                         resolve(response.access_token);
                         return;
                     }
-                    reject(
-                        new Error(
-                            response?.error ||
-                                "Google authentication did not return a token"
-                        )
-                    );
+                    const errMsg =
+                        response?.error ||
+                        "Google authentication did not return a token";
+                    console.error("[GoogleDrive] token error", errMsg);
+                    reject(new Error(errMsg));
                 };
+                console.debug(
+                    "[GoogleDrive] requesting access token (prompt=",
+                    prompt,
+                    ")"
+                );
                 client.requestAccessToken({ prompt });
             });
         },
@@ -189,14 +210,15 @@ export const GoogleDriveSyncProvider: React.FC<{
     const trySilentSignIn = useCallback(async (): Promise<boolean> => {
         setStatus("authenticating");
         setError(null);
+        console.debug("[GoogleDrive] Attempting silent sign-in");
         try {
             const token = await requestAccessToken("");
+            console.debug("[GoogleDrive] silent sign-in succeeded");
             setAccessToken(token);
             setStatus("authenticated");
             return true;
         } catch (authError) {
-            const message =
-                authError instanceof Error ? authError.message : "";
+            const message = authError instanceof Error ? authError.message : "";
             if (message.includes("Missing Google OAuth client ID")) {
                 setStatus("error");
                 setError(message);
@@ -204,6 +226,7 @@ export const GoogleDriveSyncProvider: React.FC<{
                 setStatus("idle");
                 setError(null);
             }
+            console.debug("[GoogleDrive] silent sign-in failed", message);
             return false;
         } finally {
             setHasAttemptedSilentSignIn(true);
@@ -213,8 +236,10 @@ export const GoogleDriveSyncProvider: React.FC<{
     const signInInteractive = useCallback(async (): Promise<boolean> => {
         setStatus("authenticating");
         setError(null);
+        console.debug("[GoogleDrive] Starting interactive sign-in");
         try {
             const token = await requestAccessToken("consent");
+            console.debug("[GoogleDrive] interactive sign-in succeeded");
             setAccessToken(token);
             setStatus("authenticated");
             return true;
@@ -225,12 +250,14 @@ export const GoogleDriveSyncProvider: React.FC<{
                     : "Google authentication failed";
             setStatus("error");
             setError(message);
+            console.error("[GoogleDrive] interactive sign-in failed", message);
             return false;
         }
     }, [requestAccessToken]);
 
     const handleDriveError = useCallback(
         (driveError: unknown, fallbackStatus: SyncStatus) => {
+            console.error("[GoogleDrive] Drive error", driveError);
             const statusCode =
                 typeof driveError === "object" &&
                 driveError &&
@@ -239,6 +266,9 @@ export const GoogleDriveSyncProvider: React.FC<{
                     : undefined;
 
             if (statusCode === 401) {
+                console.debug(
+                    "[GoogleDrive] 401 Unauthorized - clearing session"
+                );
                 setAccessToken(null);
                 setFileMeta(null);
                 setStatus("idle");
@@ -260,30 +290,43 @@ export const GoogleDriveSyncProvider: React.FC<{
         if (!accessToken) {
             setStatus("idle");
             setError("Not authenticated");
+            console.debug(
+                "[GoogleDrive] loadFromDrive called but not authenticated"
+            );
             return false;
         }
 
         setStatus("loading");
         setError(null);
+        console.debug("[GoogleDrive] loadFromDrive starting");
 
         try {
             const existing = await findFileInAppData(
                 accessToken,
                 SAVE_FILE_NAME
             );
+            console.debug("[GoogleDrive] findFileInAppData returned", existing);
             if (existing?.id) {
                 const json = await downloadFile(accessToken, existing.id);
+                console.debug(
+                    "[GoogleDrive] downloaded file, size=",
+                    json.length
+                );
                 hydrateStoreFromJson(json);
                 setFileMeta(existing);
                 setLastSavedSnapshotHash(hashString(json));
             } else {
                 const defaultJson = JSON.stringify(defaultState);
+                console.debug(
+                    "[GoogleDrive] no existing file; creating default save in appData"
+                );
                 const metadata = await createFileInAppData(
                     accessToken,
                     SAVE_FILE_NAME,
                     SAVE_MIME_TYPE,
                     defaultJson
                 );
+                console.debug("[GoogleDrive] created default save", metadata);
                 hydrateStoreFromJson(defaultJson);
                 setFileMeta(metadata);
                 setLastSavedSnapshotHash(hashString(defaultJson));
@@ -301,18 +344,32 @@ export const GoogleDriveSyncProvider: React.FC<{
             if (!accessToken) {
                 setStatus("idle");
                 setError("Not authenticated");
+                console.debug(
+                    "[GoogleDrive] saveToDrive called but not authenticated"
+                );
                 return false;
             }
 
             setStatus("saving");
             setError(null);
+            console.debug(
+                "[GoogleDrive] saveToDrive starting, bytes=",
+                json.length
+            );
 
             try {
                 let targetMeta = fileMeta;
                 if (!targetMeta) {
+                    console.debug(
+                        "[GoogleDrive] No cached fileMeta; searching for file in appData"
+                    );
                     targetMeta = await findFileInAppData(
                         accessToken,
                         SAVE_FILE_NAME
+                    );
+                    console.debug(
+                        "[GoogleDrive] findFileInAppData returned",
+                        targetMeta
                     );
                 }
 
@@ -330,6 +387,7 @@ export const GoogleDriveSyncProvider: React.FC<{
                           json
                       );
 
+                console.debug("[GoogleDrive] save completed", metadata);
                 setFileMeta(metadata);
                 setLastSavedSnapshotHash(hashString(json));
                 setStatus("ready");
@@ -343,7 +401,11 @@ export const GoogleDriveSyncProvider: React.FC<{
     );
 
     const signOut = useCallback(() => {
+        console.debug("[GoogleDrive] signOut called");
         if (accessToken && window.google?.accounts?.oauth2?.revoke) {
+            console.debug(
+                "[GoogleDrive] revoking token via google.accounts.oauth2.revoke"
+            );
             window.google.accounts.oauth2.revoke(accessToken, () => undefined);
         }
         setAccessToken(null);
