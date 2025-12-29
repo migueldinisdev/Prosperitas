@@ -1,5 +1,5 @@
 import React, { useMemo, useSyncExternalStore } from "react";
-import type { Persistor } from "../store/redux-persist";
+import type { Persistor } from "./persist";
 
 interface PersistGateProps {
     loading?: React.ReactNode;

@@ -1,5 +1,5 @@
 import { ProsperitasState } from "../core/schema-types";
-import { CURRENT_SCHEMA_VERSION } from "./initialState";
+import { CURRENT_SCHEMA_VERSION } from "../store/initialState";
 
 const requiredKeys: (keyof ProsperitasState)[] = [
     "schemaVersion",

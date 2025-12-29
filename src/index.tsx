@@ -4,7 +4,7 @@ import { Provider } from "react-redux";
 import App from "./App";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { persistor, store } from "./store";
-import { PersistGate } from "./components/PersistGate";
+import { PersistGate } from "./store/PersistGate";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
