@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { LateralMenu } from "./components/LateralMenu";
 import { HomePage } from "./pages/home";
@@ -11,6 +11,27 @@ import { PieDetail } from "./pages/pies/PieDetail";
 import { StatisticsPage } from "./pages/statistics";
 import { HelpPage } from "./pages/help";
 import { SettingsPage } from "./pages/settings";
+import {
+    GoogleDriveSyncProvider,
+    useGoogleDriveSync,
+} from "./integrations/googleDrive/useGoogleDriveSync";
+
+const GoogleDriveInitializer: React.FC = () => {
+    const { trySilentSignIn, loadFromDrive } = useGoogleDriveSync();
+
+    useEffect(() => {
+        const initialize = async () => {
+            const authenticated = await trySilentSignIn();
+            if (authenticated) {
+                await loadFromDrive();
+            }
+        };
+
+        initialize();
+    }, [trySilentSignIn, loadFromDrive]);
+
+    return null;
+};
 
 const AppRoutes: React.FC<{
     isMobileMenuOpen: boolean;
@@ -136,12 +157,15 @@ const App: React.FC = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     return (
-        <HashRouter>
-            <AppRoutes
-                isMobileMenuOpen={isMobileMenuOpen}
-                setIsMobileMenuOpen={setIsMobileMenuOpen}
-            />
-        </HashRouter>
+        <GoogleDriveSyncProvider>
+            <GoogleDriveInitializer />
+            <HashRouter>
+                <AppRoutes
+                    isMobileMenuOpen={isMobileMenuOpen}
+                    setIsMobileMenuOpen={setIsMobileMenuOpen}
+                />
+            </HashRouter>
+        </GoogleDriveSyncProvider>
     );
 };
 

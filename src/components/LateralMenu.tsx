@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { exportStateToFile } from "../data/persistence";
 import { useAppSelector } from "../store/hooks";
+import { GoogleDriveControls } from "./Sidebar/GoogleDriveControls";
 
 interface LateralMenuProps {
     isMobileOpen: boolean;
@@ -128,6 +129,7 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
                 </nav>
 
                 <div className="pt-6 border-t border-app-border space-y-1">
+                    <GoogleDriveControls />
                     <button
                         type="button"
                         onClick={() => {
