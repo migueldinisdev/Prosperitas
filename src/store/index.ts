@@ -19,7 +19,7 @@ import {
     persistStore,
     PersistConfig,
     REHYDRATE_ACTION,
-} from "./persist";
+} from "./redux-persist";
 import { replaceState } from "./actions";
 
 const appReducer = combineReducers({

@@ -13,7 +13,7 @@ import {
     Menu,
     X,
 } from "lucide-react";
-import { exportStateToFile } from "../data/persistence";
+import { exportStateToFile } from "../store/sync";
 import { useAppSelector } from "../store/hooks";
 
 interface LateralMenuProps {
