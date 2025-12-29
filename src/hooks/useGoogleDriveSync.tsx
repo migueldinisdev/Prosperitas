@@ -15,7 +15,7 @@ import {
 } from "../data/persistence";
 import { exportSaveJson } from "../store/saveSerialization";
 import { store } from "../store";
-import { hashString } from "../../utils/hash";
+import { hashString } from "../utils/hash";
 
 type SyncStatus =
     | "idle"
