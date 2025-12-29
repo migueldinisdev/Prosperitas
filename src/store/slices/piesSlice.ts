@@ -8,7 +8,11 @@ const piesSlice = createSlice({
     reducers: {
         setPies: (_state, action: PayloadAction<PiesState>) => action.payload,
         addPie: (state, action: PayloadAction<Pie>) => {
-            state[action.payload.id] = action.payload;
+            // Use lowercase pie name as the id/key, but keep the stored `name`'s original casing
+            const origName = action.payload.name || action.payload.id || "";
+            const name = origName.trim();
+            const id = name ? name.toLowerCase() : action.payload.id;
+            state[id] = { ...action.payload, id, name: action.payload.name ?? action.payload.id };
         },
         updatePie: (
             state,

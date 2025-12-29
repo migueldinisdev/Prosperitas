@@ -9,7 +9,11 @@ const walletsSlice = createSlice({
         setWallets: (_state, action: PayloadAction<WalletsState>) =>
             action.payload,
         addWallet: (state, action: PayloadAction<Wallet>) => {
-            state[action.payload.id] = action.payload;
+            // Use lowercase wallet name as the id/key, but keep the stored `name`'s original casing
+            const origName = action.payload.name || action.payload.id || "";
+            const name = origName.trim();
+            const id = name ? name.toLowerCase() : action.payload.id;
+            state[id] = { ...action.payload, id, name: action.payload.name ?? action.payload.id };
         },
         updateWallet: (
             state,

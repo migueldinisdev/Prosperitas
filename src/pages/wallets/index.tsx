@@ -30,14 +30,25 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
     const [walletName, setWalletName] = useState("");
     const [walletDescription, setWalletDescription] = useState("");
 
+    const existingNamesLower = useMemo(
+        () => new Set(Object.values(wallets).map((w) => w.name.toLowerCase())),
+        [wallets]
+    );
+    const walletNameTrimmed = walletName.trim();
+    const isDuplicateName =
+        walletNameTrimmed.length > 0 &&
+        existingNamesLower.has(walletNameTrimmed.toLowerCase());
+
     const walletList = useMemo(() => Object.values(wallets), [wallets]);
 
     const handleCreateWallet = () => {
         const id = `wallet_${Date.now()}`;
+        const name = walletNameTrimmed || "New Wallet";
+        if (existingNamesLower.has(name.toLowerCase())) return;
         dispatch(
             addWallet({
                 id,
-                name: walletName || "New Wallet",
+                name,
                 description: walletDescription || undefined,
                 cash: [{ value: 0, currency: settings.balanceCurrency }],
                 txIds: [],
@@ -85,9 +96,16 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
                         <input
                             type="text"
                             value={walletName}
-                            onChange={(event) => setWalletName(event.target.value)}
+                            onChange={(event) =>
+                                setWalletName(event.target.value)
+                            }
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
+                        {isDuplicateName && (
+                            <p className="mt-2 text-sm text-app-warning">
+                                A wallet with this name already exists.
+                            </p>
+                        )}
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-app-muted mb-1">
@@ -102,7 +120,11 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>
-                    <Button className="w-full" onClick={handleCreateWallet}>
+                    <Button
+                        className="w-full"
+                        onClick={handleCreateWallet}
+                        disabled={!walletNameTrimmed || isDuplicateName}
+                    >
                         Create Wallet
                     </Button>
                 </div>
