@@ -1,6 +1,7 @@
 import React from "react";
 import { Menu } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { SaveStatusBadge } from "./Header/SaveStatusBadge";
 
 interface PageHeaderProps {
     title: string;
@@ -37,6 +38,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
+                    <SaveStatusBadge />
                     {action}
                     <ThemeToggle />
                 </div>
