@@ -13,6 +13,7 @@ const requiredKeys: (keyof ProsperitasState)[] = [
     "walletPositions",
     "walletTx",
     "pies",
+    "notifications",
 ];
 
 const validateStateShape = (data: unknown): data is ProsperitasState => {
@@ -21,13 +22,19 @@ const validateStateShape = (data: unknown): data is ProsperitasState => {
 };
 
 const migrateState = (state: ProsperitasState): ProsperitasState => {
+    const baseState: ProsperitasState = {
+        ...state,
+        notifications: Array.isArray(state.notifications)
+            ? state.notifications
+            : [],
+    };
     // Future migrations will be added here when schemaVersion changes.
-    if (state.schemaVersion === CURRENT_SCHEMA_VERSION) {
-        return state;
+    if (baseState.schemaVersion === CURRENT_SCHEMA_VERSION) {
+        return baseState;
     }
 
     return {
-        ...state,
+        ...baseState,
         schemaVersion: CURRENT_SCHEMA_VERSION,
     };
 };
