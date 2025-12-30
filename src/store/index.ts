@@ -11,6 +11,7 @@ import walletsReducer from "./slices/walletsSlice";
 import walletPositionsReducer from "./slices/walletPositionsSlice";
 import walletTxReducer from "./slices/walletTxSlice";
 import piesReducer from "./slices/piesSlice";
+import notificationsReducer from "./slices/notificationsSlice";
 import { defaultState } from "./initialState";
 import { ProsperitasState } from "../core/schema-types";
 import {
@@ -34,6 +35,7 @@ const appReducer = combineReducers({
     walletPositions: walletPositionsReducer,
     walletTx: walletTxReducer,
     pies: piesReducer,
+    notifications: notificationsReducer,
 });
 
 const rootReducer = (

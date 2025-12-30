@@ -11,6 +11,7 @@ import { PieDetail } from "./pages/pies/PieDetail";
 import { StatisticsPage } from "./pages/statistics";
 import { HelpPage } from "./pages/help";
 import { SettingsPage } from "./pages/settings";
+import { Notifications } from "./components/Notifications";
 
 const AppRoutes: React.FC<{
     isMobileMenuOpen: boolean;
@@ -21,6 +22,7 @@ const AppRoutes: React.FC<{
 
     return (
         <div className="flex min-h-screen bg-app-bg text-app-foreground font-sans selection:bg-app-primary/20">
+            <Notifications />
             {!isLanding && (
                 <LateralMenu
                     isMobileOpen={isMobileMenuOpen}
