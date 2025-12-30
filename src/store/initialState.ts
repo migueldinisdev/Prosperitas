@@ -215,4 +215,5 @@ export const defaultState: ProsperitasState = {
     walletPositions: {},
     walletTx: {},
     pies: {},
+    notifications: [],
 };

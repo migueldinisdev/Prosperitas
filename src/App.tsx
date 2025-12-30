@@ -18,6 +18,7 @@ import { StatisticsPage } from "./pages/statistics";
 import { HelpPage } from "./pages/help";
 import { SettingsPage } from "./pages/settings";
 import { useSyncStatus } from "./store/syncStatus";
+import { Notifications } from "./components/Notifications";
 
 const AppRoutes: React.FC<{
     isMobileMenuOpen: boolean;
@@ -30,6 +31,7 @@ const AppRoutes: React.FC<{
 
     return (
         <div className="flex min-h-screen bg-app-bg text-app-foreground font-sans selection:bg-app-primary/20">
+            <Notifications />
             {!isLanding && (
                 <LateralMenu
                     isMobileOpen={isMobileMenuOpen}
@@ -37,7 +39,13 @@ const AppRoutes: React.FC<{
                 />
             )}
 
-            <div className={isLanding ? "flex-1" : "flex-1 lg:ml-64 min-h-screen flex flex-col"}>
+            <div
+                className={
+                    isLanding
+                        ? "flex-1"
+                        : "flex-1 lg:ml-64 min-h-screen flex flex-col"
+                }
+            >
                 <Routes>
                     <Route
                         path="/"

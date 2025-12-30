@@ -10,6 +10,8 @@
   --color-app-accent: 124 58 237;
   --color-app-success: 22 163 74;
   --color-app-danger: 225 29 72;
+  --color-app-warning: 234 179 8;
+  --color-app-info: 37 99 235;
   --shadow-card: 0 10px 40px rgba(15, 23, 42, 0.08);
   --overlay: rgba(15, 23, 42, 0.45);
   --scrollbar: #cbd5e1;
@@ -28,6 +30,8 @@
   --color-app-accent: 139 92 246;
   --color-app-success: 16 185 129;
   --color-app-danger: 244 63 94;
+  --color-app-warning: 250 204 21;
+  --color-app-info: 59 130 246;
   --shadow-card: 0 12px 48px rgba(0, 0, 0, 0.35);
   --overlay: rgba(0, 0, 0, 0.55);
   --scrollbar: #3f3f46;
@@ -66,4 +70,99 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-hover);
+}
+
+.notification-stack {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.notification-card {
+  pointer-events: auto;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  min-width: 260px;
+  max-width: 360px;
+  background: rgb(var(--color-app-card));
+  color: rgb(var(--color-app-foreground));
+  border: 1px solid rgb(var(--color-app-border));
+  border-left: 4px solid var(--notification-accent, rgb(var(--color-app-primary)));
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  animation: notification-slide-up 220ms ease-out;
+}
+
+.notification-card[data-type="success"] {
+  --notification-accent: rgb(var(--color-app-success));
+}
+
+.notification-card[data-type="error"] {
+  --notification-accent: rgb(var(--color-app-danger));
+}
+
+.notification-card[data-type="warning"] {
+  --notification-accent: rgb(var(--color-app-warning));
+}
+
+.notification-card[data-type="info"] {
+  --notification-accent: rgb(var(--color-app-info));
+}
+
+.notification-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--notification-accent, rgb(var(--color-app-primary)));
+  margin-top: 0.15rem;
+}
+
+.notification-content {
+  flex: 1;
+}
+
+.notification-title {
+  font-weight: 600;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.notification-message {
+  margin: 0.2rem 0 0;
+  color: rgb(var(--color-app-muted));
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.notification-dismiss {
+  border: none;
+  background: transparent;
+  color: rgb(var(--color-app-muted));
+  cursor: pointer;
+  padding: 0.15rem;
+  border-radius: 6px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.notification-dismiss:hover {
+  background: rgb(var(--color-app-surface));
+  color: rgb(var(--color-app-foreground));
+}
+
+@keyframes notification-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
