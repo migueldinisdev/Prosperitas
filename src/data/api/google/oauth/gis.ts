@@ -91,3 +91,44 @@ export const requestAccessTokenInteractive = async (
         tokenClient.requestAccessToken({ prompt: "consent" });
     });
 };
+
+export const requestAccessTokenSilent = async (
+    clientId: string,
+    scopes: string[]
+): Promise<string> => {
+    await loadGisScript();
+
+    if (!window.google?.accounts?.oauth2) {
+        throw new GoogleAuthError("Google Identity Services not available.");
+    }
+
+    return new Promise((resolve, reject) => {
+        const tokenClient = window.google!.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: scopes.join(" "),
+            callback: (response) => {
+                if (response.access_token) {
+                    resolve(response.access_token);
+                    return;
+                }
+
+                reject(
+                    new GoogleAuthError(
+                        response.error_description ||
+                            response.error ||
+                            "Failed to obtain access token."
+                    )
+                );
+            },
+            error_callback: (error) => {
+                reject(
+                    new GoogleAuthError(
+                        error?.type || "Google auth request failed."
+                    )
+                );
+            },
+        });
+
+        tokenClient.requestAccessToken({ prompt: "none" });
+    });
+};

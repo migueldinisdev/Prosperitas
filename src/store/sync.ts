@@ -16,7 +16,11 @@ import {
     findAppDataFile,
     updateAppDataFile,
 } from "../data/api/google/drive";
-import { ensureValidAccessToken, invalidateToken } from "../data/api/google/oauth";
+import {
+    ensureValidAccessToken,
+    ensureValidAccessTokenSilent,
+    invalidateToken,
+} from "../data/api/google/oauth";
 import {
     GoogleDriveError,
     NoGoogleDriveSaveError,
@@ -38,6 +42,29 @@ const withGoogleDriveRetry = async <T>(
         ) {
             invalidateToken(DRIVE_SCOPES);
             const refreshedToken = await ensureValidAccessToken(DRIVE_SCOPES);
+            return action(refreshedToken);
+        }
+
+        throw error;
+    }
+};
+
+const withGoogleDriveSilent = async <T>(
+    action: (accessToken: string) => Promise<T>
+): Promise<T> => {
+    const accessToken = await ensureValidAccessTokenSilent(DRIVE_SCOPES);
+
+    try {
+        return await action(accessToken);
+    } catch (error) {
+        if (
+            error instanceof GoogleDriveError &&
+            (error.status === 401 || error.status === 403)
+        ) {
+            invalidateToken(DRIVE_SCOPES);
+            const refreshedToken = await ensureValidAccessTokenSilent(
+                DRIVE_SCOPES
+            );
             return action(refreshedToken);
         }
 
@@ -90,5 +117,22 @@ export const exportToGoogleDrive = async (): Promise<void> => {
         }
 
         await updateAppDataFile(accessToken, file.id, content);
+    });
+};
+
+export const importFromGoogleDriveSilent = async (): Promise<void> => {
+    await withGoogleDriveSilent(async (accessToken) => {
+        const file = await findAppDataFile(
+            accessToken,
+            GOOGLE_DRIVE_SAVE_FILENAME
+        );
+
+        if (!file) {
+            throw new NoGoogleDriveSaveError();
+        }
+
+        const content = await downloadFile(accessToken, file.id);
+        const state = hydrateState(content);
+        store.dispatch(replaceState(state));
     });
 };

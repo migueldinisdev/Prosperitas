@@ -7,6 +7,10 @@ import React, {
     useState,
 } from "react";
 import { store } from "./index";
+import { importFromGoogleDriveSilent } from "./sync";
+import { NoGoogleDriveSaveError } from "../data/api/google/errors";
+import { replaceState } from "./actions";
+import { defaultState } from "./initialState";
 
 export type SyncMode = "offline" | "cloud" | null;
 export type SyncStatus = "saved" | "unsaved" | "saving" | "up-to-date";
@@ -63,6 +67,8 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
     const suppressDirtyRef = useRef(true);
     const previousStateRef = useRef(store.getState());
     const modeRef = useRef<SyncMode>(mode);
+    const restoreAttemptedRef = useRef(false);
+    const restoreInFlightRef = useRef(false);
 
     useEffect(() => {
         modeRef.current = mode;
@@ -125,6 +131,44 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsDirty(false);
         setStatus("saved");
     };
+
+    useEffect(() => {
+        const restoreCloudSession = async () => {
+            if (restoreInFlightRef.current) {
+                return;
+            }
+            restoreInFlightRef.current = true;
+
+            try {
+                suppressNextDirty();
+                await importFromGoogleDriveSilent();
+                setModeAndClean("cloud");
+            } catch (error) {
+                if (error instanceof NoGoogleDriveSaveError) {
+                    suppressNextDirty();
+                    store.dispatch(replaceState(defaultState));
+                    setModeAndClean("cloud");
+                    setStatus("unsaved");
+                    setIsDirty(true);
+                    return;
+                }
+
+                resetSession();
+            } finally {
+                restoreInFlightRef.current = false;
+            }
+        };
+
+        if (mode !== "cloud") {
+            restoreAttemptedRef.current = false;
+            return;
+        }
+
+        if (!restoreAttemptedRef.current) {
+            restoreAttemptedRef.current = true;
+            void restoreCloudSession();
+        }
+    }, [mode]);
 
     const value = useMemo(
         () => ({
