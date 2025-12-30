@@ -10,6 +10,8 @@
   --color-app-accent: 124 58 237;
   --color-app-success: 22 163 74;
   --color-app-danger: 225 29 72;
+  --color-app-warning: 234 179 8;
+  --color-app-info: 37 99 235;
   --shadow-card: 0 10px 40px rgba(15, 23, 42, 0.08);
   --overlay: rgba(15, 23, 42, 0.45);
   --scrollbar: #cbd5e1;
@@ -28,6 +30,8 @@
   --color-app-accent: 139 92 246;
   --color-app-success: 16 185 129;
   --color-app-danger: 244 63 94;
+  --color-app-warning: 250 204 21;
+  --color-app-info: 59 130 246;
   --shadow-card: 0 12px 48px rgba(0, 0, 0, 0.35);
   --overlay: rgba(0, 0, 0, 0.55);
   --scrollbar: #3f3f46;
@@ -105,11 +109,11 @@ body {
 }
 
 .notification-card[data-type="warning"] {
-  --notification-accent: rgb(var(--color-app-accent));
+  --notification-accent: rgb(var(--color-app-warning));
 }
 
 .notification-card[data-type="info"] {
-  --notification-accent: rgb(var(--color-app-primary));
+  --notification-accent: rgb(var(--color-app-info));
 }
 
 .notification-icon {
