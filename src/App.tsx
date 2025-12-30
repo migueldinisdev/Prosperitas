@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+    HashRouter,
+    Routes,
+    Route,
+    Navigate,
+    useLocation,
+} from "react-router-dom";
 import { LateralMenu } from "./components/LateralMenu";
 import { HomePage } from "./pages/home";
 import { LandingPage } from "./pages/landing";
@@ -11,12 +17,15 @@ import { PieDetail } from "./pages/pies/PieDetail";
 import { StatisticsPage } from "./pages/statistics";
 import { HelpPage } from "./pages/help";
 import { SettingsPage } from "./pages/settings";
+import { useSyncStatus } from "./store/syncStatus";
 
 const AppRoutes: React.FC<{
     isMobileMenuOpen: boolean;
     setIsMobileMenuOpen: (value: boolean) => void;
 }> = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
     const location = useLocation();
+    const { mode } = useSyncStatus();
+    const isLoggedIn = mode !== null;
     const isLanding = location.pathname === "/";
 
     return (
@@ -30,98 +39,143 @@ const AppRoutes: React.FC<{
 
             <div className={isLanding ? "flex-1" : "flex-1 lg:ml-64 min-h-screen flex flex-col"}>
                 <Routes>
-                    <Route path="/" element={<LandingPage />} />
+                    <Route
+                        path="/"
+                        element={
+                            isLoggedIn ? (
+                                <Navigate to="/home" replace />
+                            ) : (
+                                <LandingPage />
+                            )
+                        }
+                    />
                     <Route
                         path="/home"
                         element={
-                            <HomePage
-                                onMenuClick={() =>
-                                    setIsMobileMenuOpen(true)
-                                }
-                            />
+                            isLoggedIn ? (
+                                <HomePage
+                                    onMenuClick={() =>
+                                        setIsMobileMenuOpen(true)
+                                    }
+                                />
+                            ) : (
+                                <Navigate to="/" replace />
+                            )
                         }
                     />
                     <Route
                         path="/balance"
                         element={
-                            <BalancePage
-                                onMenuClick={() =>
-                                    setIsMobileMenuOpen(true)
-                                }
-                            />
+                            isLoggedIn ? (
+                                <BalancePage
+                                    onMenuClick={() =>
+                                        setIsMobileMenuOpen(true)
+                                    }
+                                />
+                            ) : (
+                                <Navigate to="/" replace />
+                            )
                         }
                     />
 
                     <Route
                         path="/wallets"
                         element={
-                            <WalletsPage
-                                onMenuClick={() =>
-                                    setIsMobileMenuOpen(true)
-                                }
-                            />
+                            isLoggedIn ? (
+                                <WalletsPage
+                                    onMenuClick={() =>
+                                        setIsMobileMenuOpen(true)
+                                    }
+                                />
+                            ) : (
+                                <Navigate to="/" replace />
+                            )
                         }
                     />
                     <Route
                         path="/wallets/:id"
                         element={
-                            <WalletDetail
-                                onMenuClick={() =>
-                                    setIsMobileMenuOpen(true)
-                                }
-                            />
+                            isLoggedIn ? (
+                                <WalletDetail
+                                    onMenuClick={() =>
+                                        setIsMobileMenuOpen(true)
+                                    }
+                                />
+                            ) : (
+                                <Navigate to="/" replace />
+                            )
                         }
                     />
 
                     <Route
                         path="/pies"
                         element={
-                            <PiesPage
-                                onMenuClick={() =>
-                                    setIsMobileMenuOpen(true)
-                                }
-                            />
+                            isLoggedIn ? (
+                                <PiesPage
+                                    onMenuClick={() =>
+                                        setIsMobileMenuOpen(true)
+                                    }
+                                />
+                            ) : (
+                                <Navigate to="/" replace />
+                            )
                         }
                     />
                     <Route
                         path="/pies/:id"
                         element={
-                            <PieDetail
-                                onMenuClick={() =>
-                                    setIsMobileMenuOpen(true)
-                                }
-                            />
+                            isLoggedIn ? (
+                                <PieDetail
+                                    onMenuClick={() =>
+                                        setIsMobileMenuOpen(true)
+                                    }
+                                />
+                            ) : (
+                                <Navigate to="/" replace />
+                            )
                         }
                     />
 
                     <Route
                         path="/statistics"
                         element={
-                            <StatisticsPage
-                                onMenuClick={() =>
-                                    setIsMobileMenuOpen(true)
-                                }
-                            />
+                            isLoggedIn ? (
+                                <StatisticsPage
+                                    onMenuClick={() =>
+                                        setIsMobileMenuOpen(true)
+                                    }
+                                />
+                            ) : (
+                                <Navigate to="/" replace />
+                            )
                         }
                     />
                     <Route
                         path="/help"
                         element={
-                            <HelpPage
-                                onMenuClick={() =>
-                                    setIsMobileMenuOpen(true)
-                                }
-                            />
+                            isLoggedIn ? (
+                                <HelpPage
+                                    onMenuClick={() =>
+                                        setIsMobileMenuOpen(true)
+                                    }
+                                />
+                            ) : (
+                                <Navigate to="/" replace />
+                            )
                         }
                     />
                     <Route
                         path="/settings"
                         element={
-                            <SettingsPage
-                                onMenuClick={() =>
-                                    setIsMobileMenuOpen(true)
-                                }
-                            />
+                            isLoggedIn ? (
+                                <SettingsPage
+                                    onMenuClick={() =>
+                                        setIsMobileMenuOpen(true)
+                                    }
+                                />
+                            ) : (
+                                <Navigate to="/" replace />
+                            )
                         }
                     />
 
