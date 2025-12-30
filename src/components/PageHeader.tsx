@@ -1,6 +1,7 @@
 import React from "react";
 import { Menu } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { SyncStatusPills } from "./SyncStatusPills";
 
 interface PageHeaderProps {
     title: string;
@@ -38,6 +39,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                 </div>
                 <div className="flex items-center gap-4">
                     {action}
+                    <SyncStatusPills />
                     <ThemeToggle />
                 </div>
             </div>

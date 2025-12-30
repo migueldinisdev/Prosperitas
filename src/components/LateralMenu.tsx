@@ -1,5 +1,5 @@
-import React, { useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import React from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
     LayoutDashboard,
     Wallet,
@@ -10,18 +10,15 @@ import {
     Landmark,
     ChevronRight,
     Download,
-    Upload,
-    CloudDownload,
-    CloudUpload,
-    Menu,
     X,
+    LogOut,
 } from "lucide-react";
-import {
-    exportToFile,
-    exportToGoogleDrive,
-    importFromFile,
-    importFromGoogleDrive,
-} from "../store/sync";
+import { exportToFile } from "../store/sync";
+import { useDispatch } from "react-redux";
+import { replaceState } from "../store/actions";
+import { defaultState } from "../store/initialState";
+import { persistor } from "../store";
+import { useSyncStatus } from "../store/syncStatus";
 
 interface LateralMenuProps {
     isMobileOpen: boolean;
@@ -66,7 +63,9 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
     setIsMobileOpen,
 }) => {
     const location = useLocation();
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const { resetSession, suppressNextDirty } = useSyncStatus();
     const runAction = async (action: () => Promise<void>) => {
         try {
             await action();
@@ -95,6 +94,15 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
             location.pathname === path ||
             (path !== "/" && location.pathname.startsWith(path))
         );
+    };
+
+    const handleSignOut = async () => {
+        suppressNextDirty();
+        dispatch(replaceState(defaultState));
+        await persistor.purge();
+        resetSession();
+        navigate("/");
+        setIsMobileOpen(false);
     };
 
     return (
@@ -144,34 +152,6 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
                 </nav>
 
                 <div className="pt-6 border-t border-app-border space-y-1">
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="application/json"
-                        className="hidden"
-                        onChange={async (event) => {
-                            const file = event.target.files?.[0];
-                            if (!file) {
-                                return;
-                            }
-
-                            await runAction(async () => {
-                                await importFromFile(file);
-                            });
-                            event.target.value = "";
-                        }}
-                    />
-                    <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full"
-                    >
-                        <Upload
-                            size={20}
-                            className="text-app-muted group-hover:text-app-foreground"
-                        />
-                        <span>Import from File</span>
-                    </button>
                     <button
                         type="button"
                         onClick={() => runAction(exportToFile)}
@@ -185,25 +165,14 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
                     </button>
                     <button
                         type="button"
-                        onClick={() => runAction(importFromGoogleDrive)}
+                        onClick={handleSignOut}
                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full"
                     >
-                        <CloudDownload
+                        <LogOut
                             size={20}
                             className="text-app-muted group-hover:text-app-foreground"
                         />
-                        <span>Import from Google Drive</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => runAction(exportToGoogleDrive)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full"
-                    >
-                        <CloudUpload
-                            size={20}
-                            className="text-app-muted group-hover:text-app-foreground"
-                        />
-                        <span>Export to Google Drive</span>
+                        <span>Sign out</span>
                     </button>
                     {bottomItems.map((item) => (
                         <NavLink

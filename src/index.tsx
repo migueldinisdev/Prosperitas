@@ -5,6 +5,7 @@ import App from "./App";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { persistor, store } from "./store";
 import { PersistGate } from "./store/PersistGate";
+import { SyncStatusProvider } from "./store/syncStatus";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -16,9 +17,11 @@ root.render(
     <React.StrictMode>
         <Provider store={store}>
             <PersistGate loading={null} persistor={persistor}>
-                <ThemeProvider>
-                    <App />
-                </ThemeProvider>
+                <SyncStatusProvider>
+                    <ThemeProvider>
+                        <App />
+                    </ThemeProvider>
+                </SyncStatusProvider>
             </PersistGate>
         </Provider>
     </React.StrictMode>

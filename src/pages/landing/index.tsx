@@ -1,43 +1,27 @@
 import React, { useRef } from "react";
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { SyncStatusPills } from "../../components/SyncStatusPills";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { replaceState } from "../../store/actions";
 import { defaultState } from "../../store/initialState";
-
-const landingOptions = [
-    {
-        title: "Import save file",
-        description: "Restore your wallets and charts from an existing backup.",
-        buttonLabel: "Upload file",
-        //image: importSaveImage,
-    },
-    {
-        title: "Log-in with Google",
-        description: "Sync your data and continue across any device instantly.",
-        buttonLabel: "Continue with Google",
-        //image: googleLoginImage,
-    },
-    {
-        title: "Start as Guest",
-        description: "Jump in quickly and explore without signing in.",
-        buttonLabel: "Start now",
-        //image: guestStartImage,
-    },
-];
+import { importFromFile, importFromGoogleDrive } from "../../store/sync";
+import { NoGoogleDriveSaveError } from "../../data/api/google/errors";
+import { useSyncStatus } from "../../store/syncStatus";
 
 export const LandingPage: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
+    const { setModeAndClean, markUnsaved, suppressNextDirty } = useSyncStatus();
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
         try {
-            const text = await file.text();
-            const parsed = JSON.parse(text);
-            dispatch(replaceState(parsed));
+            suppressNextDirty();
+            await importFromFile(file);
+            setModeAndClean("offline");
             navigate("/home");
         } catch (err) {
             window.alert("Failed to read file — ensure it's valid JSON.");
@@ -45,14 +29,30 @@ export const LandingPage: React.FC = () => {
     };
 
     const handleUploadClick = () => fileInputRef.current?.click();
-    const handleStartNow = () => {
+    const handleStartOffline = () => {
+        suppressNextDirty();
         dispatch(replaceState(defaultState));
+        setModeAndClean("offline");
         navigate("/home");
     };
-    const handleContinueWithGoogle = () => {
-        // Placeholder: initialize empty store and continue to app
-        dispatch(replaceState(defaultState));
-        navigate("/home");
+    const handleContinueWithGoogle = async () => {
+        suppressNextDirty();
+        try {
+            await importFromGoogleDrive();
+            setModeAndClean("cloud");
+            navigate("/home");
+        } catch (error) {
+            if (error instanceof NoGoogleDriveSaveError) {
+                dispatch(replaceState(defaultState));
+                setModeAndClean("cloud");
+                markUnsaved();
+                navigate("/home");
+                return;
+            }
+
+            console.error(error);
+            window.alert("Failed to connect to Google Drive.");
+        }
     };
 
     return (
@@ -73,6 +73,7 @@ export const LandingPage: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
+                        <SyncStatusPills />
                         <ThemeToggle />
                     </div>
                 </header>
@@ -89,13 +90,13 @@ export const LandingPage: React.FC = () => {
                                         Choose how you want to begin
                                     </h1>
                                     <p className="mt-1 text-sm text-app-muted">
-                                        Launch from a backup, sign in with
-                                        Google, or explore as a guest.
+                                        Pick an offline workspace or connect to
+                                        Google Drive to sync across devices.
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="grid gap-3 sm:grid-cols-3">
+                            <div className="grid gap-4 sm:grid-cols-2">
                                 <input
                                     ref={fileInputRef}
                                     type="file"
@@ -103,30 +104,49 @@ export const LandingPage: React.FC = () => {
                                     className="hidden"
                                     onChange={handleFileChange}
                                 />
+                                <div className="rounded-2xl border border-app-border bg-app-card p-4">
+                                    <p className="text-sm font-semibold text-app-foreground">
+                                        Offline
+                                    </p>
+                                    <p className="mt-1 text-sm text-app-muted">
+                                        Work locally with manual exports.
+                                    </p>
+                                    <div className="mt-4 grid gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleUploadClick}
+                                            className="rounded-xl bg-app-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-app-primary/90"
+                                        >
+                                            Upload file
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleStartOffline}
+                                            className="rounded-xl border border-app-border bg-app-card px-4 py-2 text-sm font-semibold hover:bg-app-surface"
+                                        >
+                                            New empty
+                                        </button>
+                                    </div>
+                                </div>
 
-                                <button
-                                    type="button"
-                                    onClick={handleUploadClick}
-                                    className="rounded-xl bg-app-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-app-primary/90"
-                                >
-                                    Upload file
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={handleContinueWithGoogle}
-                                    className="rounded-xl border border-app-border bg-app-card px-4 py-2 text-sm font-semibold hover:bg-app-surface"
-                                >
-                                    Continue with Google
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={handleStartNow}
-                                    className="rounded-xl border border-app-border bg-app-card px-4 py-2 text-sm font-semibold hover:bg-app-surface"
-                                >
-                                    Start now
-                                </button>
+                                <div className="rounded-2xl border border-app-border bg-app-card p-4">
+                                    <p className="text-sm font-semibold text-app-foreground">
+                                        Google Drive
+                                    </p>
+                                    <p className="mt-1 text-sm text-app-muted">
+                                        Sign in to load your Drive save and keep
+                                        it updated.
+                                    </p>
+                                    <div className="mt-4">
+                                        <button
+                                            type="button"
+                                            onClick={handleContinueWithGoogle}
+                                            className="w-full rounded-xl border border-app-border bg-app-card px-4 py-2 text-sm font-semibold hover:bg-app-surface"
+                                        >
+                                            Continue with Google
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </article>
                     </section>
