@@ -15,7 +15,7 @@ export const selectWalletPositionsState = (state: RootState) =>
     state.walletPositions;
 export const selectWalletTxState = (state: RootState) => state.walletTx;
 export const selectPies = (state: RootState) => state.pies;
-export const selectNotifications = (state: RootState) => state.notifications;
+export const selectNotifications = (state: RootState) => state.notifications ?? [];
 
 export const makeSelectWalletById = (walletId: string) =>
     createSelector([selectWallets], (wallets) => wallets[walletId]);

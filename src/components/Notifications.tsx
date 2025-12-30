@@ -25,7 +25,7 @@ export const Notifications: React.FC = () => {
     const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
     const orderedNotifications = useMemo(
-        () => [...notifications].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+        () => [...(notifications ?? [])].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
         [notifications]
     );
 

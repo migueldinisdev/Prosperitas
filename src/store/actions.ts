@@ -1,4 +1,4 @@
 import { createAction } from "@reduxjs/toolkit";
-import { ProsperitasState } from "../core/schema-types";
+import { PersistedState } from "../core/schema-types";
 
-export const replaceState = createAction<ProsperitasState>("app/replaceState");
+export const replaceState = createAction<PersistedState>("app/replaceState");

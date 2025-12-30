@@ -43,10 +43,18 @@ const rootReducer = (
     action: AnyAction
 ) => {
     if (action.type === REHYDRATE_ACTION && action.payload) {
-        return action.payload;
+        // Preserve notifications when rehydrating from IndexedDB
+        return {
+            ...action.payload,
+            notifications: state?.notifications ?? [],
+        } as ProsperitasState;
     }
     if (replaceState.match(action)) {
-        return action.payload;
+        // Preserve notifications when importing from file/Google Drive
+        return {
+            ...action.payload,
+            notifications: state?.notifications ?? [],
+        } as ProsperitasState;
     }
     return appReducer(state, action);
 };
@@ -55,6 +63,19 @@ const persistConfig: PersistConfig<ProsperitasState> = {
     key: "prosperitas",
     storage: createIndexedDbStorage("prosperitas"),
     version: 1,
+    whitelist: [
+        "schemaVersion",
+        "meta",
+        "settings",
+        "account",
+        "categories",
+        "balance",
+        "assets",
+        "wallets",
+        "walletPositions",
+        "walletTx",
+        "pies",
+    ],
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

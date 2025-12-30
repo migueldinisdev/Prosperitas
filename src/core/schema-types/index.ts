@@ -205,7 +205,11 @@ export interface Pie {
 
 export type PiesState = Record<string, Pie>;
 
-export interface ProsperitasState {
+/**
+ * PersistedState: The state that gets saved to files and synced.
+ * This excludes ephemeral UI state like notifications.
+ */
+export interface PersistedState {
     schemaVersion: string;
     meta: Meta;
     settings: Settings;
@@ -217,7 +221,29 @@ export interface ProsperitasState {
     walletPositions: WalletPositionsState;
     walletTx: WalletTxState;
     pies: PiesState;
+}
+
+/**
+ * ProsperitasState: The full Redux state including UI state.
+ * This is the complete application state in Redux.
+ */
+export interface ProsperitasState extends PersistedState {
     notifications: NotificationState;
 }
 
 export type RootState = ProsperitasState;
+
+/** Keys that are persisted to save files */
+export const PERSISTED_KEYS: (keyof PersistedState)[] = [
+    "schemaVersion",
+    "meta",
+    "settings",
+    "account",
+    "categories",
+    "balance",
+    "assets",
+    "wallets",
+    "walletPositions",
+    "walletTx",
+    "pies",
+];

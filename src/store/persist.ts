@@ -131,19 +131,20 @@ class SimplePersistor<S> {
         this.notify();
     }
 
-    async rehydrate(migrate?: (state: S) => S) {
+    async rehydrate(migrate?: (state: Partial<S>) => Partial<S>) {
         try {
             const serialized = await this.config.storage.getItem(
                 this.config.key
             );
             if (serialized) {
-                const parsed = JSON.parse(serialized) as S;
+                const parsed = JSON.parse(serialized) as Partial<S>;
                 const nextState = migrate ? migrate(parsed) : parsed;
-                // replaceState is strongly typed to the app state type; the persistor
-                // is generic so cast dispatch to any to avoid a type mismatch here.
-                // This preserves runtime behavior while keeping the persist logic
-                // usable across generic store shapes.
-                (this.store.dispatch as any)(replaceState(nextState as unknown as any));
+                // Dispatch a REHYDRATE action instead of replaceState
+                // This allows the rootReducer to merge persisted state with defaults
+                this.store.dispatch({
+                    type: REHYDRATE_ACTION,
+                    payload: nextState,
+                });
             }
         } catch (error) {
             console.error("Failed to rehydrate state", error);
@@ -186,7 +187,7 @@ export interface Persistor<S> {
 export const persistStore = <S>(
     store: Store<S>,
     config: PersistConfig<S>,
-    migrate?: (state: S) => S
+    migrate?: (state: Partial<S>) => Partial<S>
 ): Persistor<S> => {
     const persistor = new SimplePersistor(store, config);
 
