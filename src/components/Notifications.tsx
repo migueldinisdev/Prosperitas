@@ -1,23 +1,19 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import {
-    AlertTriangle,
-    CheckCircle2,
-    Info,
-    X,
-    XCircle,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { selectNotifications } from "../store/selectors";
 import { removeNotification } from "../store/slices/notificationsSlice";
 import { NotificationType } from "../core/schema-types";
 
-const iconByType: Record<NotificationType, React.ComponentType<{ size?: number }>> =
-    {
-        info: Info,
-        warning: AlertTriangle,
-        error: XCircle,
-        success: CheckCircle2,
-    };
+const iconByType: Record<
+    NotificationType,
+    React.ComponentType<{ size?: number }>
+> = {
+    info: Info,
+    warning: AlertTriangle,
+    error: XCircle,
+    success: CheckCircle2,
+};
 
 export const Notifications: React.FC = () => {
     const notifications = useAppSelector(selectNotifications);
@@ -25,7 +21,10 @@ export const Notifications: React.FC = () => {
     const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
     const orderedNotifications = useMemo(
-        () => [...(notifications ?? [])].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+        () =>
+            [...(notifications ?? [])].sort((a, b) =>
+                a.createdAt.localeCompare(b.createdAt)
+            ),
         [notifications]
     );
 
@@ -44,7 +43,11 @@ export const Notifications: React.FC = () => {
         });
 
         timersRef.current.forEach((timeout, id) => {
-            if (!orderedNotifications.find((notification) => notification.id === id)) {
+            if (
+                !orderedNotifications.find(
+                    (notification) => notification.id === id
+                )
+            ) {
                 clearTimeout(timeout);
                 timersRef.current.delete(id);
             }
