@@ -9,6 +9,7 @@ import { replaceState } from "./actions";
 import {
     GOOGLE_DRIVE_APPDATA_SCOPE,
     GOOGLE_DRIVE_SAVE_FILENAME,
+    GOOGLE_PROFILE_SCOPE,
 } from "../data/api/google/constants";
 import {
     createAppDataFile,
@@ -22,7 +23,7 @@ import {
     NoGoogleDriveSaveError,
 } from "../data/api/google/errors";
 
-const DRIVE_SCOPES = [GOOGLE_DRIVE_APPDATA_SCOPE];
+const DRIVE_SCOPES = [GOOGLE_DRIVE_APPDATA_SCOPE, GOOGLE_PROFILE_SCOPE];
 
 const withGoogleDriveRetry = async <T>(
     action: (accessToken: string) => Promise<T>

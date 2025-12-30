@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
     LayoutDashboard,
@@ -11,10 +11,11 @@ import {
     ChevronRight,
     Download,
     Upload,
-    CloudDownload,
     CloudUpload,
-    Menu,
     X,
+    UserRound,
+    LogIn,
+    LogOut,
 } from "lucide-react";
 import {
     exportToFile,
@@ -22,6 +23,13 @@ import {
     importFromFile,
     importFromGoogleDrive,
 } from "../store/sync";
+import {
+    GOOGLE_DRIVE_APPDATA_SCOPE,
+    GOOGLE_PROFILE_SCOPE,
+} from "../data/api/google/constants";
+import { ensureValidAccessToken, invalidateToken } from "../data/api/google/oauth";
+import { getStoredAccessToken } from "../data/api/google/oauth/storage";
+import { fetchGoogleProfile, GoogleProfile } from "../data/api/google/profile";
 
 interface LateralMenuProps {
     isMobileOpen: boolean;
@@ -67,6 +75,15 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
 }) => {
     const location = useLocation();
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [googleProfile, setGoogleProfile] = useState<GoogleProfile | null>(
+        null
+    );
+    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+    const googleScopes = useMemo(
+        () => [GOOGLE_DRIVE_APPDATA_SCOPE, GOOGLE_PROFILE_SCOPE],
+        []
+    );
+
     const runAction = async (action: () => Promise<void>) => {
         try {
             await action();
@@ -89,6 +106,28 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
         { name: "Help", path: "/help", icon: HelpCircle },
         { name: "Settings", path: "/settings", icon: Settings },
     ];
+
+    const loadGoogleProfile = async (accessToken: string) => {
+        const profile = await fetchGoogleProfile(accessToken);
+        setGoogleProfile(profile);
+    };
+
+    useEffect(() => {
+        const storedToken = getStoredAccessToken(googleScopes);
+        if (!storedToken) {
+            setGoogleProfile(null);
+            return;
+        }
+
+        if (googleProfile) {
+            return;
+        }
+
+        setIsGoogleLoading(true);
+        loadGoogleProfile(storedToken)
+            .catch((error) => console.error(error))
+            .finally(() => setIsGoogleLoading(false));
+    }, [googleProfile, googleScopes]);
 
     const getIsActive = (path: string) => {
         return (
@@ -183,28 +222,84 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
                         />
                         <span>Export to File</span>
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => runAction(importFromGoogleDrive)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full"
-                    >
-                        <CloudDownload
-                            size={20}
-                            className="text-app-muted group-hover:text-app-foreground"
-                        />
-                        <span>Import from Google Drive</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => runAction(exportToGoogleDrive)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full"
-                    >
-                        <CloudUpload
-                            size={20}
-                            className="text-app-muted group-hover:text-app-foreground"
-                        />
-                        <span>Export to Google Drive</span>
-                    </button>
+                    {googleProfile ? (
+                        <>
+                            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-app-foreground bg-app-surface/70">
+                                {googleProfile.picture ? (
+                                    <img
+                                        src={googleProfile.picture}
+                                        alt={googleProfile.name}
+                                        className="w-8 h-8 rounded-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-8 h-8 rounded-full bg-app-primary/20 text-app-primary flex items-center justify-center">
+                                        <UserRound size={16} />
+                                    </div>
+                                )}
+                                <span className="truncate">
+                                    {googleProfile.name}
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => runAction(exportToGoogleDrive)}
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full"
+                            >
+                                <CloudUpload
+                                    size={20}
+                                    className="text-app-muted group-hover:text-app-foreground"
+                                />
+                                <span>Save to Drive</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    runAction(async () => {
+                                        invalidateToken(googleScopes);
+                                        setGoogleProfile(null);
+                                    })
+                                }
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full"
+                            >
+                                <LogOut
+                                    size={20}
+                                    className="text-app-muted group-hover:text-app-foreground"
+                                />
+                                <span>Sign out</span>
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() =>
+                                runAction(async () => {
+                                    setIsGoogleLoading(true);
+                                    try {
+                                        const accessToken =
+                                            await ensureValidAccessToken(
+                                                googleScopes
+                                            );
+                                        await loadGoogleProfile(accessToken);
+                                        await importFromGoogleDrive();
+                                    } finally {
+                                        setIsGoogleLoading(false);
+                                    }
+                                })
+                            }
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group text-app-muted hover:text-app-foreground hover:bg-app-surface w-full"
+                            disabled={isGoogleLoading}
+                        >
+                            <LogIn
+                                size={20}
+                                className="text-app-muted group-hover:text-app-foreground"
+                            />
+                            <span>
+                                {isGoogleLoading
+                                    ? "Logging in..."
+                                    : "Log-in with Google"}
+                            </span>
+                        </button>
+                    )}
                     {bottomItems.map((item) => (
                         <NavLink
                             key={item.path}

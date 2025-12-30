@@ -4,6 +4,9 @@ export const GOOGLE_CLIENT_ID =
 export const GOOGLE_DRIVE_APPDATA_SCOPE =
     "https://www.googleapis.com/auth/drive.appdata";
 
+export const GOOGLE_PROFILE_SCOPE =
+    "https://www.googleapis.com/auth/userinfo.profile";
+
 export const GOOGLE_TOKEN_STORAGE_PREFIX = "prosperitas_google_token";
 
 export const GOOGLE_DRIVE_SAVE_FILENAME = "prosperitas-save.json";

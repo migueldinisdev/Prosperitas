@@ -15,6 +15,16 @@ export class GoogleDriveError extends Error {
     }
 }
 
+export class GoogleProfileError extends Error {
+    status: number;
+
+    constructor(message: string, status: number) {
+        super(message);
+        this.name = "GoogleProfileError";
+        this.status = status;
+    }
+}
+
 export class NoGoogleDriveSaveError extends Error {
     constructor(message = "No Google Drive save found.") {
         super(message);
