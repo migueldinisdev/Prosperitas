@@ -180,6 +180,21 @@ export type WalletTx =
 
 export type WalletTxState = Record<string, WalletTx>;
 
+export type NotificationType = "info" | "warning" | "error" | "success";
+
+export interface Notification {
+    id: string;
+    type: NotificationType;
+    message: string;
+    title?: string;
+    createdAt: string;
+    timeout?: number;
+}
+
+export type NotificationPayload = Omit<Notification, "id" | "createdAt">;
+
+export type NotificationState = Notification[];
+
 export interface Pie {
     id: string;
     name: string;
@@ -202,6 +217,7 @@ export interface ProsperitasState {
     walletPositions: WalletPositionsState;
     walletTx: WalletTxState;
     pies: PiesState;
+    notifications: NotificationState;
 }
 
 export type RootState = ProsperitasState;
