@@ -19,6 +19,7 @@ interface SyncStatusContextValue {
     mode: SyncMode;
     status: SyncStatus;
     isDirty: boolean;
+    isRestoring: boolean;
     setMode: (mode: SyncMode) => void;
     setModeAndClean: (mode: SyncMode) => void;
     markSaving: () => void;
@@ -64,6 +65,7 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
         getSavedStatus(getStoredMode())
     );
     const [isDirty, setIsDirty] = useState(false);
+    const [isRestoring, setIsRestoring] = useState(false);
     const suppressDirtyRef = useRef(true);
     const previousStateRef = useRef(store.getState());
     const modeRef = useRef<SyncMode>(mode);
@@ -138,6 +140,7 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
                 return;
             }
             restoreInFlightRef.current = true;
+            setIsRestoring(true);
 
             try {
                 suppressNextDirty();
@@ -156,6 +159,7 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
                 resetSession();
             } finally {
                 restoreInFlightRef.current = false;
+                setIsRestoring(false);
             }
         };
 
@@ -175,6 +179,7 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
             mode,
             status,
             isDirty,
+            isRestoring,
             setMode,
             setModeAndClean,
             markSaving,
@@ -183,7 +188,7 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
             suppressNextDirty,
             resetSession,
         }),
-        [mode, status, isDirty]
+        [mode, status, isDirty, isRestoring]
     );
 
     return (

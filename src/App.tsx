@@ -19,15 +19,38 @@ import { HelpPage } from "./pages/help";
 import { SettingsPage } from "./pages/settings";
 import { useSyncStatus } from "./store/syncStatus";
 import { Notifications } from "./components/Notifications";
+import { FullPageLoader } from "./components/FullPageLoader";
 
 const AppRoutes: React.FC<{
     isMobileMenuOpen: boolean;
     setIsMobileMenuOpen: (value: boolean) => void;
 }> = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
     const location = useLocation();
-    const { mode } = useSyncStatus();
+    const { mode, isRestoring, status } = useSyncStatus();
     const isLoggedIn = mode !== null;
     const isLanding = location.pathname === "/";
+
+    // Warn user before closing tab if in cloud mode with unsaved changes
+    React.useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (mode === "cloud" && status === "unsaved") {
+                e.preventDefault();
+                e.returnValue = "";
+                return "";
+            }
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () =>
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+    }, [mode, status]);
+
+    // Show full-page loader while restoring cloud session
+    if (isRestoring) {
+        return (
+            <FullPageLoader message="Loading your data from Google Drive..." />
+        );
+    }
 
     return (
         <div className="flex min-h-screen bg-app-bg text-app-foreground font-sans selection:bg-app-primary/20">

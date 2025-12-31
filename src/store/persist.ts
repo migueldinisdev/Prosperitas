@@ -187,11 +187,18 @@ export interface Persistor<S> {
 export const persistStore = <S>(
     store: Store<S>,
     config: PersistConfig<S>,
-    migrate?: (state: Partial<S>) => Partial<S>
+    migrate?: (state: Partial<S>) => Partial<S>,
+    shouldRehydrate?: () => boolean
 ): Persistor<S> => {
     const persistor = new SimplePersistor(store, config);
 
-    void persistor.rehydrate(migrate);
+    // Only rehydrate if shouldRehydrate returns true (or if not provided)
+    if (!shouldRehydrate || shouldRehydrate()) {
+        void persistor.rehydrate(migrate);
+    } else {
+        // Skip rehydration but still mark as bootstrapped
+        persistor.setBootstrapped(true);
+    }
 
     store.subscribe(() => {
         void persistor.persist();

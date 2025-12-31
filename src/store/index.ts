@@ -86,7 +86,15 @@ export const store = configureStore({
     preloadedState: defaultState,
 });
 
-export const persistor = persistStore(store, persistConfig);
+// Only rehydrate from IndexedDB if not in cloud mode
+// Cloud mode should exclusively use data from Google Drive
+const shouldRehydrate = () => {
+    if (typeof window === 'undefined') return true;
+    const storedMode = window.localStorage.getItem('prosperitas:syncMode');
+    return storedMode !== 'cloud';
+};
+
+export const persistor = persistStore(store, persistConfig, undefined, shouldRehydrate);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
