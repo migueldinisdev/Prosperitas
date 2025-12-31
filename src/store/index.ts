@@ -22,6 +22,7 @@ import {
     REHYDRATE_ACTION,
 } from "./persist";
 import { replaceState } from "./actions";
+import { dirtyMiddleware } from "./dirtyMiddleware";
 
 const appReducer = combineReducers({
     schemaVersion: schemaVersionReducer,
@@ -84,6 +85,8 @@ export const store = configureStore({
     reducer: persistedReducer,
     devTools: true,
     preloadedState: defaultState,
+    middleware: (getDefaultMiddleware) =>
+        getDefaultMiddleware().concat(dirtyMiddleware),
 });
 
 // Only rehydrate from IndexedDB if not in cloud mode

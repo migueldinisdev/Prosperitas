@@ -11,6 +11,7 @@ import { importFromGoogleDriveSilent } from "./sync";
 import { NoGoogleDriveSaveError } from "../data/api/google/errors";
 import { replaceState } from "./actions";
 import { defaultState } from "./initialState";
+import { registerDirtyCallbacks } from "./dirtyMiddleware";
 
 export type SyncMode = "offline" | "cloud" | null;
 export type SyncStatus = "saved" | "unsaved" | "saving" | "up-to-date";
@@ -78,23 +79,19 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsDirty(false);
     }, [mode]);
 
+    // Register callbacks with the dirty middleware
     useEffect(() => {
-        const unsubscribe = store.subscribe(() => {
-            const nextState = store.getState();
-            if (nextState !== previousStateRef.current) {
-                if (!suppressDirtyRef.current && modeRef.current !== null) {
-                    setIsDirty(true);
-                    setStatus((current) =>
-                        current === "saving" ? current : "unsaved"
-                    );
-                }
-                suppressDirtyRef.current = false;
-                previousStateRef.current = nextState;
-            }
-        });
-
-        return unsubscribe;
-    }, []);
+        registerDirtyCallbacks(
+            () => {
+                setIsDirty(true);
+                setStatus((current) =>
+                    current === "saving" ? current : "unsaved"
+                );
+            },
+            suppressDirtyRef,
+            mode
+        );
+    }, [mode]);
 
     const setMode = (nextMode: SyncMode) => {
         storeMode(nextMode);
