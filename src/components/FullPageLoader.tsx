@@ -10,8 +10,8 @@ export const FullPageLoader: React.FC<FullPageLoaderProps> = ({
     return (
         <div className="fixed inset-0 bg-app-bg flex items-center justify-center z-50">
             <div className="flex flex-col items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-500 to-violet-500 text-2xl font-semibold text-white">
-                    P
+                <div className="flex items-center justify-center">
+                    <img src="/icon.svg" alt="Prosperitas" className="h-16 w-16" />
                 </div>
                 <div className="flex flex-col items-center gap-2">
                     <svg

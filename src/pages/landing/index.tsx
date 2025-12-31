@@ -7,12 +7,15 @@ import { replaceState } from "../../store/actions";
 import { defaultState } from "../../store/initialState";
 import { importFromFile, importFromGoogleDrive } from "../../store/sync";
 import { NoGoogleDriveSaveError } from "../../data/api/google/errors";
+import { addNotification } from "../../store/slices/notificationsSlice";
+import { useAppDispatch } from "../../store/hooks";
 import { useSyncStatus } from "../../store/syncStatus";
 
 export const LandingPage: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
+    const appDispatch = useAppDispatch();
     const { setModeAndClean, markUnsaved, suppressNextDirty } = useSyncStatus();
     const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
 
@@ -53,7 +56,15 @@ export const LandingPage: React.FC = () => {
             }
 
             console.error(error);
-            window.alert("Failed to connect to Google Drive.");
+            appDispatch(
+                addNotification({
+                    type: "error",
+                    title: "Google Drive Connection Failed",
+                    message:
+                        "Failed to connect to Google Drive. Please try again.",
+                    timeout: 7000,
+                })
+            );
         } finally {
             setIsGoogleLoading(false);
         }
