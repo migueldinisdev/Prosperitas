@@ -21,7 +21,6 @@ export const HomePage: React.FC<Props> = ({ onMenuClick }) => {
         <div className="pb-20">
             <PageHeader
                 title="Home"
-                subtitle="Your financial overview"
                 onMenuClick={onMenuClick}
             />
 

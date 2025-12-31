@@ -63,7 +63,6 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
         <div className="pb-20">
             <PageHeader
                 title="Wallets"
-                subtitle="Your connected exchanges and accounts"
                 onMenuClick={onMenuClick}
             />
 

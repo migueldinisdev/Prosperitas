@@ -75,7 +75,6 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
     <div className="pb-20">
       <PageHeader 
         title="Statistics" 
-        subtitle="Global portfolio analysis"
         onMenuClick={onMenuClick}
       />
       

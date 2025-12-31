@@ -68,11 +68,11 @@ export const SyncStatusPills: React.FC = () => {
 
     return (
         <div className="flex items-center gap-2">
-            <span
+            {/* <span
                 className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getModeColor()}`}
             >
                 {modeLabel}
-            </span>
+            </span> */}
             {mode === "cloud" && (
                 <button
                     type="button"

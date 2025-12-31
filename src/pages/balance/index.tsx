@@ -49,7 +49,6 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
         <div className="pb-20">
             <PageHeader
                 title="Balance"
-                subtitle="Manage income and expenses"
                 onMenuClick={onMenuClick}
             />
 

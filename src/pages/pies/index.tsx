@@ -63,7 +63,6 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
         <div className="pb-20">
             <PageHeader
                 title="Pies"
-                subtitle="Automated investment strategies"
                 onMenuClick={onMenuClick}
             />
 
