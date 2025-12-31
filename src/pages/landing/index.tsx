@@ -68,9 +68,14 @@ export const LandingPage: React.FC = () => {
                             P
                         </div>
                         <div>
-                            <p className="text-sm uppercase tracking-[0.2em] text-app-muted">
-                                Prosperitas
-                            </p>
+                            <div className="flex items-center gap-2">
+                                <p className="text-sm uppercase tracking-[0.2em] text-app-muted">
+                                    Prosperitas
+                                </p>
+                                <span className="inline-flex items-center rounded-md bg-app-accent/20 px-2 py-1 text-xs font-medium text-app-accent">
+                                    BETA
+                                </span>
+                            </div>
                             <p className="text-lg font-semibold">
                                 Smart personal finance
                             </p>

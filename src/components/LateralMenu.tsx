@@ -134,9 +134,14 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
                         <div className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-violet-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">
                             P
                         </div>
-                        <span className="text-xl font-bold tracking-tight text-app-foreground">
-                            Prosperitas
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xl font-bold tracking-tight text-app-foreground">
+                                Prosperitas
+                            </span>
+                            <span className="inline-flex items-center rounded-md bg-app-accent/20 px-2 py-1 text-xs font-medium text-app-accent">
+                                BETA
+                            </span>
+                        </div>
                     </div>
                     <button
                         onClick={() => setIsMobileOpen(false)}
