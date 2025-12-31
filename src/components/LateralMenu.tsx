@@ -131,9 +131,11 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
             >
                 <div className="flex items-center justify-between mb-10">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-violet-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">
-                            P
-                        </div>
+                        <img
+                            src="/icon.svg"
+                            alt="Prosperitas"
+                            className="w-8 h-8"
+                        />
                         <div className="flex items-center gap-2">
                             <span className="text-xl font-bold tracking-tight text-app-foreground">
                                 Prosperitas

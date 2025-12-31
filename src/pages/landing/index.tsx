@@ -62,33 +62,28 @@ export const LandingPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-app-bg text-app-foreground">
             <div className="flex min-h-screen flex-col">
-                <header className="flex items-center justify-between px-4 pt-4 sm:px-10 sm:pt-6">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-500 to-violet-500 text-lg font-semibold text-white">
-                            P
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <p className="text-sm uppercase tracking-[0.2em] text-app-muted">
-                                    Prosperitas
-                                </p>
-                                <span className="inline-flex items-center rounded-md bg-app-accent/20 px-2 py-1 text-xs font-medium text-app-accent">
-                                    BETA
-                                </span>
-                            </div>
-                            <p className="text-lg font-semibold">
-                                Smart personal finance
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <SyncStatusPills />
-                        <ThemeToggle />
-                    </div>
+                <header className="flex items-center justify-end px-4 pt-4 sm:px-10 sm:pt-6">
+                    <span className="inline-flex items-center rounded-md bg-app-accent/20 px-2 py-1 text-xs font-medium text-app-accent">
+                        BETA
+                    </span>
                 </header>
 
                 <main className="flex flex-1 items-center justify-center px-4 pb-10 sm:px-10">
                     <section className="w-full max-w-2xl">
+                        <div className="flex flex-col items-center mb-8">
+                            <img
+                                src="/icon.svg"
+                                alt="Prosperitas"
+                                className="w-24 h-24 mb-4"
+                            />
+                            <h1 className="text-4xl font-bold text-app-foreground mb-2">
+                                Prosperitas
+                            </h1>
+                            <p className="text-lg text-app-muted">
+                                Your smart financial assistant
+                            </p>
+                        </div>
+
                         <article className="bg-app-card border border-app-border rounded-3xl p-6 shadow-[var(--shadow-card)]">
                             <div className="flex items-start gap-4 mb-4">
                                 <div>
