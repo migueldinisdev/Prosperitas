@@ -77,6 +77,9 @@ export const LandingPage: React.FC = () => {
                     <span className="inline-flex items-center rounded-md bg-app-accent/20 px-2 py-1 text-xs font-medium text-app-accent">
                         BETA
                     </span>
+                    <div className="ml-3 sm:ml-6">
+                        <ThemeToggle />
+                    </div>
                 </header>
 
                 <main className="flex flex-1 items-center justify-center px-4 pb-10 sm:px-10">
