@@ -15,11 +15,7 @@ interface Props {
     monthKey?: string;
 }
 
-const TRANSACTION_TYPES: Array<CategoryType | "transfer"> = [
-    "expense",
-    "income",
-    "transfer",
-];
+const TRANSACTION_TYPES: CategoryType[] = ["expense", "income"];
 
 export const AddBalanceTransactionModal: React.FC<Props> = ({
     isOpen,
@@ -30,7 +26,7 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({
     const effectiveMonth = monthKey ?? getMonthKey(new Date());
     const { categories } = useBalanceData(effectiveMonth);
     const { balanceCurrency } = useAppSelector(selectSettings);
-    const [type, setType] = useState<CategoryType | "transfer">("expense");
+    const [type, setType] = useState<CategoryType>("expense");
     const [amount, setAmount] = useState("");
     const [description, setDescription] = useState("");
     const [categoryId, setCategoryId] = useState("");
@@ -38,13 +34,13 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({
         getMonthDateInputValue(effectiveMonth)
     );
 
-    const categoryOptions = useMemo(() => {
-        const list = Object.values(categories);
-        if (type === "transfer") {
-            return list;
-        }
-        return list.filter((category) => category.type === type);
-    }, [categories, type]);
+    const categoryOptions = useMemo(
+        () =>
+            Object.values(categories).filter(
+                (category) => category.type === type
+            ),
+        [categories, type]
+    );
 
     useEffect(() => {
         if (

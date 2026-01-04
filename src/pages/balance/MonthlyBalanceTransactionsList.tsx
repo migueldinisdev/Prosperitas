@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Card } from "../../ui/Card";
 import { useBalanceData } from "../../hooks/useBalanceData";
 import { formatCurrency } from "../../utils/formatters";
@@ -17,7 +17,6 @@ const formatTransactionDate = (date: string) =>
 
 const getTransactionIcon = (type: BalanceTransaction["type"]) => {
     if (type === "income") return ArrowUpRight;
-    if (type === "transfer") return RefreshCw;
     return ArrowDownRight;
 };
 
@@ -76,8 +75,6 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                             className={`w-10 h-10 rounded-full flex items-center justify-center ${
                                                 t.type === "income"
                                                     ? "bg-emerald-500/10 text-emerald-500"
-                                                    : t.type === "transfer"
-                                                    ? "bg-blue-500/10 text-blue-500"
                                                     : "bg-app-surface text-app-muted"
                                             }`}
                                         >
