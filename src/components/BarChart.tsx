@@ -32,27 +32,30 @@ export const BarChart = React.memo(
                 <ResponsiveContainer>
                     <ReBarChart
                         data={data}
-                        margin={{ top: 5, right: 0, left: -20, bottom: 0 }}
+                        layout="vertical"
+                        margin={{ top: 5, right: 16, left: 16, bottom: 24 }}
                     >
                         <CartesianGrid
                             strokeDasharray="3 3"
                             stroke="rgb(var(--color-app-border))"
-                            vertical={false}
+                            horizontal={false}
                         />
                         <XAxis
-                            dataKey="name"
-                            stroke="rgb(var(--color-app-muted))"
-                            fontSize={12}
-                            tickLine={false}
-                            axisLine={false}
-                            dy={10}
-                        />
-                        <YAxis
+                            type="number"
                             stroke="rgb(var(--color-app-muted))"
                             fontSize={12}
                             tickLine={false}
                             axisLine={false}
                             tickFormatter={tickFormatter}
+                        />
+                        <YAxis
+                            dataKey="name"
+                            type="category"
+                            stroke="rgb(var(--color-app-muted))"
+                            fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
+                            width={120}
                         />
                         <Tooltip
                             cursor={{
@@ -69,7 +72,7 @@ export const BarChart = React.memo(
                         <Bar
                             dataKey={dataKey}
                             fill={color}
-                            radius={[4, 4, 0, 0]}
+                            radius={[0, 4, 4, 0]}
                         />
                     </ReBarChart>
                 </ResponsiveContainer>
