@@ -55,8 +55,8 @@ export interface Category {
 
 export interface BalanceTransaction {
     date: string;
-    type: CategoryType | "transfer";
-    categoryId: string;
+    type: CategoryType;
+    categoryId: string | null;
     amount: Money;
     description?: string;
     createdAt: string;

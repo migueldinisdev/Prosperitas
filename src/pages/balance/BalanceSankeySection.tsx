@@ -19,19 +19,25 @@ export const BalanceSankeySection: React.FC<Props> = ({ monthKey }) => {
                 income += tx.amount.value;
             } else if (tx.type === "expense") {
                 expensesTotal += tx.amount.value;
+                const categoryKey = tx.categoryId ?? "uncategorized";
                 expenses.set(
-                    tx.categoryId,
-                    (expenses.get(tx.categoryId) ?? 0) + tx.amount.value
+                    categoryKey,
+                    (expenses.get(categoryKey) ?? 0) + tx.amount.value
                 );
             }
         });
 
         return {
             income,
-            expenses: Array.from(expenses.entries()).map(([categoryId, value]) => ({
-                category: categories[categoryId]?.name ?? "Category",
-                value,
-            })),
+            expenses: Array.from(expenses.entries()).map(
+                ([categoryId, value]) => ({
+                    category:
+                        categoryId === "uncategorized"
+                            ? "Uncategorized"
+                            : categories[categoryId]?.name ?? "Category",
+                    value,
+                })
+            ),
             savings: Math.max(income - expensesTotal, 0),
         };
     }, [categories, monthData]);

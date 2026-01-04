@@ -47,13 +47,11 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({
     }, [categories, type]);
 
     useEffect(() => {
-        if (!categoryId && categoryOptions.length > 0) {
-            setCategoryId(categoryOptions[0].id);
-        } else if (
+        if (
             categoryId &&
             !categoryOptions.some((category) => category.id === categoryId)
         ) {
-            setCategoryId(categoryOptions[0]?.id ?? "");
+            setCategoryId("");
         }
     }, [categoryId, categoryOptions]);
 
@@ -72,17 +70,27 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({
 
     const handleSave = () => {
         const parsedAmount = Number(amount);
-        if (!categoryId || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+        if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
             return;
         }
+        const monthFromDate = (() => {
+            if (!date) {
+                return effectiveMonth;
+            }
+            const [year, month, day] = date.split("-").map(Number);
+            if (!year || !month || !day) {
+                return effectiveMonth;
+            }
+            return getMonthKey(new Date(year, month - 1, day));
+        })();
 
         dispatch(
             addBalanceTransactionThunk({
-                month: effectiveMonth,
+                month: monthFromDate,
                 transaction: {
                     date,
                     type,
-                    categoryId,
+                    categoryId: categoryId ? categoryId : null,
                     amount: {
                         value: parsedAmount,
                         currency: balanceCurrency,
@@ -98,8 +106,7 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({
         onClose();
     };
 
-    const isSaveDisabled =
-        !categoryId || Number.isNaN(Number(amount)) || Number(amount) <= 0;
+    const isSaveDisabled = Number.isNaN(Number(amount)) || Number(amount) <= 0;
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Add Transaction">
@@ -145,6 +152,7 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({
                         onChange={(event) => setCategoryId(event.target.value)}
                         className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                     >
+                        <option value="">No category</option>
                         {categoryOptions.length === 0 ? (
                             <option value="">No categories</option>
                         ) : (

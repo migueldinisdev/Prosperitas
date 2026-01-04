@@ -21,11 +21,18 @@ export const BalanceCategorySpendingSection: React.FC<Props> = ({
             if (tx.type !== "expense") {
                 return;
             }
-            totals.set(tx.categoryId, (totals.get(tx.categoryId) ?? 0) + tx.amount.value);
+            const categoryKey = tx.categoryId ?? "uncategorized";
+            totals.set(
+                categoryKey,
+                (totals.get(categoryKey) ?? 0) + tx.amount.value
+            );
         });
         return Array.from(totals.entries())
             .map(([categoryId, value]) => ({
-                name: categories[categoryId]?.name ?? "Category",
+                name:
+                    categoryId === "uncategorized"
+                        ? "Uncategorized"
+                        : categories[categoryId]?.name ?? "Category",
                 value,
             }))
             .sort((a, b) => b.value - a.value);

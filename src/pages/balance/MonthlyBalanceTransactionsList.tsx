@@ -51,7 +51,12 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                     ) : (
                         transactions.map((t, i) => {
                             const isLast = i === transactions.length - 1;
-                            const category = categories[t.categoryId];
+                            const category = t.categoryId
+                                ? categories[t.categoryId]
+                                : undefined;
+                            const categoryLabel =
+                                category?.name ??
+                                (t.categoryId ? "Category" : "Uncategorized");
                             const Icon = getTransactionIcon(t.type);
                             const amountValue =
                                 t.type === "income"
@@ -81,11 +86,11 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                         <div>
                                             <p className="font-medium text-app-foreground">
                                                 {t.description ||
-                                                    category?.name ||
+                                                    categoryLabel ||
                                                     "Transaction"}
                                             </p>
                                             <p className="text-xs text-app-muted">
-                                                {category?.name ?? "Category"} •{" "}
+                                                {categoryLabel} •{" "}
                                                 {formatTransactionDate(t.date)}
                                             </p>
                                         </div>
