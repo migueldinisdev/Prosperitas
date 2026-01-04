@@ -192,8 +192,7 @@ export const SyncStatusPills: React.FC = () => {
                 <div className="space-y-4 text-sm text-app-muted">
                     <p className="text-app-foreground">
                         A newer version was found in Google Drive. Choose which
-                        version to keep. We will download a backup file either
-                        way so you can re-import it later via Upload File.
+                        version to keep.
                     </p>
                     <div className="space-y-2">
                         <div className="rounded-lg border border-app-border bg-app-surface p-3">
@@ -208,7 +207,7 @@ export const SyncStatusPills: React.FC = () => {
                         </div>
                         <div className="rounded-lg border border-app-border bg-app-surface p-3">
                             <p className="font-semibold text-app-foreground">
-                                Keep Local (backup Drive)
+                                Keep Local
                             </p>
                             <p>
                                 Overwrite Drive with your current data. The
