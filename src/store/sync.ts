@@ -1,4 +1,5 @@
 import {
+    exportContentToFile,
     exportStateToFile,
     hydrateState,
     loadStateFromFile,
@@ -27,6 +28,27 @@ import {
 } from "../data/api/google/errors";
 
 const DRIVE_SCOPES = [GOOGLE_DRIVE_APPDATA_SCOPE];
+let lastKnownDriveModifiedTime: string | null = null;
+
+export interface DriveConflict {
+    fileId: string;
+    modifiedTime: string;
+}
+
+export class DriveConflictError extends Error {
+    conflict: DriveConflict;
+
+    constructor(conflict: DriveConflict) {
+        super("Drive file has been updated since last sync.");
+        this.name = "DriveConflictError";
+        this.conflict = conflict;
+    }
+}
+
+const backupFilename = (label: string) => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    return `prosperitas-${label}-${timestamp}.json`;
+};
 
 const withGoogleDriveRetry = async <T>(
     action: (accessToken: string) => Promise<T>
@@ -96,6 +118,7 @@ export const importFromGoogleDrive = async (): Promise<void> => {
         const content = await downloadFile(accessToken, file.id);
         const state = hydrateState(content);
         store.dispatch(replaceState(state));
+        lastKnownDriveModifiedTime = file.modifiedTime;
     });
 };
 
@@ -108,15 +131,33 @@ export const exportToGoogleDrive = async (): Promise<void> => {
         );
 
         if (!file) {
-            await createAppDataFile(
+            const created = await createAppDataFile(
                 accessToken,
                 GOOGLE_DRIVE_SAVE_FILENAME,
                 content
             );
+            lastKnownDriveModifiedTime =
+                created.modifiedTime ?? new Date().toISOString();
             return;
         }
 
-        await updateAppDataFile(accessToken, file.id, content);
+        if (!lastKnownDriveModifiedTime) {
+            throw new DriveConflictError({
+                fileId: file.id,
+                modifiedTime: file.modifiedTime,
+            });
+        }
+
+        if (file.modifiedTime !== lastKnownDriveModifiedTime) {
+            throw new DriveConflictError({
+                fileId: file.id,
+                modifiedTime: file.modifiedTime,
+            });
+        }
+
+        const updated = await updateAppDataFile(accessToken, file.id, content);
+        lastKnownDriveModifiedTime =
+            updated.modifiedTime ?? file.modifiedTime;
     });
 };
 
@@ -134,5 +175,42 @@ export const importFromGoogleDriveSilent = async (): Promise<void> => {
         const content = await downloadFile(accessToken, file.id);
         const state = hydrateState(content);
         store.dispatch(replaceState(state));
+        lastKnownDriveModifiedTime = file.modifiedTime;
+    });
+};
+
+export const resolveDriveConflictKeepCloud = async (
+    conflict: DriveConflict
+): Promise<void> => {
+    exportStateToFile(store.getState(), backupFilename("local-backup"));
+    await withGoogleDriveRetry(async (accessToken) => {
+        const content = await downloadFile(accessToken, conflict.fileId);
+        const state = hydrateState(content);
+        store.dispatch(replaceState(state));
+        lastKnownDriveModifiedTime = conflict.modifiedTime;
+    });
+};
+
+export const resolveDriveConflictKeepLocal = async (
+    conflict: DriveConflict
+): Promise<void> => {
+    await withGoogleDriveRetry(async (accessToken) => {
+        const remoteContent = await downloadFile(
+            accessToken,
+            conflict.fileId
+        );
+        exportContentToFile(
+            remoteContent,
+            backupFilename("drive-backup")
+        );
+
+        const content = serializeState(store.getState());
+        const updated = await updateAppDataFile(
+            accessToken,
+            conflict.fileId,
+            content
+        );
+        lastKnownDriveModifiedTime =
+            updated.modifiedTime ?? conflict.modifiedTime;
     });
 };

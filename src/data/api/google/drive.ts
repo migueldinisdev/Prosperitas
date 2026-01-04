@@ -81,38 +81,41 @@ export const createAppDataFile = async (
     accessToken: string,
     fileName: string,
     content: string
-): Promise<{ id: string }> => {
+): Promise<{ id: string; modifiedTime?: string }> => {
     const metadata = {
         name: fileName,
         parents: ["appDataFolder"],
     };
     const { body, boundary } = buildMultipartBody(metadata, content);
 
-    const response = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart`, {
+    const response = await fetch(
+        `${DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id,modifiedTime`,
+        {
         method: "POST",
         headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": `multipart/related; boundary=${boundary}`,
         },
         body,
-    });
+        }
+    );
 
     await assertOk(response);
-    return (await response.json()) as { id: string };
+    return (await response.json()) as { id: string; modifiedTime?: string };
 };
 
 export const updateAppDataFile = async (
     accessToken: string,
     fileId: string,
     content: string
-): Promise<{ id: string }> => {
+): Promise<{ id: string; modifiedTime?: string }> => {
     const metadata = {
         mimeType: "application/json",
     };
     const { body, boundary } = buildMultipartBody(metadata, content);
 
     const response = await fetch(
-        `${DRIVE_UPLOAD_URL}/${fileId}?uploadType=multipart`,
+        `${DRIVE_UPLOAD_URL}/${fileId}?uploadType=multipart&fields=id,modifiedTime`,
         {
             method: "PATCH",
             headers: {
@@ -124,5 +127,5 @@ export const updateAppDataFile = async (
     );
 
     await assertOk(response);
-    return (await response.json()) as { id: string };
+    return (await response.json()) as { id: string; modifiedTime?: string };
 };

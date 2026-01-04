@@ -50,15 +50,25 @@ export const hydrateState = (raw: string): PersistedState => {
     return migrateState(parsed as PersistedState);
 };
 
-export const exportStateToFile = (state: ProsperitasState) => {
-    const serialized = serializeState(state);
-    const blob = new Blob([serialized], { type: "application/json" });
+export const exportContentToFile = (
+    content: string,
+    filename = "prosperitas.json"
+) => {
+    const blob = new Blob([content], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "prosperitas.json";
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+};
+
+export const exportStateToFile = (
+    state: ProsperitasState,
+    filename?: string
+) => {
+    const serialized = serializeState(state);
+    exportContentToFile(serialized, filename);
 };
 
 export const loadStateFromFile = async (
