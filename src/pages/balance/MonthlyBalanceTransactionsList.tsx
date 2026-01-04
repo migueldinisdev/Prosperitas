@@ -19,8 +19,8 @@ const formatTransactionDate = (date: string) =>
     });
 
 const getTransactionIcon = (type: BalanceTransaction["type"]) => {
-    if (type === "income") return ArrowUpRight;
-    return ArrowDownRight;
+    if (type === "income") return ArrowDownRight;
+    return ArrowUpRight;
 };
 
 export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
@@ -88,7 +88,7 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                             className={`w-10 h-10 rounded-full flex items-center justify-center ${
                                                 t.type === "income"
                                                     ? "bg-emerald-500/10 text-emerald-500"
-                                                    : "bg-app-surface text-app-muted"
+                                                    : "bg-app-danger/10 text-app-danger"
                                             }`}
                                         >
                                             <Icon size={18} />
@@ -110,7 +110,7 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                             className={`font-semibold ${
                                                 amountValue > 0
                                                     ? "text-app-success"
-                                                    : "text-app-foreground"
+                                                    : "text-app-danger"
                                             }`}
                                         >
                                             {amountValue > 0 ? "+" : ""}

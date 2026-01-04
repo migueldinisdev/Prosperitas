@@ -149,15 +149,11 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({
                         className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                     >
                         <option value="">No category</option>
-                        {categoryOptions.length === 0 ? (
-                            <option value="">No categories</option>
-                        ) : (
-                            categoryOptions.map((category) => (
-                                <option key={category.id} value={category.id}>
-                                    {category.name}
-                                </option>
-                            ))
-                        )}
+                        {categoryOptions.map((category) => (
+                            <option key={category.id} value={category.id}>
+                                {category.name}
+                            </option>
+                        ))}
                     </select>
                 </div>
 
