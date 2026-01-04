@@ -45,9 +45,25 @@ export const SyncStatusPills: React.FC = () => {
                 markSaving();
                 await exportToGoogleDrive();
                 markSaved("up-to-date");
+                dispatch(
+                    addNotification({
+                        type: "success",
+                        title: "Saved to Drive",
+                        message: "Your data is up to date.",
+                        timeout: 5000,
+                    })
+                );
             } else if (mode === "offline") {
                 await exportToFile();
                 markSaved("saved");
+                dispatch(
+                    addNotification({
+                        type: "success",
+                        title: "Saved locally",
+                        message: "Your file was saved successfully.",
+                        timeout: 5000,
+                    })
+                );
             }
         } catch (error: any) {
             console.error(error);
@@ -124,6 +140,14 @@ export const SyncStatusPills: React.FC = () => {
             }
             markSaved("up-to-date");
             setDriveConflict(null);
+            dispatch(
+                addNotification({
+                    type: "success",
+                    title: "Sync conflict solved",
+                    message: "Your data is up to date.",
+                    timeout: 6000,
+                })
+            );
         } catch (error: any) {
             console.error(error);
             markUnsaved();
@@ -186,7 +210,18 @@ export const SyncStatusPills: React.FC = () => {
             </div>
             <Modal
                 isOpen={driveConflict !== null}
-                onClose={() => setDriveConflict(null)}
+                onClose={() => {
+                    setDriveConflict(null);
+                    dispatch(
+                        addNotification({
+                            type: "warning",
+                            title: "Save pending",
+                            message:
+                                "The document is NOT saved because the conflict is not handled.",
+                            timeout: 7000,
+                        })
+                    );
+                }}
                 title="Drive version conflict"
             >
                 <div className="space-y-4 text-sm text-app-muted">
@@ -218,7 +253,18 @@ export const SyncStatusPills: React.FC = () => {
                     <div className="flex flex-wrap justify-end gap-2 pt-2">
                         <Button
                             variant="secondary"
-                            onClick={() => setDriveConflict(null)}
+                            onClick={() => {
+                                setDriveConflict(null);
+                                dispatch(
+                                    addNotification({
+                                        type: "warning",
+                                        title: "Save pending",
+                                        message:
+                                            "The document is NOT saved because the conflict is not handled.",
+                                        timeout: 7000,
+                                    })
+                                );
+                            }}
                             disabled={isWorking}
                         >
                             Cancel
