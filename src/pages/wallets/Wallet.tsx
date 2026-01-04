@@ -226,9 +226,15 @@ export const WalletDetail: React.FC<Props> = () => {
 
     const sortedTransactions = useMemo(
         () =>
-            [...walletTransactions].sort((a, b) =>
-                b.date.localeCompare(a.date)
-            ),
+            [...walletTransactions].sort((a, b) => {
+                const dateDiff =
+                    new Date(b.date).getTime() - new Date(a.date).getTime();
+                if (dateDiff !== 0) return dateDiff;
+                return (
+                    new Date(b.createdAt).getTime() -
+                    new Date(a.createdAt).getTime()
+                );
+            }),
         [walletTransactions]
     );
 
