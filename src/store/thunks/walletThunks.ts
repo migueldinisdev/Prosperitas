@@ -14,7 +14,9 @@ import {
     addAssetTxId,
     removeAssetTxId,
     setAssetAggregate,
+    removeAsset,
 } from "../slices/assetsSlice";
+import { setPieAssets } from "../slices/piesSlice";
 import { upsertWalletPosition } from "../slices/walletPositionsSlice";
 
 const calculateWeightedAverage = (
@@ -117,6 +119,22 @@ const updatePositions = (
                         : assetAvg,
             })
         );
+
+        if (assetNextAmount === 0) {
+            const pies = getState().pies;
+            Object.values(pies).forEach((pie) => {
+                if (!pie.assetIds.includes(assetId)) return;
+                dispatch(
+                    setPieAssets({
+                        id: pie.id,
+                        assetIds: pie.assetIds.filter(
+                            (existingId) => existingId !== assetId
+                        ),
+                    })
+                );
+            });
+            dispatch(removeAsset(assetId));
+        }
     }
 };
 

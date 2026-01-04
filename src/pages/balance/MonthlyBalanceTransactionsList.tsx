@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ArrowUpRight, ArrowDownRight, MoreVertical } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Trash2 } from "lucide-react";
 import { Card } from "../../ui/Card";
 import { useBalanceData } from "../../hooks/useBalanceData";
 import { formatCurrency } from "../../utils/formatters";
@@ -28,7 +28,6 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
 }) => {
     const dispatch = useAppDispatch();
     const { categories, monthData } = useBalanceData(monthKey);
-    const [activeMenuIndex, setActiveMenuIndex] = useState<number | null>(null);
     const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
     const transactions = useMemo(
         () =>
@@ -61,19 +60,21 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                             </div>
                         ) : (
                             transactions.map(({ transaction: t, index }, i) => {
-                            const isLast = i === transactions.length - 1;
-                            const category = t.categoryId
-                                ? categories[t.categoryId]
-                                : undefined;
-                            const categoryLabel =
-                                category?.name ??
-                                (t.categoryId ? "Category" : "Uncategorized");
-                            const Icon = getTransactionIcon(t.type);
-                            const amountValue =
-                                t.type === "income"
-                                    ? t.amount.value
-                                    : -t.amount.value;
-                            return (
+                                const isLast = i === transactions.length - 1;
+                                const category = t.categoryId
+                                    ? categories[t.categoryId]
+                                    : undefined;
+                                const categoryLabel =
+                                    category?.name ??
+                                    (t.categoryId
+                                        ? "Category"
+                                        : "Uncategorized");
+                                const Icon = getTransactionIcon(t.type);
+                                const amountValue =
+                                    t.type === "income"
+                                        ? t.amount.value
+                                        : -t.amount.value;
+                                return (
                                 <div
                                     key={`${t.createdAt}-${index}`}
                                     className={`flex items-center justify-between pl-5 pr-7 transition-colors cursor-pointer ${
@@ -118,45 +119,20 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                                 t.amount.currency
                                             )}
                                         </span>
-                                        <div className="relative">
-                                            <button
-                                                type="button"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    setActiveMenuIndex(
-                                                        activeMenuIndex === index
-                                                            ? null
-                                                            : index
-                                                    );
-                                                }}
-                                                className="p-2 rounded-lg text-app-muted hover:text-app-foreground hover:bg-app-card transition-colors"
-                                                aria-label="Transaction actions"
-                                            >
-                                                <MoreVertical size={16} />
-                                            </button>
-                                            {activeMenuIndex === index && (
-                                                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-app-border bg-app-card shadow-xl overflow-hidden z-10">
-                                                    <button
-                                                        type="button"
-                                                        className="w-full px-4 py-2 text-left text-sm text-app-danger hover:bg-app-surface transition-colors"
-                                                        onClick={(event) => {
-                                                            event.stopPropagation();
-                                                            setActiveMenuIndex(
-                                                                null
-                                                            );
-                                                            setConfirmIndex(
-                                                                index
-                                                            );
-                                                        }}
-                                                    >
-                                                        Delete Transaction
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setConfirmIndex(index);
+                                            }}
+                                            className="inline-flex items-center justify-center p-2 rounded-lg text-app-danger hover:text-app-danger/90 hover:bg-app-danger/10 transition-colors"
+                                            aria-label="Delete transaction"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </div>
                                 </div>
-                            );
+                                );
                             })
                         )}
                     </div>

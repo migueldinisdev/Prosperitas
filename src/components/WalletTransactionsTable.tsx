@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { MoreVertical } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { WalletTx, AssetsState, Money } from "../core/schema-types";
 import { formatCurrency } from "../utils/formatters";
 import { useAppDispatch } from "../store/hooks";
@@ -24,9 +24,6 @@ export const WalletTransactionsTable = React.memo(
         const [currentPage, setCurrentPage] = useState(1);
         const [transactionsPerPage, setTransactionsPerPage] = useState(10);
         const dispatch = useAppDispatch();
-        const [activeMenuTxId, setActiveMenuTxId] = useState<string | null>(
-            null
-        );
         const [confirmTx, setConfirmTx] = useState<WalletTx | null>(null);
 
         const totalPages = Math.ceil(transactions.length / transactionsPerPage);
@@ -130,7 +127,7 @@ export const WalletTransactionsTable = React.memo(
                                 FX
                             </th>
                             <th className="px-4 py-3 font-medium text-right">
-                                Actions
+                                Delete
                             </th>
                         </tr>
                     </thead>
@@ -215,38 +212,14 @@ export const WalletTransactionsTable = React.memo(
                                         {fx}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <div className="relative inline-block text-left">
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setActiveMenuTxId(
-                                                        activeMenuTxId === tx.id
-                                                            ? null
-                                                            : tx.id
-                                                    )
-                                                }
-                                                className="p-2 rounded-lg text-app-muted hover:text-app-foreground hover:bg-app-card transition-colors"
-                                                aria-label="Transaction actions"
-                                            >
-                                                <MoreVertical size={16} />
-                                            </button>
-                                            {activeMenuTxId === tx.id && (
-                                                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-app-border bg-app-card shadow-xl overflow-hidden z-10">
-                                                    <button
-                                                        type="button"
-                                                        className="w-full px-4 py-2 text-left text-sm text-app-danger hover:bg-app-surface transition-colors"
-                                                        onClick={() => {
-                                                            setActiveMenuTxId(
-                                                                null
-                                                            );
-                                                            setConfirmTx(tx);
-                                                        }}
-                                                    >
-                                                        Delete Transaction
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setConfirmTx(tx)}
+                                            className="inline-flex items-center justify-center p-2 rounded-lg text-app-danger hover:text-app-danger/90 hover:bg-app-danger/10 transition-colors"
+                                            aria-label="Delete transaction"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </td>
                                 </tr>
                             );
