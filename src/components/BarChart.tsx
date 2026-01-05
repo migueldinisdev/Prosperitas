@@ -73,6 +73,7 @@ export const BarChart = React.memo(
                             dataKey={dataKey}
                             fill={color}
                             radius={[0, 4, 4, 0]}
+                            barSize={18}
                         />
                     </ReBarChart>
                 </ResponsiveContainer>
