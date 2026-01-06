@@ -1,13 +1,19 @@
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js (npm). Wrangler is included as a dev dependency for the local Pages/Workers server.
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Build the app:
+   `npm run build`
+3. Run the Vite dev server:
    `npm run dev`
+4. In another terminal, run the Cloudflare Pages/Workers serverless instance for the Stooq proxy:
+   `npx wrangler pages dev . --port 8788`
+
+**Notes:**
+- This project uses a Cloudflare Pages + Workers (serverless) instance to host the `/api/proxy/stooq` endpoint.
+- The Vite dev server proxies `/api` to `http://localhost:8788` as configured in `vite.config.ts`.
 
 ## Architecture Documentation
 

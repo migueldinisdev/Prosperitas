@@ -234,6 +234,7 @@ Current Implementation
 
 Proposed Modular Architecture (future state)
 ```
+functions/          # Cloudflare serverless functions (proxy)
 src/
   core/                # Domain logic (no IO/React)
     schema-types/      # Redux state types matching data-schema.json
@@ -312,16 +313,98 @@ Checklist before adding a new types file:
 - Live prices: unified module (`data/prices.ts`) aggregating APIs + cache.
 - Historical prices/FX: cached (IndexedDB) and fetched on demand.
 - Priority: use FX rate saved on transaction if present; otherwise fallback to live/historical.
+- APIs cover crypto and FX.
+- Stock market prices: public APIs are limited and CORS complicates direct calls, so we use a serverless proxy function to call the STOOQ.com legacy API; this source may be taken down in the future.
 
 ---
 
-## 10) Mobile-First & Navigation
+## 10) API Schema (Stooq Proxy)
+
+Base path: `/api/proxy/stooq`
+
+Endpoints
+- `GET /api/proxy/stooq/live`
+- `GET /api/proxy/stooq/historical`
+
+Common response shape
+```json
+{
+  "symbol": "GOOGL.US",
+  "type": "live | historical",
+  "data": [
+    {
+      "date": "YYYY-MM-DD",
+      "time": "HH:MM:SS | null",
+      "open": 0,
+      "high": 0,
+      "low": 0,
+      "close": 0,
+      "volume": 0
+    }
+  ],
+  "source": "stooq"
+}
+```
+
+Live
+```
+GET /api/proxy/stooq/live?symbol=GOOGL.US
+```
+
+Response notes
+- `data` contains a single element when upstream has a quote.
+- `date` and `time` come from the upstream quote.
+
+Historical
+```
+GET /api/proxy/stooq/historical?symbol=GOOGL.US&from=20200101&to=20210101
+GET /api/proxy/stooq/historical?symbol=GOOGL.US&from=20200101
+```
+
+Request params
+- `symbol` (required): Stooq ticker, e.g. `GOOGL.US`
+- `from` (required): `YYYYMMDD`
+- `to` (optional): `YYYYMMDD`
+
+Response notes
+- When `to` is omitted, the API returns a 14-day window: 7 days before and 7 days after `from`, excluding the `from` day itself.
+- `range` is included to show the effective window.
+
+Historical response (adds `range`)
+```json
+{
+  "symbol": "GOOGL.US",
+  "type": "historical",
+  "range": { "from": "YYYYMMDD", "to": "YYYYMMDD" },
+  "data": [
+    {
+      "date": "YYYY-MM-DD",
+      "time": null,
+      "open": 0,
+      "high": 0,
+      "low": 0,
+      "close": 0,
+      "volume": 0
+    }
+  ],
+  "source": "stooq"
+}
+```
+
+Errors
+```json
+{ "error": "Message", "status": 400 }
+```
+
+---
+
+## 11) Mobile-First & Navigation
 - Fixed sidebar on desktop; slide-out on mobile.
 - All pages accept `onMenuClick` for mobile menu toggle.
 
 ---
 
-## 11) Open Questions / Considerations
+## 12) Open Questions / Considerations
 - Changing the standard currency mid-life: migration and recalculation strategy.
 - Performance considerations for historical FX conversions and DCA recomputation.
 - Scope of persistence: when to introduce IndexedDB and which slices to persist.
@@ -329,7 +412,7 @@ Checklist before adding a new types file:
 
 ---
 
-## 12) Implementation Notes
+## 13) Implementation Notes
 - In early stages, mock-only; later, introduce `data/` + `store/` layers.
 - All input forms should write to the store (persisted when available) and update `holdings` accordingly.
 - Views render by combining `selectors` + pure `core/finance` functions.
