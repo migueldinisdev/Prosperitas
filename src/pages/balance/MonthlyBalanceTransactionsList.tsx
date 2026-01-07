@@ -34,9 +34,13 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
             (monthData?.txs ?? [])
                 .map((transaction, index) => ({ transaction, index }))
                 .sort((a, b) => {
-                    return (
+                    const dateDiff =
                         new Date(b.transaction.date).getTime() -
-                        new Date(a.transaction.date).getTime()
+                        new Date(a.transaction.date).getTime();
+                    if (dateDiff !== 0) return dateDiff;
+                    return (
+                        new Date(b.transaction.createdAt).getTime() -
+                        new Date(a.transaction.createdAt).getTime()
                     );
                 }),
         [monthData]
@@ -70,10 +74,10 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                         ? "Category"
                                         : "Uncategorized");
                                 const Icon = getTransactionIcon(t.type);
-                                const amountValue =
-                                    t.type === "income"
-                                        ? t.amount.value
-                                        : -t.amount.value;
+                                const isIncome = t.type === "income";
+                                const amountValue = isIncome
+                                    ? t.amount.value
+                                    : -t.amount.value;
                                 return (
                                 <div
                                     key={`${t.createdAt}-${index}`}
@@ -113,7 +117,7 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                                     : "text-app-danger"
                                             }`}
                                         >
-                                            {amountValue > 0 ? "+" : ""}
+                                            {isIncome ? "+" : "-"}
                                             {formatCurrency(
                                                 Math.abs(amountValue),
                                                 t.amount.currency
