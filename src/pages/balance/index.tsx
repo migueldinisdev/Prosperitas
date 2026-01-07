@@ -146,13 +146,9 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                     <MonthlyBalanceTransactionsList monthKey={monthKey} />
                 </div>
 
-                {/* Spending by Category - Full Width */}
-                <div className="w-full">
+                {/* Spending by Category + Sankey Flow Chart */}
+                <div className="grid w-full grid-cols-1 gap-6 xl:grid-cols-2">
                     <BalanceCategorySpendingSection monthKey={monthKey} />
-                </div>
-
-                {/* Sankey Flow Chart - Full Width */}
-                <div className="w-full">
                     <BalanceSankeySection monthKey={monthKey} />
                 </div>
             </main>
