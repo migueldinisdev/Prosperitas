@@ -108,13 +108,7 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
                 return buildResult(cached);
             }
         } else {
-            const cached = await getMostRecentCachedPrice({
-                type: request.type,
-                ticker,
-            });
-            if (cached) {
-                return buildResult(cached, true);
-            }
+            // Always hit the live API; cache is only for fallback/reference.
         }
     } catch (error) {
         notifyError("Unable to read from the price cache.");
@@ -173,21 +167,6 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
                 });
                 if (closest) {
                     return buildResult(closest, true);
-                }
-            } catch (cacheError) {
-                notifyError("Unable to read from the price cache.");
-                throw cacheError;
-            }
-        }
-
-        if (allowClosest && !request.date) {
-            try {
-                const cached = await getMostRecentCachedPrice({
-                    type: request.type,
-                    ticker,
-                });
-                if (cached) {
-                    return buildResult(cached, true);
                 }
             } catch (cacheError) {
                 notifyError("Unable to read from the price cache.");
