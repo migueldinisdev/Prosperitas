@@ -22,12 +22,14 @@ const sanitizeField = (value: string) =>
     decodeHtmlEntities(stripHtml(value)).trim();
 
 const extractPayload = (payload: string) => {
-    const match = payload.match(/cmp_r\('([\s\S]*)'\);?/);
+    const match =
+        payload.match(/window\.cmp_r\(\s*'([\s\S]*)'\s*\)\s*;?/) ??
+        payload.match(/cmp_r\('([\s\S]*)'\);?/);
     if (!match) {
         return "";
     }
 
-    return match[1].replace(/\\'/g, "'");
+    return match[1].replace(/\\'/g, "'").replace(/\\\\/g, "\\");
 };
 
 export const parseStooqSearchResponse = (payload: string) => {
@@ -57,10 +59,15 @@ export const fetchStooqStockSearch = async (
     }
 
     const response = await fetch(
-        `https://stooq.com/cmp/${Date.now()}?q=${encodeURIComponent(
+        `https://stooq.com/cmp/?${Date.now()}&q=${encodeURIComponent(
             trimmedQuery
         )}`,
-        { signal }
+        {
+            signal,
+            headers: {
+                accept: "*/*",
+            },
+        }
     );
 
     if (!response.ok) {
