@@ -34,15 +34,38 @@ export async function onRequest(context: {
     request: Request,
 }): Promise<Response> {
     const { request } = context;
+    const requestId = crypto.randomUUID().slice(0, 8);
+    const logs: string[] = [];
+    const log = (label: string, value?: unknown) => {
+        if (value === undefined) {
+            logs.push(label);
+            return;
+        }
+        if (typeof value === "string") {
+            logs.push(`${label} ${value}`);
+            return;
+        }
+        logs.push(`${label} ${JSON.stringify(value)}`);
+    };
+    const flushLogs = () => {
+        if (!logs.length) return;
+        const header = `[stooq/live][${requestId}]`;
+        const line = "+------------------------------------------------------------";
+        const body = logs.map((entry) => `| ${entry}`).join("\n");
+        console.debug(`${header} ${line}\n${body}\n${header} ${line}`);
+    };
 
     if (request.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
     const url = new URL(request.url);
+    log("request:", `${request.method} ${url.pathname}${url.search}`);
     const symbol = url.searchParams.get("symbol");
 
     if (!symbol) {
+        log("error:", "Missing required query param: symbol");
+        flushLogs();
         return jsonResponse({ error: "Missing required query param: symbol" }, 400);
     }
 
@@ -51,19 +74,43 @@ export async function onRequest(context: {
     stooqUrl.searchParams.set("f", "sd2t2ohlcv");
     stooqUrl.searchParams.set("h", "");
     stooqUrl.searchParams.set("e", "json");
+    log("upstream url:", stooqUrl.toString());
 
     const upstream = await fetch(stooqUrl.toString(), {
         method: "GET",
         headers: {
             "User-Agent": "Prosperitas/1.0",
+            "Accept": "application/json,text/plain,*/*",
         },
     });
 
+    const contentType = upstream.headers.get("content-type") ?? "unknown";
+    log("upstream status:", upstream.status);
+    log("upstream content-type:", contentType);
+
     if (!upstream.ok) {
+        log("error:", `Upstream error ${upstream.status}`);
+        flushLogs();
         return jsonResponse({ error: "Upstream error", status: upstream.status }, upstream.status);
     }
 
-    const payload = await upstream.json().catch(() => null) as {
+    const rawBody = await upstream.text();
+    log("upstream body length:", rawBody.length);
+    log("upstream body snippet:", rawBody.slice(0, 500));
+
+    const sanitizedBody = rawBody.replace(/:\s*(?=[,}\]])/g, ": null");
+    if (sanitizedBody !== rawBody) {
+        log("sanitize:", "sanitized malformed JSON fields");
+    }
+
+    const payload = (() => {
+        try {
+            return JSON.parse(sanitizedBody);
+        } catch (error) {
+            log("error:", `JSON parse error ${String(error)}`);
+            return null;
+        }
+    })() as {
         symbols?: Array<{
             symbol?: string,
             date?: string,
@@ -75,6 +122,9 @@ export async function onRequest(context: {
             volume?: number | string,
         }>,
     } | null;
+
+    log("payload:", payload);
+    flushLogs();
 
     const symbols = payload?.symbols ?? [];
     const first = symbols[0];
