@@ -65,7 +65,11 @@ function parseCsvRows(csvText: string) {
         const line = lines[i].trim();
         if (!line) continue;
         const parts = line.split(",");
-        if (parts.length < 6) continue;
+        // Some rows omit trailing volume; accept rows with at least OHLC.
+        if (parts.length < 5) continue;
+        while (parts.length < 6) {
+            parts.push("");
+        }
         rows.push({
             date: parts[0],
             time: null,
@@ -83,32 +87,58 @@ export async function onRequest(context: {
     request: Request,
 }): Promise<Response> {
     const { request } = context;
+    const requestId = crypto.randomUUID().slice(0, 8);
+    const logs: string[] = [];
+    const log = (label: string, value?: unknown) => {
+        if (value === undefined) {
+            logs.push(label);
+            return;
+        }
+        if (typeof value === "string") {
+            logs.push(`${label} ${value}`);
+            return;
+        }
+        logs.push(`${label} ${JSON.stringify(value)}`);
+    };
+    const flushLogs = () => {
+        if (!logs.length) return;
+        const header = `[stooq/historical][${requestId}]`;
+        const line = "+------------------------------------------------------------";
+        const body = logs.map((entry) => `| ${entry}`).join("\n");
+        console.debug(`${header} ${line}\n${body}\n${header} ${line}`);
+    };
 
     if (request.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
     const url = new URL(request.url);
+    log("request:", `${request.method} ${url.pathname}${url.search}`);
     const symbol = url.searchParams.get("symbol");
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
 
     if (!symbol || !from) {
+        log("error:", "Missing required query params: symbol, from");
+        flushLogs();
         return jsonResponse({ error: "Missing required query params: symbol, from" }, 400);
     }
 
     const fromDate = parseYmdCompact(from);
     if (!fromDate) {
+        log("error:", "Invalid from date. Use YYYYMMDD.");
+        flushLogs();
         return jsonResponse({ error: "Invalid from date. Use YYYYMMDD." }, 400);
     }
 
     let effectiveFrom = from;
     let effectiveTo = to ?? "";
-    let excludeAnchorDate: string | null = null;
 
     if (to) {
         const toDate = parseYmdCompact(to);
         if (!toDate) {
+            log("error:", "Invalid to date. Use YYYYMMDD.");
+            flushLogs();
             return jsonResponse({ error: "Invalid to date. Use YYYYMMDD." }, 400);
         }
     } else {
@@ -116,7 +146,6 @@ export async function onRequest(context: {
         const end = addDaysUtc(fromDate, 7);
         effectiveFrom = formatYmdCompact(start);
         effectiveTo = formatYmdCompact(end);
-        excludeAnchorDate = formatYmdDashed(fromDate);
     }
 
     const stooqUrl = new URL("https://stooq.com/q/d/l/");
@@ -124,6 +153,7 @@ export async function onRequest(context: {
     stooqUrl.searchParams.set("i", "d");
     stooqUrl.searchParams.set("f", effectiveFrom);
     stooqUrl.searchParams.set("t", effectiveTo);
+    log("upstream url:", stooqUrl.toString());
 
     const upstream = await fetch(stooqUrl.toString(), {
         method: "GET",
@@ -133,14 +163,22 @@ export async function onRequest(context: {
     });
 
     if (!upstream.ok) {
+        log("error:", `Upstream error ${upstream.status}`);
+        flushLogs();
         return jsonResponse({ error: "Upstream error", status: upstream.status }, upstream.status);
     }
 
     const csvText = await upstream.text();
-    let data = parseCsvRows(csvText);
-    if (excludeAnchorDate) {
-        data = data.filter((row) => row.date !== excludeAnchorDate);
-    }
+    log("upstream body length:", csvText.length);
+    const csvLines = csvText.trim().split(/\r?\n/);
+    const maxLines = 14;
+    const csvPreview = csvLines.slice(0, maxLines).map((line) => `| ${line}`).join("\n");
+    log("upstream body lines:", csvLines.length);
+    log("upstream body preview:");
+    logs.push(csvPreview || "| <empty>");
+    const data = parseCsvRows(csvText);
+    log("rows parsed:", data.length);
+    flushLogs();
 
     return jsonResponse({
         symbol,
