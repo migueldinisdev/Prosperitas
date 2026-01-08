@@ -11,9 +11,12 @@ interface Props {
 }
 
 const formatOptionLabel = (option: StooqStockSearchResult) => {
-    const parts = [option.symbol, option.name, option.exchange].filter(
-        (part) => part.length > 0
-    );
+    const parts = [
+        option.symbol,
+        option.name,
+        option.exchange,
+        option.price === null ? "" : option.price.toString(),
+    ].filter((part) => part.length > 0);
     return parts.join(" · ");
 };
 

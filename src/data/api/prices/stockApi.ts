@@ -53,6 +53,9 @@ export const fetchStockLive = async (symbol: string) => {
         throw new TickerNotFoundError(symbol, "stock");
     }
     const [candle] = payload.data;
+    if (candle.close == null) {
+        throw new TickerNotFoundError(symbol, "stock", "ticker not found");
+    }
     return {
         date: candle.date,
         close: candle.close,
@@ -71,9 +74,15 @@ export const fetchStockHistorical = async (symbol: string, date: string) => {
     if (!payload.data || payload.data.length === 0) {
         throw new TickerNotFoundError(symbol, "stock");
     }
-    return payload.data.map((candle) => ({
-        date: candle.date,
-        close: candle.close,
-        source: payload.source,
-    }));
+    const entries = payload.data
+        .filter((candle) => candle.close != null)
+        .map((candle) => ({
+            date: candle.date,
+            close: candle.close,
+            source: payload.source,
+        }));
+    if (entries.length === 0) {
+        throw new TickerNotFoundError(symbol, "stock", "ticker not found");
+    }
+    return entries;
 };

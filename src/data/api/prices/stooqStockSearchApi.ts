@@ -4,6 +4,7 @@ export interface StooqStockSearchResult {
     symbol: string;
     name: string;
     exchange: string;
+    price: number | null;
 }
 
 const stripHtml = (value: string) => value.replace(/<[^>]+>/g, "");
@@ -41,11 +42,15 @@ export const parseStooqSearchResponse = (payload: string) => {
     return body
         .split("|")
         .map((entry) => entry.split("~"))
-        .map(([symbolRaw, nameRaw, exchangeRaw]) => ({
-            symbol: sanitizeField(symbolRaw || ""),
-            name: sanitizeField(nameRaw || ""),
-            exchange: sanitizeField(exchangeRaw || ""),
-        }))
+        .map(([symbolRaw, nameRaw, , exchangeRaw, priceRaw]) => {
+            const priceValue = priceRaw ? Number(priceRaw) : Number.NaN;
+            return {
+                symbol: sanitizeField(symbolRaw || ""),
+                name: sanitizeField(nameRaw || ""),
+                exchange: sanitizeField(exchangeRaw || ""),
+                price: Number.isNaN(priceValue) ? null : priceValue,
+            };
+        })
         .filter((entry) => entry.symbol.length > 0);
 };
 
