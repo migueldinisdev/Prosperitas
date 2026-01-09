@@ -193,6 +193,46 @@ export const getMostRecentCachedPrice = async (params: {
     });
 };
 
+export const getPreviousCachedPrice = async (params: {
+    type: PriceAssetType;
+    ticker: string;
+    date: string;
+}) => {
+    const { type, ticker, date } = params;
+    const targetMs = toDateMs(date);
+    const tickerKey = makeTickerKey(type, ticker);
+
+    if (!isIndexedDbAvailable) {
+        const entries = await getEntriesForTicker(tickerKey);
+        return (
+            entries
+                .filter((entry) => entry.dateMs <= targetMs)
+                .sort((a, b) => b.dateMs - a.dateMs)[0] ?? null
+        );
+    }
+
+    const db = await openPricesDb();
+    return new Promise<PriceCacheEntry | null>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        const index = store.index("tickerDate");
+        const range = IDBKeyRange.bound(
+            [tickerKey, 0],
+            [tickerKey, targetMs]
+        );
+        const request = index.openCursor(range, "prev");
+        request.onsuccess = () => {
+            const cursor = request.result;
+            if (cursor) {
+                resolve(cursor.value as PriceCacheEntry);
+            } else {
+                resolve(null);
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
 const getEntriesForTicker = async (tickerKey: string) => {
     if (!isIndexedDbAvailable) {
         const fallback = loadFallbackCache();

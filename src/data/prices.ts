@@ -3,6 +3,7 @@ import {
     getCachedPrice,
     getClosestCachedPrice,
     getMostRecentCachedPrice,
+    getPreviousCachedPrice,
     setCachedPrices,
     PriceAssetType,
     PriceCacheEntry,
@@ -54,6 +55,18 @@ const selectClosestEntry = (entries: PriceCacheEntry[], targetDate: string) => {
         const diff = Math.abs(entry.dateMs - targetMs);
         const closestDiff = Math.abs(closest.dateMs - targetMs);
         return diff < closestDiff ? entry : closest;
+    }, null);
+};
+
+const selectPreviousEntry = (entries: PriceCacheEntry[], targetDate: string) => {
+    if (!entries.length) return null;
+    const targetMs = toDateMs(targetDate);
+    return entries.reduce<PriceCacheEntry | null>((previous, entry) => {
+        if (entry.dateMs > targetMs) {
+            return previous;
+        }
+        if (!previous) return entry;
+        return entry.dateMs > previous.dateMs ? entry : previous;
     }, null);
 };
 
@@ -139,7 +152,10 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
         }
 
         if (request.date) {
-            const closest = selectClosestEntry(cacheEntries, request.date);
+            const closest =
+                request.type === "stock"
+                    ? selectPreviousEntry(cacheEntries, request.date)
+                    : selectClosestEntry(cacheEntries, request.date);
             if (closest) {
                 return buildResult(
                     closest,
@@ -160,11 +176,18 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
 
         if (allowClosest && request.date) {
             try {
-                const closest = await getClosestCachedPrice({
-                    type: request.type,
-                    ticker,
-                    date: request.date,
-                });
+                const closest =
+                    request.type === "stock"
+                        ? await getPreviousCachedPrice({
+                              type: request.type,
+                              ticker,
+                              date: request.date,
+                          })
+                        : await getClosestCachedPrice({
+                              type: request.type,
+                              ticker,
+                              date: request.date,
+                          });
                 if (closest) {
                     return buildResult(closest, true);
                 }
