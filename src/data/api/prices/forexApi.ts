@@ -1,4 +1,5 @@
 import { PriceApiError, TickerNotFoundError } from "./errors";
+import { fetchWithTimeout } from "./request";
 
 interface FrankfurterResponse {
     amount: number;
@@ -19,7 +20,9 @@ const parseForexPair = (pair: string) => {
 };
 
 const fetchFrankfurter = async (path: string) => {
-    const response = await fetch(`https://api.frankfurter.app${path}`);
+    const response = await fetchWithTimeout(
+        `https://api.frankfurter.app${path}`
+    );
     if (!response.ok) {
         throw new PriceApiError("Frankfurter request failed.");
     }

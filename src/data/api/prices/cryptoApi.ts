@@ -1,4 +1,5 @@
 import { PriceApiError, TickerNotFoundError } from "./errors";
+import { fetchWithTimeout } from "./request";
 
 const normalizeCryptoSymbol = (pair: string) => {
     const normalized = pair.toUpperCase().replace("/", "");
@@ -13,7 +14,7 @@ const normalizeCryptoSymbol = (pair: string) => {
 
 export const fetchCryptoLive = async (pair: string) => {
     const symbol = normalizeCryptoSymbol(pair);
-    const response = await fetch(
+    const response = await fetchWithTimeout(
         `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
     );
     if (!response.ok) {
@@ -34,7 +35,7 @@ export const fetchCryptoHistorical = async (pair: string, date: string) => {
     const symbol = normalizeCryptoSymbol(pair);
     const start = new Date(`${date}T00:00:00.000Z`).getTime();
     const end = new Date(`${date}T23:59:59.999Z`).getTime();
-    const response = await fetch(
+    const response = await fetchWithTimeout(
         `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1d&startTime=${start}&endTime=${end}`
     );
     if (!response.ok) {

@@ -1,4 +1,5 @@
 import { PriceApiError, TickerNotFoundError } from "./errors";
+import { fetchWithTimeout } from "./request";
 
 interface StooqCandle {
     date: string;
@@ -45,7 +46,7 @@ const parseStooqResponse = async <T>(response: Response): Promise<T> => {
 };
 
 export const fetchStockLive = async (symbol: string) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
         `${STQ_BASE_PATH}/live?symbol=${encodeURIComponent(symbol)}`
     );
     const payload = await parseStooqResponse<StooqLiveResponse>(response);
@@ -65,7 +66,7 @@ export const fetchStockLive = async (symbol: string) => {
 
 export const fetchStockHistorical = async (symbol: string, date: string) => {
     const formattedDate = date.replace(/-/g, "");
-    const response = await fetch(
+    const response = await fetchWithTimeout(
         `${STQ_BASE_PATH}/historical?symbol=${encodeURIComponent(
             symbol
         )}&from=${formattedDate}`

@@ -2,8 +2,9 @@ import {
     buildPriceCacheEntry,
     getCachedPrice,
     getClosestCachedPrice,
-    getMostRecentCachedPrice,
+    getLatestPriceEntry,
     getPreviousCachedPrice,
+    setLatestPriceEntry,
     setCachedPrices,
     PriceAssetType,
     PriceCacheEntry,
@@ -12,8 +13,6 @@ import { fetchStockHistorical, fetchStockLive } from "./api/prices/stockApi";
 import { fetchForexHistorical, fetchForexLive } from "./api/prices/forexApi";
 import { fetchCryptoHistorical, fetchCryptoLive } from "./api/prices/cryptoApi";
 import { PriceApiError, TickerNotFoundError } from "./api/prices/errors";
-import { store } from "../store";
-import { addNotification } from "../store/slices/notificationsSlice";
 
 export type { PriceAssetType };
 
@@ -36,16 +35,6 @@ interface PriceRequest {
 const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
 
 const toDateMs = (date: string) => new Date(`${date}T00:00:00.000Z`).getTime();
-
-const notifyError = (message: string) => {
-    store.dispatch(
-        addNotification({
-            type: "error",
-            title: "Price fetch failed",
-            message,
-        })
-    );
-};
 
 const selectClosestEntry = (entries: PriceCacheEntry[], targetDate: string) => {
     if (!entries.length) return null;
@@ -124,7 +113,6 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
             // Always hit the live API; cache is only for fallback/reference.
         }
     } catch (error) {
-        notifyError("Unable to read from the price cache.");
         throw error;
     }
 
@@ -147,8 +135,18 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
         try {
             await setCachedPrices(cacheEntries);
         } catch (error) {
-            notifyError("Unable to update the price cache.");
             throw error;
+        }
+
+        const latestEntry = cacheEntries.reduce<PriceCacheEntry | null>(
+            (latest, entry) => {
+                if (!latest) return entry;
+                return entry.dateMs > latest.dateMs ? entry : latest;
+            },
+            null
+        );
+        if (latestEntry) {
+            setLatestPriceEntry(latestEntry);
         }
 
         if (request.date) {
@@ -192,14 +190,20 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
                     return buildResult(closest, true);
                 }
             } catch (cacheError) {
-                notifyError("Unable to read from the price cache.");
                 throw cacheError;
             }
         }
 
-        const message =
-            error instanceof Error ? error.message : "Price fetch failed.";
-        notifyError(message);
+        if (allowClosest) {
+            const latest = getLatestPriceEntry({
+                type: request.type,
+                ticker,
+            });
+            if (latest) {
+                return buildResult(latest, true);
+            }
+        }
+
         throw error;
     }
 };

@@ -27,16 +27,19 @@ export const StooqAPIStockSelect: React.FC<Props> = ({
 }) => {
     const [options, setOptions] = useState<StooqStockSearchResult[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
         const trimmedValue = value.trim();
         if (!trimmedValue) {
             setOptions([]);
+            setErrorMessage(null);
             return;
         }
 
         const controller = new AbortController();
         setIsLoading(true);
+        setErrorMessage(null);
         fetchStooqStockSearch(trimmedValue, controller.signal)
             .then((results) => {
                 setOptions(results);
@@ -46,6 +49,9 @@ export const StooqAPIStockSelect: React.FC<Props> = ({
                     return;
                 }
                 setOptions([]);
+                setErrorMessage(
+                    error instanceof Error ? error.message : "Lookup failed."
+                );
             })
             .finally(() => {
                 if (!controller.signal.aborted) {
@@ -96,6 +102,11 @@ export const StooqAPIStockSelect: React.FC<Props> = ({
                     </option>
                 ))}
             </select>
+            {errorMessage && (
+                <p className="w-full text-xs text-app-danger">
+                    {errorMessage}
+                </p>
+            )}
         </div>
     );
 };

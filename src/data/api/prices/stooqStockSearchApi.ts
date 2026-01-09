@@ -1,4 +1,5 @@
 import { PriceApiError } from "./errors";
+import { fetchWithTimeout } from "./request";
 
 export interface StooqStockSearchResult {
     symbol: string;
@@ -63,7 +64,7 @@ export const fetchStooqStockSearch = async (
         return [] as StooqStockSearchResult[];
     }
 
-    const response = await fetch(
+    const response = await fetchWithTimeout(
         `https://stooq.com/cmp/?${Date.now()}&q=${encodeURIComponent(
             trimmedQuery
         )}`,
