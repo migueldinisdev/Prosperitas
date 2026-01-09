@@ -1,10 +1,7 @@
 import {
     buildPriceCacheEntry,
     getCachedPrice,
-    getClosestCachedPrice,
-    getLatestPriceEntry,
     getPreviousCachedPrice,
-    setLatestPriceEntry,
     setCachedPrices,
     PriceAssetType,
     PriceCacheEntry,
@@ -13,6 +10,9 @@ import { fetchStockHistorical, fetchStockLive } from "./api/prices/stockApi";
 import { fetchForexHistorical, fetchForexLive } from "./api/prices/forexApi";
 import { fetchCryptoHistorical, fetchCryptoLive } from "./api/prices/cryptoApi";
 import { PriceApiError, TickerNotFoundError } from "./api/prices/errors";
+import { store } from "../store";
+import { updateAsset } from "../store/slices/assetsSlice";
+import { setForexLivePrice } from "../store/slices/forexLivePricesSlice";
 
 export type { PriceAssetType };
 
@@ -22,30 +22,17 @@ export interface PriceResult {
     date: string;
     close: number;
     source: string;
-    isApproximate?: boolean;
 }
 
 interface PriceRequest {
     ticker: string;
     type: PriceAssetType;
     date?: string;
-    allowClosest?: boolean;
 }
 
 const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
 
 const toDateMs = (date: string) => new Date(`${date}T00:00:00.000Z`).getTime();
-
-const selectClosestEntry = (entries: PriceCacheEntry[], targetDate: string) => {
-    if (!entries.length) return null;
-    const targetMs = toDateMs(targetDate);
-    return entries.reduce<PriceCacheEntry | null>((closest, entry) => {
-        if (!closest) return entry;
-        const diff = Math.abs(entry.dateMs - targetMs);
-        const closestDiff = Math.abs(closest.dateMs - targetMs);
-        return diff < closestDiff ? entry : closest;
-    }, null);
-};
 
 const selectPreviousEntry = (entries: PriceCacheEntry[], targetDate: string) => {
     if (!entries.length) return null;
@@ -59,13 +46,12 @@ const selectPreviousEntry = (entries: PriceCacheEntry[], targetDate: string) => 
     }, null);
 };
 
-const buildResult = (entry: PriceCacheEntry, approximate = false): PriceResult => ({
+const buildResult = (entry: PriceCacheEntry): PriceResult => ({
     ticker: entry.ticker,
     type: entry.type,
     date: entry.date,
     close: entry.close,
     source: entry.source,
-    isApproximate: approximate || undefined,
 });
 
 const fetchFromApi = async (
@@ -97,7 +83,6 @@ const fetchFromApi = async (
 
 export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
     const ticker = normalizeTicker(request.ticker);
-    const allowClosest = request.allowClosest ?? true;
 
     try {
         if (request.date) {
@@ -132,38 +117,53 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
             )
         );
 
-        try {
-            await setCachedPrices(cacheEntries);
-        } catch (error) {
-            throw error;
+        const filteredEntries = request.date
+            ? cacheEntries.filter((entry) => entry.date <= request.date!)
+            : cacheEntries;
+        if (!filteredEntries.length) {
+            throw new PriceApiError("No price data returned from provider.");
         }
 
-        const latestEntry = cacheEntries.reduce<PriceCacheEntry | null>(
-            (latest, entry) => {
-                if (!latest) return entry;
-                return entry.dateMs > latest.dateMs ? entry : latest;
-            },
-            null
-        );
-        if (latestEntry) {
-            setLatestPriceEntry(latestEntry);
-        }
-
-        if (request.date) {
-            const closest =
-                request.type === "stock"
-                    ? selectPreviousEntry(cacheEntries, request.date)
-                    : selectClosestEntry(cacheEntries, request.date);
-            if (closest) {
-                return buildResult(
-                    closest,
-                    closest.date !== request.date
+        await setCachedPrices(filteredEntries);
+        if (!request.date) {
+            if (request.type === "forex") {
+                store.dispatch(
+                    setForexLivePrice({
+                        pair: ticker,
+                        rate: filteredEntries[0].close,
+                        updatedAt: new Date().toISOString(),
+                    })
                 );
+            } else {
+                const assets = store.getState().assets;
+                Object.values(assets).forEach((asset) => {
+                    if (asset.ticker.toUpperCase() === ticker) {
+                        store.dispatch(
+                            updateAsset({
+                                id: asset.id,
+                                changes: {
+                                    livePrice: {
+                                        value: filteredEntries[0].close,
+                                        currency: asset.tradingCurrency,
+                                    },
+                                    livePriceUpdatedAt: new Date().toISOString(),
+                                },
+                            })
+                        );
+                    }
+                });
             }
         }
 
-        if (cacheEntries[0]) {
-            return buildResult(cacheEntries[0]);
+        if (request.date) {
+            const closest = selectPreviousEntry(filteredEntries, request.date);
+            if (closest) {
+                return buildResult(closest);
+            }
+        }
+
+        if (filteredEntries[0]) {
+            return buildResult(filteredEntries[0]);
         }
 
         throw new PriceApiError("No price data returned from provider.");
@@ -172,35 +172,48 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
             throw error;
         }
 
-        if (allowClosest && request.date) {
+        if (request.date) {
             try {
-                const closest =
-                    request.type === "stock"
-                        ? await getPreviousCachedPrice({
-                              type: request.type,
-                              ticker,
-                              date: request.date,
-                          })
-                        : await getClosestCachedPrice({
-                              type: request.type,
-                              ticker,
-                              date: request.date,
-                          });
+                const closest = await getPreviousCachedPrice({
+                    type: request.type,
+                    ticker,
+                    date: request.date,
+                });
                 if (closest) {
-                    return buildResult(closest, true);
+                    return buildResult(closest);
                 }
             } catch (cacheError) {
                 throw cacheError;
             }
         }
 
-        if (allowClosest) {
-            const latest = getLatestPriceEntry({
-                type: request.type,
-                ticker,
-            });
-            if (latest) {
-                return buildResult(latest, true);
+        if (!request.date) {
+            if (request.type === "forex") {
+                const liveForex = store.getState().forexLivePrices[ticker];
+                if (liveForex) {
+                    return {
+                        ticker,
+                        type: request.type,
+                        date: liveForex.updatedAt.slice(0, 10),
+                        close: liveForex.rate,
+                        source: "fallback",
+                    };
+                }
+            } else {
+                const assets = store.getState().assets;
+                const matched = Object.values(assets).find(
+                    (asset) => asset.ticker.toUpperCase() === ticker
+                );
+                if (matched?.livePrice) {
+                    return {
+                        ticker,
+                        type: request.type,
+                        date: matched.livePriceUpdatedAt?.slice(0, 10) ??
+                            new Date().toISOString().slice(0, 10),
+                        close: matched.livePrice.value,
+                        source: "fallback",
+                    };
+                }
             }
         }
 

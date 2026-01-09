@@ -11,6 +11,7 @@ import walletsReducer from "./slices/walletsSlice";
 import walletPositionsReducer from "./slices/walletPositionsSlice";
 import walletTxReducer from "./slices/walletTxSlice";
 import piesReducer from "./slices/piesSlice";
+import forexLivePricesReducer from "./slices/forexLivePricesSlice";
 import notificationsReducer from "./slices/notificationsSlice";
 import { defaultState } from "./initialState";
 import { ProsperitasState } from "../core/schema-types";
@@ -36,6 +37,7 @@ const appReducer = combineReducers({
     walletPositions: walletPositionsReducer,
     walletTx: walletTxReducer,
     pies: piesReducer,
+    forexLivePrices: forexLivePricesReducer,
     notifications: notificationsReducer,
 });
 
@@ -76,6 +78,7 @@ const persistConfig: PersistConfig<ProsperitasState> = {
         "walletPositions",
         "walletTx",
         "pies",
+        "forexLivePrices",
     ],
 };
 

@@ -14,7 +14,6 @@ export interface PriceCacheEntry {
 const DB_NAME = "prosperitas-prices";
 const STORE_NAME = "prices";
 const FALLBACK_KEY = "prosperitas:price-cache";
-const LATEST_PRICE_KEY = "prosperitas:latest-price-cache";
 
 const isIndexedDbAvailable =
     typeof indexedDB !== "undefined" && typeof window !== "undefined";
@@ -37,24 +36,6 @@ const loadFallbackCache = () => {
 const saveFallbackCache = (cache: Record<string, PriceCacheEntry>) => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(FALLBACK_KEY, JSON.stringify(cache));
-};
-
-const loadLatestPriceCache = () => {
-    if (typeof window === "undefined") {
-        return {} as Record<string, PriceCacheEntry>;
-    }
-    const raw = window.localStorage.getItem(LATEST_PRICE_KEY);
-    if (!raw) return {} as Record<string, PriceCacheEntry>;
-    try {
-        return JSON.parse(raw) as Record<string, PriceCacheEntry>;
-    } catch {
-        return {} as Record<string, PriceCacheEntry>;
-    }
-};
-
-const saveLatestPriceCache = (cache: Record<string, PriceCacheEntry>) => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(LATEST_PRICE_KEY, JSON.stringify(cache));
 };
 
 const openPricesDb = () =>
@@ -154,23 +135,6 @@ export const setCachedPrices = async (entries: PriceCacheEntry[]) => {
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
     });
-};
-
-export const setLatestPriceEntry = (entry: PriceCacheEntry) => {
-    if (typeof window === "undefined") return;
-    const cache = loadLatestPriceCache();
-    cache[entry.tickerKey] = entry;
-    saveLatestPriceCache(cache);
-};
-
-export const getLatestPriceEntry = (params: {
-    type: PriceAssetType;
-    ticker: string;
-}) => {
-    if (typeof window === "undefined") return null;
-    const { type, ticker } = params;
-    const cache = loadLatestPriceCache();
-    return cache[makeTickerKey(type, ticker)] ?? null;
 };
 
 export const getClosestCachedPrice = async (params: {

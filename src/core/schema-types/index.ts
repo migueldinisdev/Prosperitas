@@ -87,6 +87,8 @@ export interface Asset {
     decimals: number;
     amount: number;
     avgCost: Money;
+    livePrice?: Money | null;
+    livePriceUpdatedAt?: string | null;
     txIds: string[];
     createdAt: string;
     updatedAt: string;
@@ -205,6 +207,14 @@ export interface Pie {
 
 export type PiesState = Record<string, Pie>;
 
+export interface ForexLivePrice {
+    pair: string;
+    rate: number;
+    updatedAt: string;
+}
+
+export type ForexLivePricesState = Record<string, ForexLivePrice>;
+
 /**
  * PersistedState: The state that gets saved to files and synced.
  * This excludes ephemeral UI state like notifications.
@@ -221,6 +231,7 @@ export interface PersistedState {
     walletPositions: WalletPositionsState;
     walletTx: WalletTxState;
     pies: PiesState;
+    forexLivePrices: ForexLivePricesState;
 }
 
 /**
@@ -246,4 +257,5 @@ export const PERSISTED_KEYS: (keyof PersistedState)[] = [
     "walletPositions",
     "walletTx",
     "pies",
+    "forexLivePrices",
 ];

@@ -15,6 +15,7 @@ import {
     removeAssetTxId,
     setAssetAggregate,
     removeAsset,
+    updateAsset,
 } from "../slices/assetsSlice";
 import { setPieAssets } from "../slices/piesSlice";
 import { upsertWalletPosition } from "../slices/walletPositionsSlice";
@@ -216,6 +217,20 @@ const applyWalletTransactionEffects = (
                 dispatch,
                 true
             );
+            if (direction === 1) {
+                const asset = getState().assets[tx.assetId];
+                if (asset && !asset.livePrice) {
+                    dispatch(
+                        updateAsset({
+                            id: tx.assetId,
+                            changes: {
+                                livePrice: tx.price,
+                                livePriceUpdatedAt: tx.date,
+                            },
+                        })
+                    );
+                }
+            }
             if (direction === 1) {
                 dispatch(addAssetTxId({ assetId: tx.assetId, txId: tx.id }));
             } else {
