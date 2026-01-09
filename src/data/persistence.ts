@@ -1,19 +1,32 @@
-import { ProsperitasState, PersistedState, PERSISTED_KEYS } from "../core/schema-types";
+import {
+    ProsperitasState,
+    PersistedState,
+    PERSISTED_KEYS,
+} from "../core/schema-types";
 import { CURRENT_SCHEMA_VERSION } from "../store/initialState";
+
+const REQUIRED_KEYS = PERSISTED_KEYS.filter(
+    (key) => key !== "forexLivePrices"
+);
 
 const validateStateShape = (data: unknown): data is PersistedState => {
     if (!data || typeof data !== "object") return false;
-    return PERSISTED_KEYS.every((key) => key in (data as Record<string, unknown>));
+    return REQUIRED_KEYS.every((key) => key in (data as Record<string, unknown>));
 };
 
 const migrateState = (state: PersistedState): PersistedState => {
     // Future migrations will be added here when schemaVersion changes.
-    if (state.schemaVersion === CURRENT_SCHEMA_VERSION) {
-        return state;
+    const migrated = {
+        forexLivePrices: state.forexLivePrices ?? {},
+        ...state,
+    };
+
+    if (migrated.schemaVersion === CURRENT_SCHEMA_VERSION) {
+        return migrated;
     }
 
     return {
-        ...state,
+        ...migrated,
         schemaVersion: CURRENT_SCHEMA_VERSION,
     };
 };
@@ -35,6 +48,7 @@ export const serializeState = (state: ProsperitasState): string => {
         walletPositions: state.walletPositions,
         walletTx: state.walletTx,
         pies: state.pies,
+        forexLivePrices: state.forexLivePrices,
     };
 
     return JSON.stringify(persistedState, null, 2);
