@@ -16,3 +16,15 @@ export class PriceApiError extends Error {
         this.name = "PriceApiError";
     }
 }
+
+export class PriceFallbackError extends PriceApiError {
+    readonly originalError: Error;
+    readonly fallback: unknown;
+
+    constructor(message: string, originalError: Error, fallback: unknown) {
+        super(message);
+        this.name = "PriceFallbackError";
+        this.originalError = originalError;
+        this.fallback = fallback;
+    }
+}

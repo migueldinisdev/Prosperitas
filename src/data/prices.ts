@@ -9,7 +9,11 @@ import {
 import { fetchStockHistorical, fetchStockLive } from "./api/prices/stockApi";
 import { fetchForexHistorical, fetchForexLive } from "./api/prices/forexApi";
 import { fetchCryptoHistorical, fetchCryptoLive } from "./api/prices/cryptoApi";
-import { PriceApiError, TickerNotFoundError } from "./api/prices/errors";
+import {
+    PriceApiError,
+    PriceFallbackError,
+    TickerNotFoundError,
+} from "./api/prices/errors";
 import { store } from "../store";
 import { updateAsset } from "../store/slices/assetsSlice";
 import { setForexLivePrice } from "../store/slices/forexLivePricesSlice";
@@ -172,6 +176,10 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
             throw error;
         }
 
+        const baseError =
+            error instanceof Error ? error : new Error("Unknown error");
+        const errorMessage = baseError.message || "Price fetch failed.";
+
         if (request.date) {
             try {
                 const closest = await getPreviousCachedPrice({
@@ -180,7 +188,11 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
                     date: request.date,
                 });
                 if (closest) {
-                    return buildResult(closest);
+                    throw new PriceFallbackError(
+                        errorMessage,
+                        baseError,
+                        buildResult(closest)
+                    );
                 }
             } catch (cacheError) {
                 throw cacheError;
@@ -191,13 +203,13 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
             if (request.type === "forex") {
                 const liveForex = store.getState().forexLivePrices[ticker];
                 if (liveForex) {
-                    return {
+                    throw new PriceFallbackError(errorMessage, baseError, {
                         ticker,
                         type: request.type,
                         date: liveForex.updatedAt.slice(0, 10),
                         close: liveForex.rate,
                         source: "fallback",
-                    };
+                    });
                 }
             } else {
                 const assets = store.getState().assets;
@@ -205,14 +217,15 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
                     (asset) => asset.ticker.toUpperCase() === ticker
                 );
                 if (matched?.livePrice) {
-                    return {
+                    throw new PriceFallbackError(errorMessage, baseError, {
                         ticker,
                         type: request.type,
-                        date: matched.livePriceUpdatedAt?.slice(0, 10) ??
+                        date:
+                            matched.livePriceUpdatedAt?.slice(0, 10) ??
                             new Date().toISOString().slice(0, 10),
                         close: matched.livePrice.value,
                         source: "fallback",
-                    };
+                    });
                 }
             }
         }
