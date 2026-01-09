@@ -26,6 +26,7 @@ export interface PriceResult {
     date: string;
     close: number;
     source: string;
+    fromCache?: boolean;
 }
 
 export type PriceBatchStatus = "ok" | "fallback" | "empty";
@@ -34,6 +35,7 @@ export interface PriceBatchNote {
     status: PriceBatchStatus;
     errorMessage?: string;
     isFallback: boolean;
+    isFromCache: boolean;
 }
 
 export interface PriceBatchResultItem {
@@ -75,12 +77,16 @@ const selectPreviousEntry = (entries: PriceCacheEntry[], targetDate: string) => 
     }, null);
 };
 
-const buildResult = (entry: PriceCacheEntry): PriceResult => ({
+const buildResult = (
+    entry: PriceCacheEntry,
+    fromCache = false
+): PriceResult => ({
     ticker: entry.ticker,
     type: entry.type,
     date: entry.date,
     close: entry.close,
     source: entry.source,
+    fromCache,
 });
 
 const fetchFromApi = async (
@@ -121,7 +127,7 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
                 date: request.date,
             });
             if (cached) {
-                return buildResult(cached);
+                return buildResult(cached, true);
             }
         } else {
             // Always hit the live API; cache is only for fallback/reference.
@@ -216,7 +222,7 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
                     throw new PriceFallbackError(
                         errorMessage,
                         baseError,
-                        buildResult(closest)
+                        buildResult(closest, true)
                     );
                 }
             } catch (cacheError) {
@@ -279,6 +285,7 @@ export const getPricesBatch = async (
                 note: {
                     status: "ok",
                     isFallback: false,
+                    isFromCache: result.value.value.fromCache ?? false,
                 },
             };
         }
@@ -300,6 +307,7 @@ export const getPricesBatch = async (
                     status: "fallback",
                     errorMessage: error.message,
                     isFallback: true,
+                    isFromCache: fallbackValue?.fromCache ?? true,
                 },
             };
         }
@@ -312,6 +320,7 @@ export const getPricesBatch = async (
                 status: "empty",
                 errorMessage: error.message,
                 isFallback: false,
+                isFromCache: false,
             },
         };
     });
