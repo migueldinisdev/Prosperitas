@@ -71,8 +71,6 @@
       "decimals": 8,
       "amount": 0.0,
       "avgCost": { "value": 0, "currency": "USD" },
-      "livePrice": null,
-      "livePriceUpdatedAt": null,
       "txIds": [],
       "createdAt": "2025-12-22T00:00:00.000Z",
       "updatedAt": "2025-12-22T00:00:00.000Z"
@@ -87,8 +85,6 @@
       "decimals": 6,
       "amount": 0.0,
       "avgCost": { "value": 0, "currency": "EUR" },
-      "livePrice": null,
-      "livePriceUpdatedAt": null,
       "txIds": [],
       "createdAt": "2025-12-22T00:00:00.000Z",
       "updatedAt": "2025-12-22T00:00:00.000Z"
@@ -173,7 +169,7 @@
     }
   },
 
-  "forexLivePrices": {},
+  "livePrices": {},
 
   "pies": {
     "pie_0": {

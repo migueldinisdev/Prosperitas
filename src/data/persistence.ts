@@ -5,9 +5,7 @@ import {
 } from "../core/schema-types";
 import { CURRENT_SCHEMA_VERSION } from "../store/initialState";
 
-const REQUIRED_KEYS = PERSISTED_KEYS.filter(
-    (key) => key !== "forexLivePrices"
-);
+const REQUIRED_KEYS = PERSISTED_KEYS.filter((key) => key !== "livePrices");
 
 const validateStateShape = (data: unknown): data is PersistedState => {
     if (!data || typeof data !== "object") return false;
@@ -17,7 +15,7 @@ const validateStateShape = (data: unknown): data is PersistedState => {
 const migrateState = (state: PersistedState): PersistedState => {
     // Future migrations will be added here when schemaVersion changes.
     const migrated = {
-        forexLivePrices: state.forexLivePrices ?? {},
+        livePrices: state.livePrices ?? {},
         ...state,
     };
 
@@ -48,7 +46,7 @@ export const serializeState = (state: ProsperitasState): string => {
         walletPositions: state.walletPositions,
         walletTx: state.walletTx,
         pies: state.pies,
-        forexLivePrices: state.forexLivePrices,
+        livePrices: state.livePrices,
     };
 
     return JSON.stringify(persistedState, null, 2);

@@ -1,6 +1,7 @@
 import {
     buildPriceCacheEntry,
     getCachedPrice,
+    getMostRecentCachedPrice,
     getPreviousCachedPrice,
     setCachedPrices,
     PriceAssetType,
@@ -15,8 +16,7 @@ import {
     TickerNotFoundError,
 } from "./api/prices/errors";
 import { store } from "../store";
-import { updateAsset } from "../store/slices/assetsSlice";
-import { setForexLivePrice } from "../store/slices/forexLivePricesSlice";
+import { setLivePrice } from "../store/slices/livePricesSlice";
 
 export type { PriceAssetType };
 
@@ -62,6 +62,9 @@ interface PriceRequest {
 }
 
 const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
+
+const makeLivePriceKey = (type: PriceAssetType, ticker: string) =>
+    `${type}:${ticker}`;
 
 const toDateMs = (date: string) => new Date(`${date}T00:00:00.000Z`).getTime();
 
@@ -161,33 +164,16 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
 
         await setCachedPrices(filteredEntries);
         if (!request.date) {
-            if (request.type === "forex") {
-                store.dispatch(
-                    setForexLivePrice({
-                        pair: ticker,
-                        rate: filteredEntries[0].close,
-                        updatedAt: new Date().toISOString(),
-                    })
-                );
-            } else {
-                const assets = store.getState().assets;
-                Object.values(assets).forEach((asset) => {
-                    if (asset.ticker.toUpperCase() === ticker) {
-                        store.dispatch(
-                            updateAsset({
-                                id: asset.id,
-                                changes: {
-                                    livePrice: {
-                                        value: filteredEntries[0].close,
-                                        currency: asset.tradingCurrency,
-                                    },
-                                    livePriceUpdatedAt: new Date().toISOString(),
-                                },
-                            })
-                        );
-                    }
-                });
-            }
+            store.dispatch(
+                setLivePrice({
+                    key: makeLivePriceKey(request.type, ticker),
+                    type: request.type,
+                    ticker,
+                    value: filteredEntries[0].close,
+                    updatedAt: new Date().toISOString(),
+                    source: filteredEntries[0].source,
+                })
+            );
         }
 
         if (request.date) {
@@ -255,33 +241,28 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
         }
 
         if (!request.date) {
-            if (request.type === "forex") {
-                const liveForex = store.getState().forexLivePrices[ticker];
-                if (liveForex) {
-                    throw new PriceFallbackError(errorMessage, baseError, {
-                        ticker,
-                        type: request.type,
-                        date: liveForex.updatedAt.slice(0, 10),
-                        close: liveForex.rate,
-                        source: "fallback",
-                    });
-                }
-            } else {
-                const assets = store.getState().assets;
-                const matched = Object.values(assets).find(
-                    (asset) => asset.ticker.toUpperCase() === ticker
+            const cachedLive = await getMostRecentCachedPrice({
+                type: request.type,
+                ticker,
+            });
+            if (cachedLive) {
+                throw new PriceFallbackError(
+                    errorMessage,
+                    baseError,
+                    buildResult(cachedLive, true)
                 );
-                if (matched?.livePrice) {
-                    throw new PriceFallbackError(errorMessage, baseError, {
-                        ticker,
-                        type: request.type,
-                        date:
-                            matched.livePriceUpdatedAt?.slice(0, 10) ??
-                            new Date().toISOString().slice(0, 10),
-                        close: matched.livePrice.value,
-                        source: "fallback",
-                    });
-                }
+            }
+
+            const livePrice =
+                store.getState().livePrices[makeLivePriceKey(request.type, ticker)];
+            if (livePrice) {
+                throw new PriceFallbackError(errorMessage, baseError, {
+                    ticker,
+                    type: request.type,
+                    date: livePrice.updatedAt.slice(0, 10),
+                    close: livePrice.value,
+                    source: "fallback",
+                });
             }
         }
 

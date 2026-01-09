@@ -215,6 +215,6 @@ export const defaultState: ProsperitasState = {
     walletPositions: {},
     walletTx: {},
     pies: {},
-    forexLivePrices: {},
+    livePrices: {},
     notifications: [],
 };

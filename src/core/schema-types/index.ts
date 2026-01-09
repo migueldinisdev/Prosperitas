@@ -77,6 +77,8 @@ export type AssetType =
     | "cash"
     | "other";
 
+export type PriceAssetType = "stock" | "crypto" | "forex";
+
 export interface Asset {
     id: string;
     ticker: string;
@@ -87,8 +89,6 @@ export interface Asset {
     decimals: number;
     amount: number;
     avgCost: Money;
-    livePrice?: Money | null;
-    livePriceUpdatedAt?: string | null;
     txIds: string[];
     createdAt: string;
     updatedAt: string;
@@ -207,13 +207,16 @@ export interface Pie {
 
 export type PiesState = Record<string, Pie>;
 
-export interface ForexLivePrice {
-    pair: string;
-    rate: number;
+export interface LivePrice {
+    key: string;
+    type: PriceAssetType;
+    ticker: string;
+    value: number;
     updatedAt: string;
+    source: string;
 }
 
-export type ForexLivePricesState = Record<string, ForexLivePrice>;
+export type LivePricesState = Record<string, LivePrice>;
 
 /**
  * PersistedState: The state that gets saved to files and synced.
@@ -231,7 +234,7 @@ export interface PersistedState {
     walletPositions: WalletPositionsState;
     walletTx: WalletTxState;
     pies: PiesState;
-    forexLivePrices: ForexLivePricesState;
+    livePrices: LivePricesState;
 }
 
 /**
@@ -257,5 +260,5 @@ export const PERSISTED_KEYS: (keyof PersistedState)[] = [
     "walletPositions",
     "walletTx",
     "pies",
-    "forexLivePrices",
+    "livePrices",
 ];
