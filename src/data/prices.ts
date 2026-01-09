@@ -193,6 +193,17 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
         if (request.date) {
             const closest = selectPreviousEntry(filteredEntries, request.date);
             if (closest) {
+                if (closest.date !== request.date) {
+                    const aliasEntry = buildPriceCacheEntry(
+                        request.type,
+                        ticker,
+                        request.date,
+                        closest.close,
+                        closest.source
+                    );
+                    await setCachedPrices([aliasEntry]);
+                    return buildResult(aliasEntry);
+                }
                 return buildResult(closest);
             }
         }
@@ -219,10 +230,23 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
                     date: request.date,
                 });
                 if (closest) {
+                    const fallbackEntry =
+                        closest.date !== request.date
+                            ? buildPriceCacheEntry(
+                                  request.type,
+                                  ticker,
+                                  request.date,
+                                  closest.close,
+                                  closest.source
+                              )
+                            : closest;
+                    if (fallbackEntry !== closest) {
+                        await setCachedPrices([fallbackEntry]);
+                    }
                     throw new PriceFallbackError(
                         errorMessage,
                         baseError,
-                        buildResult(closest, true)
+                        buildResult(fallbackEntry, true)
                     );
                 }
             } catch (cacheError) {
