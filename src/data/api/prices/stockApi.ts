@@ -1,4 +1,5 @@
 import { PriceApiError, TickerNotFoundError } from "./errors";
+import { fetchWithTimeout } from "./request";
 
 interface StooqCandle {
     date: string;
@@ -45,7 +46,7 @@ const parseStooqResponse = async <T>(response: Response): Promise<T> => {
 };
 
 export const fetchStockLive = async (symbol: string) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
         `${STQ_BASE_PATH}/live?symbol=${encodeURIComponent(symbol)}`
     );
     const payload = await parseStooqResponse<StooqLiveResponse>(response);
@@ -53,6 +54,9 @@ export const fetchStockLive = async (symbol: string) => {
         throw new TickerNotFoundError(symbol, "stock");
     }
     const [candle] = payload.data;
+    if (candle.close == null) {
+        throw new TickerNotFoundError(symbol, "stock", "ticker not found");
+    }
     return {
         date: candle.date,
         close: candle.close,
@@ -62,7 +66,7 @@ export const fetchStockLive = async (symbol: string) => {
 
 export const fetchStockHistorical = async (symbol: string, date: string) => {
     const formattedDate = date.replace(/-/g, "");
-    const response = await fetch(
+    const response = await fetchWithTimeout(
         `${STQ_BASE_PATH}/historical?symbol=${encodeURIComponent(
             symbol
         )}&from=${formattedDate}`
@@ -71,9 +75,15 @@ export const fetchStockHistorical = async (symbol: string, date: string) => {
     if (!payload.data || payload.data.length === 0) {
         throw new TickerNotFoundError(symbol, "stock");
     }
-    return payload.data.map((candle) => ({
-        date: candle.date,
-        close: candle.close,
-        source: payload.source,
-    }));
+    const entries = payload.data
+        .filter((candle) => candle.close != null)
+        .map((candle) => ({
+            date: candle.date,
+            close: candle.close,
+            source: payload.source,
+        }));
+    if (entries.length === 0) {
+        throw new TickerNotFoundError(symbol, "stock", "ticker not found");
+    }
+    return entries;
 };

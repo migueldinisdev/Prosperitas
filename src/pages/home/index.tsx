@@ -6,9 +6,10 @@ import { Card } from "../../ui/Card";
 import { Plus } from "lucide-react";
 import { AddBalanceTransactionModal } from "../../components/AddBalanceTransactionModal";
 import { StateSnapshotCard } from "../../components/StateSnapshotCard";
+import { StooqAPIStockSelect } from "../../components/StooqAPIStockSelect";
 import { getMonthKey } from "../../utils/dates";
 import { useNotifications } from "../../hooks/useNotifications";
-import { getPrice, PriceResult } from "../../data/prices";
+import { getPrice, getPricesBatch, PriceResult } from "../../data/prices";
 
 interface Props {
     onMenuClick: () => void;
@@ -47,6 +48,24 @@ export const HomePage: React.FC<Props> = ({ onMenuClick }) => {
         useState<PriceResult | null>(null);
     const [lookupError, setLookupError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    React.useEffect(() => {
+        // TEMPORARY ANNOTATION: sample batched price lookups for API validation.
+        const runSampleBatch = async () => {
+            const batch = await getPricesBatch([
+                { ticker: "GOOGL.US", type: "stock" },
+                { ticker: "EURUSD", type: "forex" },
+                { ticker: "BTCUSD", type: "crypto" },
+                { ticker: "GOOGL.US", type: "stock", date: "2024-01-07" },
+                { ticker: "EURUSD", type: "forex", date: "2024-01-06" },
+                { ticker: "INVALID", type: "stock" },
+            ]);
+            console.log("TEMPORARY ANNOTATION: batch lookup result", batch);
+        };
+        runSampleBatch().catch((error) => {
+            console.error("TEMPORARY ANNOTATION: batch lookup failed", error);
+        });
+    }, []);
 
     const runLookup = async (payload: {
         ticker: string;
@@ -155,14 +174,10 @@ export const HomePage: React.FC<Props> = ({ onMenuClick }) => {
                                     <label className="text-xs uppercase tracking-wide text-app-text/60">
                                         Stock ticker
                                     </label>
-                                    <input
-                                        className="w-full rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm"
+                                    <StooqAPIStockSelect
                                         value={liveStockTicker}
-                                        onChange={(event) =>
-                                            setLiveStockTicker(
-                                                event.target.value
-                                            )
-                                        }
+                                        onChange={setLiveStockTicker}
+                                        placeholder="Enter stock ticker"
                                     />
                                     <Button
                                         variant="ghost"
@@ -267,14 +282,10 @@ export const HomePage: React.FC<Props> = ({ onMenuClick }) => {
                                     <label className="text-xs uppercase tracking-wide text-app-text/60">
                                         Stock + date
                                     </label>
-                                    <input
-                                        className="w-full rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm"
+                                    <StooqAPIStockSelect
                                         value={historicalStockTicker}
-                                        onChange={(event) =>
-                                            setHistoricalStockTicker(
-                                                event.target.value
-                                            )
-                                        }
+                                        onChange={setHistoricalStockTicker}
+                                        placeholder="Enter stock ticker"
                                     />
                                     <input
                                         className="w-full rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm"

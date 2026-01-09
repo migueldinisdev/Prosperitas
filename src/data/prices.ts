@@ -1,8 +1,8 @@
 import {
     buildPriceCacheEntry,
     getCachedPrice,
-    getClosestCachedPrice,
     getMostRecentCachedPrice,
+    getPreviousCachedPrice,
     setCachedPrices,
     PriceAssetType,
     PriceCacheEntry,
@@ -10,9 +10,13 @@ import {
 import { fetchStockHistorical, fetchStockLive } from "./api/prices/stockApi";
 import { fetchForexHistorical, fetchForexLive } from "./api/prices/forexApi";
 import { fetchCryptoHistorical, fetchCryptoLive } from "./api/prices/cryptoApi";
-import { PriceApiError, TickerNotFoundError } from "./api/prices/errors";
+import {
+    PriceApiError,
+    PriceFallbackError,
+    TickerNotFoundError,
+} from "./api/prices/errors";
 import { store } from "../store";
-import { addNotification } from "../store/slices/notificationsSlice";
+import { setLivePrice } from "../store/slices/livePricesSlice";
 
 export type { PriceAssetType };
 
@@ -22,48 +26,70 @@ export interface PriceResult {
     date: string;
     close: number;
     source: string;
-    isApproximate?: boolean;
+    fromCache?: boolean;
+}
+
+export type PriceBatchStatus = "ok" | "fallback" | "empty";
+
+export interface PriceBatchNote {
+    status: PriceBatchStatus;
+    errorMessage?: string;
+    isFallback: boolean;
+    isFromCache: boolean;
+}
+
+export interface PriceBatchResultItem {
+    request: PriceRequest;
+    value: PriceResult | null;
+    error: Error | null;
+    note: PriceBatchNote;
+}
+
+export interface PriceBatchResult {
+    results: PriceBatchResultItem[];
+    summary: string;
+    counts: {
+        ok: number;
+        fallback: number;
+        empty: number;
+    };
 }
 
 interface PriceRequest {
     ticker: string;
     type: PriceAssetType;
     date?: string;
-    allowClosest?: boolean;
 }
 
 const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
 
+const makeLivePriceKey = (type: PriceAssetType, ticker: string) =>
+    `${type}:${ticker}`;
+
 const toDateMs = (date: string) => new Date(`${date}T00:00:00.000Z`).getTime();
 
-const notifyError = (message: string) => {
-    store.dispatch(
-        addNotification({
-            type: "error",
-            title: "Price fetch failed",
-            message,
-        })
-    );
-};
-
-const selectClosestEntry = (entries: PriceCacheEntry[], targetDate: string) => {
+const selectPreviousEntry = (entries: PriceCacheEntry[], targetDate: string) => {
     if (!entries.length) return null;
     const targetMs = toDateMs(targetDate);
-    return entries.reduce<PriceCacheEntry | null>((closest, entry) => {
-        if (!closest) return entry;
-        const diff = Math.abs(entry.dateMs - targetMs);
-        const closestDiff = Math.abs(closest.dateMs - targetMs);
-        return diff < closestDiff ? entry : closest;
+    return entries.reduce<PriceCacheEntry | null>((previous, entry) => {
+        if (entry.dateMs > targetMs) {
+            return previous;
+        }
+        if (!previous) return entry;
+        return entry.dateMs > previous.dateMs ? entry : previous;
     }, null);
 };
 
-const buildResult = (entry: PriceCacheEntry, approximate = false): PriceResult => ({
+const buildResult = (
+    entry: PriceCacheEntry,
+    fromCache = false
+): PriceResult => ({
     ticker: entry.ticker,
     type: entry.type,
     date: entry.date,
     close: entry.close,
     source: entry.source,
-    isApproximate: approximate || undefined,
+    fromCache,
 });
 
 const fetchFromApi = async (
@@ -95,7 +121,6 @@ const fetchFromApi = async (
 
 export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
     const ticker = normalizeTicker(request.ticker);
-    const allowClosest = request.allowClosest ?? true;
 
     try {
         if (request.date) {
@@ -105,13 +130,12 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
                 date: request.date,
             });
             if (cached) {
-                return buildResult(cached);
+                return buildResult(cached, true);
             }
         } else {
             // Always hit the live API; cache is only for fallback/reference.
         }
     } catch (error) {
-        notifyError("Unable to read from the price cache.");
         throw error;
     }
 
@@ -131,25 +155,47 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
             )
         );
 
-        try {
-            await setCachedPrices(cacheEntries);
-        } catch (error) {
-            notifyError("Unable to update the price cache.");
-            throw error;
+        const filteredEntries = request.date
+            ? cacheEntries.filter((entry) => entry.date <= request.date!)
+            : cacheEntries;
+        if (!filteredEntries.length) {
+            throw new PriceApiError("No price data returned from provider.");
+        }
+
+        await setCachedPrices(filteredEntries);
+        if (!request.date) {
+            store.dispatch(
+                setLivePrice({
+                    key: makeLivePriceKey(request.type, ticker),
+                    type: request.type,
+                    ticker,
+                    value: filteredEntries[0].close,
+                    updatedAt: new Date().toISOString(),
+                    source: filteredEntries[0].source,
+                })
+            );
         }
 
         if (request.date) {
-            const closest = selectClosestEntry(cacheEntries, request.date);
+            const closest = selectPreviousEntry(filteredEntries, request.date);
             if (closest) {
-                return buildResult(
-                    closest,
-                    closest.date !== request.date
-                );
+                if (closest.date !== request.date) {
+                    const aliasEntry = buildPriceCacheEntry(
+                        request.type,
+                        ticker,
+                        request.date,
+                        closest.close,
+                        closest.source
+                    );
+                    await setCachedPrices([aliasEntry]);
+                    return buildResult(aliasEntry);
+                }
+                return buildResult(closest);
             }
         }
 
-        if (cacheEntries[0]) {
-            return buildResult(cacheEntries[0]);
+        if (filteredEntries[0]) {
+            return buildResult(filteredEntries[0]);
         }
 
         throw new PriceApiError("No price data returned from provider.");
@@ -158,25 +204,143 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
             throw error;
         }
 
-        if (allowClosest && request.date) {
+        const baseError =
+            error instanceof Error ? error : new Error("Unknown error");
+        const errorMessage = baseError.message || "Price fetch failed.";
+
+        if (request.date) {
             try {
-                const closest = await getClosestCachedPrice({
+                const closest = await getPreviousCachedPrice({
                     type: request.type,
                     ticker,
                     date: request.date,
                 });
                 if (closest) {
-                    return buildResult(closest, true);
+                    const fallbackEntry =
+                        closest.date !== request.date
+                            ? buildPriceCacheEntry(
+                                  request.type,
+                                  ticker,
+                                  request.date,
+                                  closest.close,
+                                  closest.source
+                              )
+                            : closest;
+                    if (fallbackEntry !== closest) {
+                        await setCachedPrices([fallbackEntry]);
+                    }
+                    throw new PriceFallbackError(
+                        errorMessage,
+                        baseError,
+                        buildResult(fallbackEntry, true)
+                    );
                 }
             } catch (cacheError) {
-                notifyError("Unable to read from the price cache.");
                 throw cacheError;
             }
         }
 
-        const message =
-            error instanceof Error ? error.message : "Price fetch failed.";
-        notifyError(message);
+        if (!request.date) {
+            const cachedLive = await getMostRecentCachedPrice({
+                type: request.type,
+                ticker,
+            });
+            if (cachedLive) {
+                throw new PriceFallbackError(
+                    errorMessage,
+                    baseError,
+                    buildResult(cachedLive, true)
+                );
+            }
+
+            const livePrice =
+                store.getState().livePrices[makeLivePriceKey(request.type, ticker)];
+            if (livePrice) {
+                throw new PriceFallbackError(errorMessage, baseError, {
+                    ticker,
+                    type: request.type,
+                    date: livePrice.updatedAt.slice(0, 10),
+                    close: livePrice.value,
+                    source: "fallback",
+                });
+            }
+        }
+
         throw error;
     }
+};
+
+export const getPricesBatch = async (
+    requests: PriceRequest[]
+): Promise<PriceBatchResult> => {
+    const settled = await Promise.allSettled(
+        requests.map(async (request) => ({
+            request,
+            value: await getPrice(request),
+        }))
+    );
+
+    const results: PriceBatchResultItem[] = settled.map((result, index) => {
+        const request = requests[index];
+        if (result.status === "fulfilled") {
+            return {
+                request,
+                value: result.value.value,
+                error: null,
+                note: {
+                    status: "ok",
+                    isFallback: false,
+                    isFromCache: result.value.value.fromCache ?? false,
+                },
+            };
+        }
+
+        const error = result.reason instanceof Error
+            ? result.reason
+            : new Error("Unknown error");
+
+        if (error instanceof PriceFallbackError) {
+            const fallbackValue =
+                error.fallback && typeof error.fallback === "object"
+                    ? (error.fallback as PriceResult)
+                    : null;
+            return {
+                request,
+                value: fallbackValue,
+                error,
+                note: {
+                    status: "fallback",
+                    errorMessage: error.message,
+                    isFallback: true,
+                    isFromCache: fallbackValue?.fromCache ?? true,
+                },
+            };
+        }
+
+        return {
+            request,
+            value: null,
+            error,
+            note: {
+                status: "empty",
+                errorMessage: error.message,
+                isFallback: false,
+                isFromCache: false,
+            },
+        };
+    });
+
+    const counts = results.reduce(
+        (acc, item) => {
+            acc[item.note.status] += 1;
+            return acc;
+        },
+        { ok: 0, fallback: 0, empty: 0 }
+    );
+
+    return {
+        results,
+        counts,
+        summary: `${counts.ok} ok, ${counts.fallback} fallback, ${counts.empty} empty`,
+    };
 };

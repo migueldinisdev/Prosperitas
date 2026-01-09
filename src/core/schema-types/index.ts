@@ -77,6 +77,8 @@ export type AssetType =
     | "cash"
     | "other";
 
+export type PriceAssetType = "stock" | "crypto" | "forex";
+
 export interface Asset {
     id: string;
     ticker: string;
@@ -205,6 +207,17 @@ export interface Pie {
 
 export type PiesState = Record<string, Pie>;
 
+export interface LivePrice {
+    key: string;
+    type: PriceAssetType;
+    ticker: string;
+    value: number;
+    updatedAt: string;
+    source: string;
+}
+
+export type LivePricesState = Record<string, LivePrice>;
+
 /**
  * PersistedState: The state that gets saved to files and synced.
  * This excludes ephemeral UI state like notifications.
@@ -221,6 +234,7 @@ export interface PersistedState {
     walletPositions: WalletPositionsState;
     walletTx: WalletTxState;
     pies: PiesState;
+    livePrices: LivePricesState;
 }
 
 /**
@@ -246,4 +260,5 @@ export const PERSISTED_KEYS: (keyof PersistedState)[] = [
     "walletPositions",
     "walletTx",
     "pies",
+    "livePrices",
 ];

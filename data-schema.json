@@ -169,6 +169,8 @@
     }
   },
 
+  "livePrices": {},
+
   "pies": {
     "pie_0": {
       "id": "pie_0",
