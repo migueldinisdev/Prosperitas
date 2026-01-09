@@ -28,6 +28,31 @@ export interface PriceResult {
     source: string;
 }
 
+export type PriceBatchStatus = "ok" | "fallback" | "empty";
+
+export interface PriceBatchNote {
+    status: PriceBatchStatus;
+    errorMessage?: string;
+    isFallback: boolean;
+}
+
+export interface PriceBatchResultItem {
+    request: PriceRequest;
+    value: PriceResult | null;
+    error: Error | null;
+    note: PriceBatchNote;
+}
+
+export interface PriceBatchResult {
+    results: PriceBatchResultItem[];
+    summary: string;
+    counts: {
+        ok: number;
+        fallback: number;
+        empty: number;
+    };
+}
+
 interface PriceRequest {
     ticker: string;
     type: PriceAssetType;
@@ -232,4 +257,76 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
 
         throw error;
     }
+};
+
+export const getPricesBatch = async (
+    requests: PriceRequest[]
+): Promise<PriceBatchResult> => {
+    const settled = await Promise.allSettled(
+        requests.map(async (request) => ({
+            request,
+            value: await getPrice(request),
+        }))
+    );
+
+    const results: PriceBatchResultItem[] = settled.map((result, index) => {
+        const request = requests[index];
+        if (result.status === "fulfilled") {
+            return {
+                request,
+                value: result.value.value,
+                error: null,
+                note: {
+                    status: "ok",
+                    isFallback: false,
+                },
+            };
+        }
+
+        const error = result.reason instanceof Error
+            ? result.reason
+            : new Error("Unknown error");
+
+        if (error instanceof PriceFallbackError) {
+            const fallbackValue =
+                error.fallback && typeof error.fallback === "object"
+                    ? (error.fallback as PriceResult)
+                    : null;
+            return {
+                request,
+                value: fallbackValue,
+                error,
+                note: {
+                    status: "fallback",
+                    errorMessage: error.message,
+                    isFallback: true,
+                },
+            };
+        }
+
+        return {
+            request,
+            value: null,
+            error,
+            note: {
+                status: "empty",
+                errorMessage: error.message,
+                isFallback: false,
+            },
+        };
+    });
+
+    const counts = results.reduce(
+        (acc, item) => {
+            acc[item.note.status] += 1;
+            return acc;
+        },
+        { ok: 0, fallback: 0, empty: 0 }
+    );
+
+    return {
+        results,
+        counts,
+        summary: `${counts.ok} ok, ${counts.fallback} fallback, ${counts.empty} empty`,
+    };
 };
