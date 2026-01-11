@@ -196,17 +196,15 @@ export const SyncStatusPills: React.FC = () => {
                 >
                     {modeLabel}
                 </span> */}
-                {mode === "cloud" && (
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={!canSave}
-                        className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${getStatusColor()}`}
-                        aria-label={canSave ? "Save changes" : "Sync status"}
-                    >
-                        {STATUS_LABELS[status]}
-                    </button>
-                )}
+                <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={!canSave}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${getStatusColor()}`}
+                    aria-label={canSave ? "Save changes" : "Sync status"}
+                >
+                    {STATUS_LABELS[status]}
+                </button>
             </div>
             <Modal
                 isOpen={driveConflict !== null}

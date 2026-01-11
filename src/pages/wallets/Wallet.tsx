@@ -10,6 +10,7 @@ import {
     ArrowUpRight,
     DollarSign,
     Info,
+    Menu,
     Wallet as WalletIcon,
 } from "lucide-react";
 import { HoldingsTable, HoldingRow } from "../../components/HoldingsTable";
@@ -23,6 +24,8 @@ import { addAsset } from "../../store/slices/assetsSlice";
 import { updatePie } from "../../store/slices/piesSlice";
 import { AssetType, Currency } from "../../core/schema-types";
 import { selectPies, selectSettings } from "../../store/selectors";
+import { SyncStatusPills } from "../../components/SyncStatusPills";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 // Mock data strictly for UI demo
 const chartData = [
@@ -512,17 +515,32 @@ export const WalletDetail: React.FC<Props> = () => {
 
     return (
         <div className="pb-20">
-            <div className="sticky top-0 z-30 bg-app-bg/80 backdrop-blur-md border-b border-app-border px-6 py-4 flex items-center gap-4">
-                <Link
-                    to="/wallets"
-                    className="p-2 -ml-2 text-app-muted hover:text-app-foreground rounded-lg hover:bg-app-surface transition-colors"
-                >
-                    <ArrowLeft size={20} />
-                </Link>
-                <h1 className="text-xl font-bold text-app-foreground">
-                    {walletName}
-                </h1>
-            </div>
+            <header className="sticky top-0 z-30 bg-app-bg/80 backdrop-blur-md border-b border-app-border px-6 py-4">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <Link
+                            to="/wallets"
+                            className="p-2 -ml-2 text-app-muted hover:text-app-foreground rounded-lg hover:bg-app-surface transition-colors"
+                        >
+                            <ArrowLeft size={20} />
+                        </Link>
+                        <h1 className="text-xl font-bold text-app-foreground">
+                            {walletName}
+                        </h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={onMenuClick}
+                            className="lg:hidden p-2 text-app-muted hover:text-app-foreground rounded-lg hover:bg-app-surface transition-colors"
+                        >
+                            <Menu size={20} />
+                        </button>
+                        <SyncStatusPills />
+                        <ThemeToggle />
+                    </div>
+                </div>
+            </header>
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
                 <Card title="Wallet State (Redux)">
