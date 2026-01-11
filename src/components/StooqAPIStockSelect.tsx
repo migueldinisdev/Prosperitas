@@ -84,6 +84,35 @@ export const StooqAPIStockSelect: React.FC<Props> = (props) => {
     const shouldShowDropdown =
         isOpen && !disabled && (hasQuery || isLoading || errorMessage);
 
+    useEffect(() => {
+        if (!("onSelect" in props)) {
+            return;
+        }
+
+        const normalizedSearch = searchValue.trim().toLowerCase();
+        const normalizedSelected = selectedValue.trim().toLowerCase();
+
+        if (normalizedSelected && normalizedSearch !== normalizedSelected) {
+            props.onSelect("");
+            return;
+        }
+
+        if (!normalizedSearch) {
+            if (normalizedSelected) {
+                props.onSelect("");
+            }
+            return;
+        }
+
+        const exactMatch = selectOptions.find(
+            (option) => option.symbol.trim().toLowerCase() === normalizedSearch
+        );
+
+        if (exactMatch && normalizedSelected !== normalizedSearch) {
+            props.onSelect(exactMatch.symbol);
+        }
+    }, [props, searchValue, selectOptions, selectedValue]);
+
     const applySelection = (nextValue: string) => {
         if ("onSelect" in props) {
             props.onSelect(nextValue);

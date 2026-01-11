@@ -113,6 +113,7 @@ export const WalletDetail: React.FC<Props> = () => {
         tradeQuantityValue > 0 && tradePriceValue > 0 && hasAssetRequirement;
     const hasFxDetails = fxEnabled ? Number(tradeFxRate) > 0 : true;
     const showTradeSummary = hasTradeBasics && hasFxDetails;
+    const needsStooqWarning = tradeStooqTicker.trim().length === 0;
     const fundingCurrency = fxEnabled ? tradeFundingCurrency : tradeCurrency;
     const tradeFundingAmountValue = Number(tradeFundingAmount);
     const roundedFundingAmountValue = roundToTwo(tradeFundingAmountValue);
@@ -979,6 +980,12 @@ export const WalletDetail: React.FC<Props> = () => {
                                     placeholder="Search stooq ticker"
                                     disabled={Boolean(tradeAssetId)}
                                 />
+                                {needsStooqWarning && (
+                                    <p className="text-xs text-yellow-500">
+                                        Select a Stooq ticker to enable
+                                        real-time price lookups.
+                                    </p>
+                                )}
                             </div>
                         )}
                     </div>
