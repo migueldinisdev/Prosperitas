@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card } from '../../ui/Card';
 import { ArrowUpRight, ArrowDownRight, DollarSign } from 'lucide-react';
-import { LineChart } from '../../components/LineChart';
+import { AreaChart } from '../../components/AreaChart';
 
 const mockChartData = [
   { name: 'Jan', value: 105000 },
@@ -49,7 +49,7 @@ export const HomeSummarySection: React.FC = () => {
       </div>
 
       <Card title="Net Worth Growth">
-        <LineChart data={mockChartData} dataKey="value" height={200} color="#10b981" />
+        <AreaChart data={mockChartData} dataKey="value" height={200} color="#10b981" />
       </Card>
     </div>
   );
