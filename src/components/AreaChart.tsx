@@ -1,93 +1,88 @@
 import React from "react";
 import {
     ResponsiveContainer,
-    BarChart as ReBarChart,
-    Bar,
+    AreaChart as ReAreaChart,
+    Area,
     XAxis,
     YAxis,
     Tooltip,
     CartesianGrid,
 } from "recharts";
-import { ChartContainer } from "./ChartContainer";
 
-interface BarChartProps {
+interface AreaChartProps {
     data: any[];
     dataKey: string;
     color?: string;
     height?: number;
-    tickFormatter?: (value: number) => string;
-    isLoading?: boolean;
 }
 
-export const BarChart = React.memo(
+export const AreaChart = React.memo(
     ({
         data,
         dataKey,
         color = "rgb(var(--color-app-primary))",
         height = 300,
-        tickFormatter,
-        isLoading,
-    }: BarChartProps) => {
-        console.log("BarChart re-rendered");
-        const resolvedLoading = isLoading ?? (!data || data.length === 0);
-
+    }: AreaChartProps) => {
         return (
-            <ChartContainer height={height} isLoading={resolvedLoading}>
-                <ResponsiveContainer
-                    width="100%"
-                    height="100%"
-                    minWidth={1}
-                    minHeight={1}
-                    initialDimension={{ width: 1, height: 1 }}
-                >
-                    <ReBarChart
+            <div style={{ width: "100%", height }}>
+                <ResponsiveContainer>
+                    <ReAreaChart
                         data={data}
-                        layout="vertical"
-                        margin={{ top: 5, right: 16, left: 16, bottom: 24 }}
+                        margin={{ top: 5, right: 0, left: -20, bottom: 0 }}
                     >
                         <CartesianGrid
                             strokeDasharray="3 3"
                             stroke="rgb(var(--color-app-border))"
-                            horizontal={false}
+                            vertical={false}
                         />
                         <XAxis
-                            type="number"
+                            dataKey="name"
                             stroke="rgb(var(--color-app-muted))"
                             fontSize={12}
                             tickLine={false}
                             axisLine={false}
-                            tickFormatter={tickFormatter}
+                            dy={10}
                         />
                         <YAxis
-                            dataKey="name"
-                            type="category"
                             stroke="rgb(var(--color-app-muted))"
                             fontSize={12}
                             tickLine={false}
                             axisLine={false}
-                            width={120}
+                            tickFormatter={(value) => `$${value}`}
                         />
                         <Tooltip
-                            cursor={{
-                                fill: "rgb(var(--color-app-border))",
-                                opacity: 0.4,
-                            }}
                             contentStyle={{
                                 backgroundColor: "rgb(var(--color-app-card))",
                                 borderColor: "rgb(var(--color-app-border))",
                                 borderRadius: "8px",
                                 color: "rgb(var(--color-app-foreground))",
                             }}
+                            itemStyle={{
+                                color: "rgb(var(--color-app-foreground))",
+                            }}
+                            cursor={{
+                                stroke: "rgb(var(--color-app-border))",
+                                strokeWidth: 1,
+                            }}
                         />
-                        <Bar
+                        <Area
+                            type="monotone"
                             dataKey={dataKey}
+                            stroke={color}
                             fill={color}
-                            radius={[0, 4, 4, 0]}
-                            barSize={18}
+                            fillOpacity={0.25}
+                            strokeWidth={3}
+                            dot={false}
+                            activeDot={{
+                                r: 6,
+                                fill: color,
+                                stroke: "rgb(var(--color-app-bg))",
+                                strokeWidth: 2,
+                            }}
                         />
-                    </ReBarChart>
+                    </ReAreaChart>
                 </ResponsiveContainer>
-            </ChartContainer>
+            </div>
         );
     }
 );

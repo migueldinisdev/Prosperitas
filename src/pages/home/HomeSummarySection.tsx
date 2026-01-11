@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
 import { Card } from "../../ui/Card";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { LineChart } from "../../components/LineChart";
+import { ArrowUpRight, ArrowDownRight, DollarSign } from "lucide-react";
+import { AreaChart } from "../../components/AreaChart";
+import { NetWorthSummaryCard } from "../../components/NetWorthSummaryCard";
 import {
     selectAssets,
     selectSettings,
@@ -24,12 +25,12 @@ import {
 import { formatCurrency } from "../../utils/formatters";
 
 const mockChartData = [
-  { name: 'Jan', value: 105000 },
-  { name: 'Feb', value: 108000 },
-  { name: 'Mar', value: 106000 },
-  { name: 'Apr', value: 112000 },
-  { name: 'May', value: 118000 },
-  { name: 'Jun', value: 124500 },
+    { name: "Jan", value: 105000 },
+    { name: "Feb", value: 108000 },
+    { name: "Mar", value: 106000 },
+    { name: "Apr", value: 112000 },
+    { name: "May", value: 118000 },
+    { name: "Jun", value: 124500 },
 ];
 
 export const HomeSummarySection: React.FC = () => {
@@ -79,7 +80,9 @@ export const HomeSummarySection: React.FC = () => {
 
     const forexCurrencies = useMemo(() => {
         const currencies = new Set<string>();
-        positionAssets.forEach((asset) => currencies.add(asset.tradingCurrency));
+        positionAssets.forEach((asset) =>
+            currencies.add(asset.tradingCurrency)
+        );
         cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
         return Array.from(currencies);
     }, [cashBuckets, positionAssets]);
@@ -143,7 +146,14 @@ export const HomeSummarySection: React.FC = () => {
             pnl,
             pnlPercent,
         };
-    }, [assets, cashBuckets, livePricesByAsset, positions, settings.visualCurrency, forexRates]);
+    }, [
+        assets,
+        cashBuckets,
+        livePricesByAsset,
+        positions,
+        settings.visualCurrency,
+        forexRates,
+    ]);
 
     const pnlIsPositive = totals.pnl >= 0;
 
@@ -231,7 +241,7 @@ export const HomeSummarySection: React.FC = () => {
             </div>
 
             <Card title="Net Worth Growth">
-                <LineChart
+                <AreaChart
                     data={mockChartData}
                     dataKey="value"
                     height={200}

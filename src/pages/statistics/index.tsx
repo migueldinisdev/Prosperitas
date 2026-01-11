@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { PageHeader } from "../../components/PageHeader";
 import { Card } from "../../ui/Card";
 import { PieChart } from "../../components/PieChart";
+import { NetWorthSummaryCard } from "../../components/NetWorthSummaryCard";
 import {
     selectAssets,
     selectPies,
@@ -44,7 +45,7 @@ const momentumStats = [
 ];
 
 interface Props {
-  onMenuClick: () => void;
+    onMenuClick: () => void;
 }
 
 export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
@@ -95,7 +96,9 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
 
     const forexCurrencies = useMemo(() => {
         const currencies = new Set<string>();
-        positionAssets.forEach((asset) => currencies.add(asset.tradingCurrency));
+        positionAssets.forEach((asset) =>
+            currencies.add(asset.tradingCurrency)
+        );
         cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
         return Array.from(currencies);
     }, [cashBuckets, positionAssets]);
@@ -146,7 +149,13 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 ),
             };
         });
-    }, [assets, livePricesByAsset, positions, settings.visualCurrency, forexRates]);
+    }, [
+        assets,
+        livePricesByAsset,
+        positions,
+        settings.visualCurrency,
+        forexRates,
+    ]);
 
     const totals = useMemo(() => {
         const totalInvested = getTotalValue(

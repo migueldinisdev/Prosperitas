@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Card } from "../../ui/Card";
-import { LineChart } from "../../components/LineChart";
+import { AreaChart } from "../../components/AreaChart";
 import { Button } from "../../ui/Button";
 import { PieChart } from "../../components/PieChart";
 import {
@@ -10,11 +10,14 @@ import {
     ArrowUpRight,
     DollarSign,
     Info,
+    Menu,
     Wallet as WalletIcon,
 } from "lucide-react";
 import { HoldingsTable } from "../../components/HoldingsTable";
 import { WalletTransactionsTable } from "../../components/WalletTransactionsTable";
 import { StooqAPIStockSelect } from "../../components/StooqAPIStockSelect";
+import { SyncStatusPills } from "../../components/SyncStatusPills";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { useWalletData } from "../../hooks/useWalletData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
@@ -23,7 +26,14 @@ import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { addWalletTransaction } from "../../store/thunks/walletThunks";
 import { addAsset } from "../../store/slices/assetsSlice";
 import { updatePie } from "../../store/slices/piesSlice";
-import { Asset, AssetType, Currency } from "../../core/schema-types";
+import { selectPies, selectSettings } from "../../store/selectors";
+import {
+    Asset,
+    AssetType,
+    Currency,
+    AssetsState,
+    WalletTx,
+} from "../../core/schema-types";
 import {
     getAllocationPercent,
     getConvertedValue,
@@ -33,10 +43,9 @@ import {
     getPositionInvestedValue,
     getTotalValue,
 } from "../../core/finance";
-import { selectPies, selectSettings } from "../../store/selectors";
 import { formatCurrency } from "../../utils/formatters";
 
-// Mock data strictly for UI demo
+// Mock data strictly for UI demoß
 const chartData = [
     { name: "Jan", value: 40000 },
     { name: "Feb", value: 42000 },
@@ -54,7 +63,48 @@ interface Props {
 const roundToTwo = (value: number) => Math.round(value * 100) / 100;
 const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
 
-export const WalletDetail: React.FC<Props> = () => {
+interface WalletAllocationSectionProps {
+    pieData: { name: string; value: number; color: string }[];
+    holdings: HoldingRow[];
+}
+
+const WalletPerformanceSection = React.memo(() => (
+    <Card title="Performance History">
+        <AreaChart data={chartData} dataKey="value" height={300} />
+    </Card>
+));
+
+const WalletAllocationSection = React.memo(
+    ({ pieData, holdings }: WalletAllocationSectionProps) => (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card title="Allocation" className="lg:col-span-1">
+                <PieChart data={pieData} height={250} />
+            </Card>
+
+            <Card title="Holdings" className="lg:col-span-2">
+                <HoldingsTable holdings={holdings} />
+            </Card>
+        </div>
+    )
+);
+
+interface WalletTransactionsSectionProps {
+    transactions: WalletTx[];
+    assets: AssetsState;
+}
+
+const WalletTransactionsSection = React.memo(
+    ({ transactions, assets }: WalletTransactionsSectionProps) => (
+        <Card title="Transactions">
+            <WalletTransactionsTable
+                transactions={transactions}
+                assets={assets}
+            />
+        </Card>
+    )
+);
+
+export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const { id } = useParams();
     const dispatch = useAppDispatch();
     const settings = useAppSelector(selectSettings);
@@ -260,7 +310,8 @@ export const WalletDetail: React.FC<Props> = () => {
                     value,
                     pnl,
                     pnlPercent: Number(pnlPercent.toFixed(2)),
-                    currency: asset?.tradingCurrency ?? position.avgCost.currency,
+                    currency:
+                        asset?.tradingCurrency ?? position.avgCost.currency,
                 },
                 investedValue,
             };
@@ -608,17 +659,32 @@ export const WalletDetail: React.FC<Props> = () => {
 
     return (
         <div className="pb-20">
-            <div className="sticky top-0 z-30 bg-app-bg/80 backdrop-blur-md border-b border-app-border px-6 py-4 flex items-center gap-4">
-                <Link
-                    to="/wallets"
-                    className="p-2 -ml-2 text-app-muted hover:text-app-foreground rounded-lg hover:bg-app-surface transition-colors"
-                >
-                    <ArrowLeft size={20} />
-                </Link>
-                <h1 className="text-xl font-bold text-app-foreground">
-                    {walletName}
-                </h1>
-            </div>
+            <header className="sticky top-0 z-30 bg-app-bg/80 backdrop-blur-md border-b border-app-border px-6 py-4">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <Link
+                            to="/wallets"
+                            className="p-2 -ml-2 text-app-muted hover:text-app-foreground rounded-lg hover:bg-app-surface transition-colors"
+                        >
+                            <ArrowLeft size={20} />
+                        </Link>
+                        <h1 className="text-xl font-bold text-app-foreground">
+                            {walletName}
+                        </h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={onMenuClick}
+                            className="lg:hidden p-2 text-app-muted hover:text-app-foreground rounded-lg hover:bg-app-surface transition-colors"
+                        >
+                            <Menu size={20} />
+                        </button>
+                        <SyncStatusPills />
+                        <ThemeToggle />
+                    </div>
+                </div>
+            </header>
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
                 <Card title="Wallet State (Redux)">
@@ -764,9 +830,7 @@ export const WalletDetail: React.FC<Props> = () => {
                     </Card>
                 </div>
 
-                <Card title="Performance History">
-                    <LineChart data={chartData} dataKey="value" height={300} />
-                </Card>
+                <WalletPerformanceSection />
 
                 <div className="flex flex-wrap gap-4">
                     <Button
@@ -799,22 +863,15 @@ export const WalletDetail: React.FC<Props> = () => {
                     </Button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card title="Allocation" className="lg:col-span-1">
-                        <PieChart data={pieData} height={250} />
-                    </Card>
+                <WalletAllocationSection
+                    pieData={pieData}
+                    holdings={holdings}
+                />
 
-                    <Card title="Holdings" className="lg:col-span-2">
-                        <HoldingsTable holdings={holdings} />
-                    </Card>
-                </div>
-
-                <Card title="Transactions">
-                    <WalletTransactionsTable
-                        transactions={sortedTransactions}
-                        assets={assets}
-                    />
-                </Card>
+                <WalletTransactionsSection
+                    transactions={sortedTransactions}
+                    assets={assets}
+                />
             </main>
 
             <Modal

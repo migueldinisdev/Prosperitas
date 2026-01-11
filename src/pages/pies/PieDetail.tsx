@@ -5,11 +5,14 @@ import {
     ArrowLeft,
     ArrowUpRight,
     PieChart as PieIcon,
+    Menu,
 } from "lucide-react";
+import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { PieChart } from "../../components/PieChart";
-import { Button } from "../../ui/Button";
-import { HoldingsTable } from "../../components/HoldingsTable";
+import { HoldingsTable, HoldingRow } from "../../components/HoldingsTable";
+import { SyncStatusPills } from "../../components/SyncStatusPills";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { usePieData } from "../../hooks/usePieData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useAppSelector } from "../../store/hooks";
@@ -109,25 +112,36 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     return (
         <div className="pb-20">
-            <div className="sticky top-0 z-30 bg-app-bg/80 backdrop-blur-md border-b border-app-border px-6 py-4 flex items-center gap-4">
-                <Link
-                    to="/pies"
-                    className="p-2 -ml-2 text-app-muted hover:text-app-foreground rounded-lg hover:bg-app-surface transition-colors"
-                >
-                    <ArrowLeft size={20} />
-                </Link>
-                <h1 className="text-xl font-bold text-app-foreground flex items-center gap-3">
-                    <span>{formattedName}</span>
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-app-surface border border-app-border text-app-muted">
-                        <PieIcon size={14} />{" "}
-                        {pie?.risk ? `Risk ${pie.risk}/5` : "Risk N/A"}
-                    </span>
-                </h1>
-                <div className="flex-1" />
-                <Button variant="ghost" onClick={onMenuClick} className="lg:hidden">
-                    Menu
-                </Button>
-            </div>
+            <header className="sticky top-0 z-30 bg-app-bg/80 backdrop-blur-md border-b border-app-border px-6 py-4">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <Link
+                            to="/pies"
+                            className="p-2 -ml-2 text-app-muted hover:text-app-foreground rounded-lg hover:bg-app-surface transition-colors"
+                        >
+                            <ArrowLeft size={20} />
+                        </Link>
+                        <h1 className="text-xl font-bold text-app-foreground flex items-center gap-3">
+                            <span>{formattedName}</span>
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-app-surface border border-app-border text-app-muted">
+                                <PieIcon size={14} />{" "}
+                                {pie?.risk ? `Risk ${pie.risk}/5` : "Risk N/A"}
+                            </span>
+                        </h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={onMenuClick}
+                            className="lg:hidden p-2 text-app-muted hover:text-app-foreground rounded-lg hover:bg-app-surface transition-colors"
+                        >
+                            <Menu size={20} />
+                        </button>
+                        <SyncStatusPills />
+                        <ThemeToggle />
+                    </div>
+                </div>
+            </header>
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
