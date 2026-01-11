@@ -15,6 +15,9 @@ const IGNORED_ACTION_TYPES = new Set([
     "notifications/addNotification", // Notifications are ephemeral
     "notifications/removeNotification",
     "notifications/clearNotifications",
+    "livePrices/setLivePrices", // Live price updates should not mark as dirty
+    "livePrices/setLivePrice",
+    "livePrices/clearLivePrices",
 ]);
 
 // Store reference to sync status callbacks
