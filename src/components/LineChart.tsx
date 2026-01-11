@@ -26,8 +26,8 @@ export const LineChart = React.memo(
         console.log("LineChart re-rendered");
 
         return (
-            <div style={{ width: "100%", height }}>
-                <ResponsiveContainer>
+            <div style={{ width: "100%", height, minHeight: height }}>
+                <ResponsiveContainer width="100%" height="100%">
                     <ReLineChart
                         data={data}
                         margin={{ top: 5, right: 0, left: -20, bottom: 0 }}

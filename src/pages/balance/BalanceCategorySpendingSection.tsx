@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { Card } from "../../ui/Card";
 import { BarChart } from "../../components/BarChart";
 import { useBalanceData } from "../../hooks/useBalanceData";
@@ -15,6 +15,10 @@ export const BalanceCategorySpendingSection: React.FC<Props> = ({
 }) => {
     const { categories, monthData } = useBalanceData(monthKey);
     const { balanceCurrency } = useAppSelector(selectSettings);
+    const tickFormatter = useCallback(
+        (value: number) => formatCurrency(value, balanceCurrency),
+        [balanceCurrency]
+    );
     const data = useMemo(() => {
         const totals = new Map<string, number>();
         (monthData?.txs ?? []).forEach((tx) => {
@@ -48,9 +52,7 @@ export const BalanceCategorySpendingSection: React.FC<Props> = ({
                     dataKey="value"
                     color="#8b5cf6"
                     height={300}
-                    tickFormatter={(value) =>
-                        formatCurrency(value, balanceCurrency)
-                    }
+                    tickFormatter={tickFormatter}
                 />
             )}
         </Card>

@@ -21,7 +21,12 @@ import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { addWalletTransaction } from "../../store/thunks/walletThunks";
 import { addAsset } from "../../store/slices/assetsSlice";
 import { updatePie } from "../../store/slices/piesSlice";
-import { AssetType, Currency } from "../../core/schema-types";
+import {
+    AssetType,
+    AssetsState,
+    Currency,
+    WalletTx,
+} from "../../core/schema-types";
 import { selectPies, selectSettings } from "../../store/selectors";
 
 // Mock data strictly for UI demo
@@ -41,6 +46,47 @@ interface Props {
 
 const roundToTwo = (value: number) => Math.round(value * 100) / 100;
 const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
+
+interface WalletAllocationSectionProps {
+    pieData: { name: string; value: number; color: string }[];
+    holdings: HoldingRow[];
+}
+
+const WalletPerformanceSection = React.memo(() => (
+    <Card title="Performance History">
+        <LineChart data={chartData} dataKey="value" height={300} />
+    </Card>
+));
+
+const WalletAllocationSection = React.memo(
+    ({ pieData, holdings }: WalletAllocationSectionProps) => (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card title="Allocation" className="lg:col-span-1">
+                <PieChart data={pieData} height={250} />
+            </Card>
+
+            <Card title="Holdings" className="lg:col-span-2">
+                <HoldingsTable holdings={holdings} />
+            </Card>
+        </div>
+    )
+);
+
+interface WalletTransactionsSectionProps {
+    transactions: WalletTx[];
+    assets: AssetsState;
+}
+
+const WalletTransactionsSection = React.memo(
+    ({ transactions, assets }: WalletTransactionsSectionProps) => (
+        <Card title="Transactions">
+            <WalletTransactionsTable
+                transactions={transactions}
+                assets={assets}
+            />
+        </Card>
+    )
+);
 
 export const WalletDetail: React.FC<Props> = () => {
     const { id } = useParams();
@@ -621,9 +667,7 @@ export const WalletDetail: React.FC<Props> = () => {
                     </Card>
                 </div>
 
-                <Card title="Performance History">
-                    <LineChart data={chartData} dataKey="value" height={300} />
-                </Card>
+                <WalletPerformanceSection />
 
                 <div className="flex flex-wrap gap-4">
                     <Button
@@ -656,22 +700,12 @@ export const WalletDetail: React.FC<Props> = () => {
                     </Button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card title="Allocation" className="lg:col-span-1">
-                        <PieChart data={pieData} height={250} />
-                    </Card>
+                <WalletAllocationSection pieData={pieData} holdings={holdings} />
 
-                    <Card title="Holdings" className="lg:col-span-2">
-                        <HoldingsTable holdings={holdings} />
-                    </Card>
-                </div>
-
-                <Card title="Transactions">
-                    <WalletTransactionsTable
-                        transactions={sortedTransactions}
-                        assets={assets}
-                    />
-                </Card>
+                <WalletTransactionsSection
+                    transactions={sortedTransactions}
+                    assets={assets}
+                />
             </main>
 
             <Modal

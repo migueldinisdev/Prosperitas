@@ -16,8 +16,8 @@ interface PieChartProps {
 export const PieChart = React.memo(({ data, height = 300 }: PieChartProps) => {
     console.log("PieChart re-rendered");
     return (
-        <div style={{ width: "100%", height }}>
-            <ResponsiveContainer>
+        <div style={{ width: "100%", height, minHeight: height }}>
+            <ResponsiveContainer width="100%" height="100%">
                 <RePieChart>
                     <Pie
                         data={data}
