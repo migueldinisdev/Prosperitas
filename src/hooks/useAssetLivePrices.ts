@@ -9,7 +9,8 @@ const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
 const getAssetPriceRequest = (asset: Asset) => {
     if (asset.assetType === "cash") return null;
     if (asset.assetType === "crypto") {
-        const ticker = normalizeTicker(asset.ticker);
+        const pair = `${asset.ticker}${asset.tradingCurrency ?? ""}`;
+        const ticker = normalizeTicker(pair);
         if (!ticker) return null;
         return { type: "crypto" as PriceAssetType, ticker };
     }
