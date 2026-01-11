@@ -17,6 +17,7 @@ import { WalletTransactionsTable } from "../../components/WalletTransactionsTabl
 import { StooqAPIStockSelect } from "../../components/StooqAPIStockSelect";
 import { useWalletData } from "../../hooks/useWalletData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
+import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { Modal } from "../../ui/Modal";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { addWalletTransaction } from "../../store/thunks/walletThunks";
@@ -25,6 +26,7 @@ import { updatePie } from "../../store/slices/piesSlice";
 import { Asset, AssetType, Currency } from "../../core/schema-types";
 import {
     getAllocationPercent,
+    getConvertedValue,
     getPnL,
     getPnLPercent,
     getPositionCurrentValue,
@@ -300,6 +302,29 @@ export const WalletDetail: React.FC<Props> = () => {
         }
         return [];
     }, [walletCash]);
+
+    const cashCurrencies = useMemo(
+        () => cashBuckets.map((bucket) => bucket.currency),
+        [cashBuckets]
+    );
+    const forexRates = useForexLivePrices(
+        cashCurrencies,
+        settings.visualCurrency
+    );
+    const cashConvertedTotal = useMemo(() => {
+        return getTotalValue(
+            cashBuckets.map((bucket) => {
+                if (bucket.currency === settings.visualCurrency) {
+                    return bucket.value;
+                }
+                const rate = forexRates[bucket.currency];
+                if (!rate) return bucket.value;
+                return getConvertedValue(bucket.value, rate);
+            })
+        );
+    }, [cashBuckets, forexRates, settings.visualCurrency]);
+
+    const walletValue = totals.currentValue + cashConvertedTotal;
 
     const pieData = useMemo(
         () =>
@@ -654,7 +679,18 @@ export const WalletDetail: React.FC<Props> = () => {
                     </div>
                 </Card>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <Card className="p-4">
+                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                            Wallet Value
+                        </p>
+                        <p className="text-2xl font-bold text-app-foreground mt-1">
+                            {formatCurrency(
+                                walletValue,
+                                settings.visualCurrency
+                            )}
+                        </p>
+                    </Card>
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
                             Current Value
@@ -662,7 +698,7 @@ export const WalletDetail: React.FC<Props> = () => {
                         <p className="text-2xl font-bold text-app-foreground mt-1">
                             {formatCurrency(
                                 totals.currentValue,
-                                settings.balanceCurrency
+                                settings.visualCurrency
                             )}
                         </p>
                     </Card>
@@ -673,7 +709,7 @@ export const WalletDetail: React.FC<Props> = () => {
                         <p className="text-2xl font-bold text-app-foreground mt-1">
                             {formatCurrency(
                                 totals.invested,
-                                settings.balanceCurrency
+                                settings.visualCurrency
                             )}
                         </p>
                     </Card>
@@ -699,7 +735,7 @@ export const WalletDetail: React.FC<Props> = () => {
                                 {totals.pnl > 0 ? "+" : ""}
                                 {formatCurrency(
                                     totals.pnl,
-                                    settings.balanceCurrency
+                                    settings.visualCurrency
                                 )}
                             </span>
                         </div>

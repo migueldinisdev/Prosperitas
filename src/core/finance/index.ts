@@ -6,6 +6,9 @@ export const getPositionInvestedValue = (
     costAverage: number
 ) => units * costAverage;
 
+export const getConvertedValue = (amount: number, rate: number) =>
+    amount * rate;
+
 export const getPnL = (currentValue: number, investedValue: number) =>
     currentValue - investedValue;
 

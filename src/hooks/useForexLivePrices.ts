@@ -1,0 +1,59 @@
+import { useEffect, useMemo } from "react";
+import { getPrice } from "../data/prices";
+import { useAppSelector } from "../store/hooks";
+import { selectLivePrices } from "../store/selectors";
+
+const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
+
+export const useForexLivePrices = (
+    currencies: string[],
+    visualCurrency: string
+) => {
+    const livePrices = useAppSelector(selectLivePrices);
+
+    const forexRequests = useMemo(() => {
+        const uniqueCurrencies = Array.from(new Set(currencies));
+        return uniqueCurrencies
+            .filter((currency) => currency !== visualCurrency)
+            .map((currency) => {
+                const ticker = normalizeTicker(`${currency}${visualCurrency}`);
+                return { currency, ticker };
+            })
+            .filter((request) => request.ticker.length > 0);
+    }, [currencies, visualCurrency]);
+
+    useEffect(() => {
+        const requestsToFetch = forexRequests.filter(({ ticker }) => {
+            const key = `forex:${ticker}`;
+            return !livePrices[key];
+        });
+
+        if (!requestsToFetch.length) {
+            return;
+        }
+
+        const fetchPrices = async () => {
+            await Promise.all(
+                requestsToFetch.map(({ ticker }) =>
+                    getPrice({ type: "forex", ticker }).catch(() => null)
+                )
+            );
+        };
+
+        fetchPrices();
+    }, [forexRequests, livePrices]);
+
+    return useMemo(() => {
+        return forexRequests.reduce<Record<string, number>>(
+            (map, { currency, ticker }) => {
+                const key = `forex:${ticker}`;
+                const livePrice = livePrices[key];
+                if (livePrice) {
+                    map[currency] = livePrice.value;
+                }
+                return map;
+            },
+            {}
+        );
+    }, [forexRequests, livePrices]);
+};
