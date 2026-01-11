@@ -5,11 +5,13 @@ export interface HoldingRow {
     asset: string;
     ticker: string;
     units?: number;
-    price: number;
+    costAverage: number;
+    currentPrice: number;
     value: number;
     pnl: number;
     pnlPercent?: number;
     allocation?: number;
+    currency?: string;
 }
 
 interface HoldingsTableProps {
@@ -27,6 +29,9 @@ export const HoldingsTable = React.memo(({ holdings }: HoldingsTableProps) => {
                         <th className="px-4 py-3 font-medium">Asset</th>
                         <th className="px-4 py-3 font-medium text-right">
                             Units
+                        </th>
+                        <th className="px-4 py-3 font-medium text-right">
+                            Cost Avg
                         </th>
                         <th className="px-4 py-3 font-medium text-right">
                             Price
@@ -66,16 +71,31 @@ export const HoldingsTable = React.memo(({ holdings }: HoldingsTableProps) => {
                                     {holding.units?.toLocaleString() ?? "-"}
                                 </td>
                                 <td className="px-4 py-3 text-right text-app-muted">
-                                    {formatCurrency(holding.price)}
+                                    {formatCurrency(
+                                        holding.costAverage,
+                                        holding.currency
+                                    )}
+                                </td>
+                                <td className="px-4 py-3 text-right text-app-muted">
+                                    {formatCurrency(
+                                        holding.currentPrice,
+                                        holding.currency
+                                    )}
                                 </td>
                                 <td className="px-4 py-3 text-right text-app-foreground font-medium">
-                                    {formatCurrency(holding.value)}
+                                    {formatCurrency(
+                                        holding.value,
+                                        holding.currency
+                                    )}
                                 </td>
                                 <td
                                     className={`px-4 py-3 text-right ${pnlColor}`}
                                 >
                                     {holding.pnl > 0 ? "+" : ""}
-                                    {formatCurrency(holding.pnl)}
+                                    {formatCurrency(
+                                        holding.pnl,
+                                        holding.currency
+                                    )}
                                     {holding.pnlPercent !== undefined && (
                                         <span className="ml-1 text-xs text-app-muted">
                                             ({holding.pnlPercent}%)
