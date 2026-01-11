@@ -4,11 +4,22 @@ import {
     StooqStockSearchResult,
 } from "../data/api/prices/stooqStockSearchApi";
 
-interface Props {
+interface CombinedProps {
     value: string;
     onChange: (value: string) => void;
-    placeholder?: string;
 }
+
+interface SeparateProps {
+    searchValue: string;
+    onSearchChange: (value: string) => void;
+    selectedValue: string;
+    onSelect: (value: string) => void;
+}
+
+type Props = (CombinedProps | SeparateProps) & {
+    placeholder?: string;
+    disabled?: boolean;
+};
 
 const formatOptionLabel = (option: StooqStockSearchResult) => {
     const parts = [
@@ -20,17 +31,18 @@ const formatOptionLabel = (option: StooqStockSearchResult) => {
     return parts.join(" · ");
 };
 
-export const StooqAPIStockSelect: React.FC<Props> = ({
-    value,
-    onChange,
-    placeholder,
-}) => {
+export const StooqAPIStockSelect: React.FC<Props> = (props) => {
+    const searchValue = "searchValue" in props ? props.searchValue : props.value;
+    const selectedValue =
+        "selectedValue" in props ? props.selectedValue : "";
+    const placeholder = props.placeholder;
+    const disabled = props.disabled ?? false;
     const [options, setOptions] = useState<StooqStockSearchResult[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
-        const trimmedValue = value.trim();
+        const trimmedValue = searchValue.trim();
         if (!trimmedValue) {
             setOptions([]);
             setErrorMessage(null);
@@ -60,7 +72,7 @@ export const StooqAPIStockSelect: React.FC<Props> = ({
             });
 
         return () => controller.abort();
-    }, [value]);
+    }, [searchValue]);
 
     const selectOptions = useMemo(
         () =>
@@ -75,17 +87,31 @@ export const StooqAPIStockSelect: React.FC<Props> = ({
     return (
         <div className="flex flex-wrap gap-2">
             <input
-                className="min-w-[140px] flex-1 rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm"
-                value={value}
+                className="min-w-[140px] flex-1 rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm disabled:opacity-60"
+                value={searchValue}
                 placeholder={placeholder}
-                onChange={(event) => onChange(event.target.value)}
+                disabled={disabled}
+                onChange={(event) => {
+                    const nextValue = event.target.value;
+                    if ("onSearchChange" in props) {
+                        props.onSearchChange(nextValue);
+                    } else {
+                        props.onChange(nextValue);
+                    }
+                }}
             />
             <select
-                className="min-w-[200px] flex-1 rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm"
-                value=""
+                className="min-w-[200px] flex-1 rounded-lg border border-app-border bg-app-card px-3 py-2 text-sm disabled:opacity-60"
+                value={selectedValue}
+                disabled={disabled}
                 onChange={(event) => {
                     if (event.target.value) {
-                        onChange(event.target.value);
+                        const nextValue = event.target.value;
+                        if ("onSelect" in props) {
+                            props.onSelect(nextValue);
+                        } else {
+                            props.onChange(nextValue);
+                        }
                     }
                 }}
             >
