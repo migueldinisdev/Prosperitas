@@ -13,7 +13,7 @@ import {
     Menu,
     Wallet as WalletIcon,
 } from "lucide-react";
-import { HoldingsTable } from "../../components/HoldingsTable";
+import { HoldingRow, HoldingsTable } from "../../components/HoldingsTable";
 import { WalletTransactionsTable } from "../../components/WalletTransactionsTable";
 import { StooqAPIStockSelect } from "../../components/StooqAPIStockSelect";
 import { SyncStatusPills } from "../../components/SyncStatusPills";
