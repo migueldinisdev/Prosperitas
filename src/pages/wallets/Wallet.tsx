@@ -399,7 +399,6 @@ export const WalletDetail: React.FC<Props> = () => {
                         tradeAssetType === "stock"
                             ? tradeStooqTicker || null
                             : null,
-                    exchange: null,
                     tradingCurrency: tradeCurrency,
                     name: tradeName || tradeTicker.toUpperCase(),
                     assetType: tradeAssetType,

@@ -83,7 +83,6 @@ export interface Asset {
     id: string;
     ticker: string;
     stooqTicker?: string | null;
-    exchange: string | null;
     tradingCurrency: Currency;
     name: string;
     assetType: AssetType;
