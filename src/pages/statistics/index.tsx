@@ -16,6 +16,7 @@ import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import {
     getAllocationPercent,
     getConvertedValue,
+    getNetWorth,
     getPnL,
     getPnLPercent,
     getPositionCurrentValue,
@@ -168,10 +169,17 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             pnl: totalPnL,
             pnlPercent: totalPnLPercent,
             cash: cashTotal,
+            netWorth: getNetWorth(totalCurrent, cashTotal),
         };
     }, [cashBuckets, holdingSummaries, forexRates, settings.visualCurrency]);
 
     const summaryStats = [
+        {
+            label: "Total net worth",
+            value: formatCurrency(totals.netWorth, settings.visualCurrency),
+            change: `${totals.pnlPercent.toFixed(2)}% vs cost`,
+            helper: "Holdings + cash",
+        },
         {
             label: "Total invested",
             value: formatCurrency(totals.invested, settings.visualCurrency),
@@ -328,7 +336,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             <PageHeader title="Statistics" onMenuClick={onMenuClick} />
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     {summaryStats.map((stat) => (
                         <Card key={stat.label}>
                             <p className="text-xs uppercase tracking-wider text-app-muted font-semibold">

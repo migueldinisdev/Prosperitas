@@ -22,3 +22,6 @@ export const getAllocationPercent = (
 
 export const getTotalValue = (values: number[]) =>
     values.reduce((sum, value) => sum + value, 0);
+
+export const getNetWorth = (currentValue: number, cashValue: number) =>
+    currentValue + cashValue;
