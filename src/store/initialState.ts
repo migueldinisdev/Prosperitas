@@ -67,7 +67,7 @@ export const defaultState: ProsperitasState = {
         a_0: {
             id: "a_0",
             ticker: "BTC",
-            exchange: null,
+            stooqTicker: null,
             tradingCurrency: "USD",
             name: "Bitcoin",
             assetType: "crypto",
@@ -81,7 +81,7 @@ export const defaultState: ProsperitasState = {
         a_1: {
             id: "a_1",
             ticker: "VUAA",
-            exchange: "MIL",
+            stooqTicker: null,
             tradingCurrency: "EUR",
             name: "Vanguard S&P 500 UCITS ETF",
             assetType: "etf",

@@ -82,7 +82,7 @@ export type PriceAssetType = "stock" | "crypto" | "forex";
 export interface Asset {
     id: string;
     ticker: string;
-    exchange: string | null;
+    stooqTicker?: string | null;
     tradingCurrency: Currency;
     name: string;
     assetType: AssetType;

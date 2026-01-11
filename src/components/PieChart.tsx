@@ -7,17 +7,27 @@ import {
     Tooltip,
     Legend,
 } from "recharts";
+import { ChartContainer } from "./ChartContainer";
 
 interface PieChartProps {
     data: { name: string; value: number; color: string }[];
     height?: number;
+    isLoading?: boolean;
 }
 
-export const PieChart = React.memo(({ data, height = 300 }: PieChartProps) => {
+export const PieChart = React.memo(
+    ({ data, height = 300, isLoading }: PieChartProps) => {
     console.log("PieChart re-rendered");
+    const resolvedLoading = isLoading ?? (!data || data.length === 0);
     return (
-        <div style={{ width: "100%", height }}>
-            <ResponsiveContainer>
+        <ChartContainer height={height} isLoading={resolvedLoading}>
+            <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={1}
+                minHeight={1}
+                initialDimension={{ width: 1, height: 1 }}
+            >
                 <RePieChart>
                     <Pie
                         data={data}
@@ -47,6 +57,6 @@ export const PieChart = React.memo(({ data, height = 300 }: PieChartProps) => {
                     <Legend iconType="circle" />
                 </RePieChart>
             </ResponsiveContainer>
-        </div>
+        </ChartContainer>
     );
 });
