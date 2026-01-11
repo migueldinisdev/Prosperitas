@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Card } from "../../ui/Card";
-import { LineChart } from "../../components/LineChart";
+import { AreaChart } from "../../components/AreaChart";
 import { Button } from "../../ui/Button";
 import { PieChart } from "../../components/PieChart";
 import {
@@ -601,7 +601,7 @@ export const WalletDetail: React.FC<Props> = () => {
                 </div>
 
                 <Card title="Performance History">
-                    <LineChart data={chartData} dataKey="value" height={300} />
+                    <AreaChart data={chartData} dataKey="value" height={300} />
                 </Card>
 
                 <div className="flex flex-wrap gap-4">
