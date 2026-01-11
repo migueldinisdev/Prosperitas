@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { ResponsiveContainer, Sankey, Tooltip } from "recharts";
+import { ChartContainer } from "./ChartContainer";
 
 interface SankeyData {
     income: number;
@@ -10,11 +11,13 @@ interface SankeyData {
 interface SankeyChartProps {
     data: SankeyData;
     height?: number;
+    isLoading?: boolean;
 }
 
 export const SankeyChart = React.memo(
-    ({ data, height = 500 }: SankeyChartProps) => {
+    ({ data, height = 500, isLoading }: SankeyChartProps) => {
         console.log("SankeyChart re-rendered");
+        const resolvedLoading = isLoading ?? false;
         const sankeyData = useMemo(() => {
             const nodes = [
                 { name: "Income" },
@@ -140,8 +143,14 @@ export const SankeyChart = React.memo(
         );
 
         return (
-            <div className="w-full" style={{ height, minHeight: height }}>
-                <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer height={height} isLoading={resolvedLoading}>
+                <ResponsiveContainer
+                    width="100%"
+                    height="100%"
+                    minWidth={1}
+                    minHeight={1}
+                    initialDimension={{ width: 1, height: 1 }}
+                >
                     <Sankey
                         data={sankeyData}
                         node={renderNode}
@@ -152,7 +161,7 @@ export const SankeyChart = React.memo(
                         <Tooltip content={tooltipContent} />
                     </Sankey>
                 </ResponsiveContainer>
-            </div>
+            </ChartContainer>
         );
     }
 );

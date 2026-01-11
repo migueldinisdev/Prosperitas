@@ -8,12 +8,14 @@ import {
     Tooltip,
     CartesianGrid,
 } from "recharts";
+import { ChartContainer } from "./ChartContainer";
 
 interface LineChartProps {
     data: any[];
     dataKey: string;
     color?: string;
     height?: number;
+    isLoading?: boolean;
 }
 
 export const LineChart = React.memo(
@@ -22,12 +24,20 @@ export const LineChart = React.memo(
         dataKey,
         color = "rgb(var(--color-app-primary))",
         height = 300,
+        isLoading,
     }: LineChartProps) => {
         console.log("LineChart re-rendered");
+        const resolvedLoading = isLoading ?? (!data || data.length === 0);
 
         return (
-            <div style={{ width: "100%", height, minHeight: height }}>
-                <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer height={height} isLoading={resolvedLoading}>
+                <ResponsiveContainer
+                    width="100%"
+                    height="100%"
+                    minWidth={1}
+                    minHeight={1}
+                    initialDimension={{ width: 1, height: 1 }}
+                >
                     <ReLineChart
                         data={data}
                         margin={{ top: 5, right: 0, left: -20, bottom: 0 }}
@@ -82,7 +92,7 @@ export const LineChart = React.memo(
                         />
                     </ReLineChart>
                 </ResponsiveContainer>
-            </div>
+            </ChartContainer>
         );
     }
 );
