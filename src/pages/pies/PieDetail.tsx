@@ -1,15 +1,31 @@
 import React, { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Menu, PieChart as PieIcon } from "lucide-react";
+import {
+    ArrowDownLeft,
+    ArrowLeft,
+    ArrowUpRight,
+    PieChart as PieIcon,
+    Menu,
+} from "lucide-react";
+import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { PieChart } from "../../components/PieChart";
 import { HoldingsTable, HoldingRow } from "../../components/HoldingsTable";
+import { SyncStatusPills } from "../../components/SyncStatusPills";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { usePieData } from "../../hooks/usePieData";
+import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useAppSelector } from "../../store/hooks";
 import { selectSettings } from "../../store/selectors";
 import { formatCurrency } from "../../utils/formatters";
-import { SyncStatusPills } from "../../components/SyncStatusPills";
-import { ThemeToggle } from "../../components/ThemeToggle";
+import {
+    getAllocationPercent,
+    getPnL,
+    getPnLPercent,
+    getPositionCurrentValue,
+    getPositionInvestedValue,
+    getTotalValue,
+} from "../../core/finance";
 
 interface Props {
     onMenuClick: () => void;
@@ -20,14 +36,56 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
     const { pie, assets } = usePieData(id);
     const settings = useAppSelector(selectSettings);
 
-    const totalValue = useMemo(
-        () =>
-            assets.reduce(
-                (total, asset) => total + asset.amount * asset.avgCost.value,
-                0
-            ),
-        [assets]
-    );
+    const livePricesByAsset = useAssetLivePrices(assets);
+
+    const { holdings, totals } = useMemo(() => {
+        const rows = assets.map((asset) => {
+            const costAverage = asset.avgCost.value;
+            const currentPrice = livePricesByAsset[asset.id] ?? costAverage;
+            const value = getPositionCurrentValue(asset.amount, currentPrice);
+            const investedValue = getPositionInvestedValue(
+                asset.amount,
+                costAverage
+            );
+            const pnl = getPnL(value, investedValue);
+            const pnlPercent = getPnLPercent(value, investedValue);
+
+            return {
+                row: {
+                    asset: asset.name,
+                    ticker: asset.ticker,
+                    units: asset.amount,
+                    costAverage,
+                    currentPrice,
+                    value,
+                    pnl,
+                    pnlPercent: Number(pnlPercent.toFixed(2)),
+                    currency: asset.tradingCurrency,
+                },
+                investedValue,
+            };
+        });
+
+        const totalValue = getTotalValue(rows.map((item) => item.row.value));
+        const totalInvested = getTotalValue(
+            rows.map((item) => item.investedValue)
+        );
+        const totalPnL = getTotalValue(rows.map((item) => item.row.pnl));
+
+        return {
+            holdings: rows.map(({ row }) => ({
+                ...row,
+                allocation: Number(
+                    getAllocationPercent(row.value, totalValue).toFixed(2)
+                ),
+            })),
+            totals: {
+                currentValue: totalValue,
+                invested: totalInvested,
+                pnl: totalPnL,
+            },
+        };
+    }, [assets, livePricesByAsset]);
 
     const allocation = useMemo(() => {
         const colors = [
@@ -39,33 +97,14 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
             "#14b8a6",
         ];
 
-        return assets
-            .map((asset, index) => ({
-                name: asset.ticker,
-                value: asset.amount * asset.avgCost.value,
+        return holdings
+            .map((holding, index) => ({
+                name: holding.ticker,
+                value: holding.value,
                 color: colors[index % colors.length],
             }))
             .filter((entry) => entry.value > 0);
-    }, [assets]);
-
-    const holdings = useMemo<HoldingRow[]>(() => {
-        return assets.map((asset) => {
-            const value = asset.amount * asset.avgCost.value;
-            const allocationPercent =
-                totalValue > 0 ? Math.round((value / totalValue) * 100) : 0;
-
-            return {
-                asset: asset.name,
-                ticker: asset.ticker,
-                units: asset.amount,
-                price: asset.avgCost.value,
-                value,
-                pnl: 0,
-                pnlPercent: 0,
-                allocation: totalValue > 0 ? allocationPercent : undefined,
-            };
-        });
-    }, [assets, totalValue]);
+    }, [holdings]);
 
     const riskValue = pie?.risk ?? 0;
     const formattedName = pie?.name ?? "Pie";
@@ -105,14 +144,14 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
             </header>
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
                             Current Value
                         </p>
                         <p className="text-2xl font-bold text-app-foreground mt-1">
                             {formatCurrency(
-                                totalValue,
+                                totals.currentValue,
                                 settings.balanceCurrency
                             )}
                         </p>
@@ -124,6 +163,44 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <p className="text-2xl font-bold text-app-foreground mt-1">
                             {assets.length}
                         </p>
+                    </Card>
+                    <Card className="p-4">
+                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                            Invested
+                        </p>
+                        <p className="text-2xl font-bold text-app-foreground mt-1">
+                            {formatCurrency(
+                                totals.invested,
+                                settings.balanceCurrency
+                            )}
+                        </p>
+                    </Card>
+                    <Card className="p-4">
+                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                            Total PnL
+                        </p>
+                        <div
+                            className={`flex items-center gap-1 mt-1 ${
+                                totals.pnl > 0
+                                    ? "text-app-success"
+                                    : totals.pnl < 0
+                                    ? "text-app-danger"
+                                    : "text-app-muted"
+                            }`}
+                        >
+                            {totals.pnl >= 0 ? (
+                                <ArrowUpRight size={18} />
+                            ) : (
+                                <ArrowDownLeft size={18} />
+                            )}
+                            <span className="text-2xl font-bold">
+                                {totals.pnl > 0 ? "+" : ""}
+                                {formatCurrency(
+                                    totals.pnl,
+                                    settings.balanceCurrency
+                                )}
+                            </span>
+                        </div>
                     </Card>
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
@@ -147,15 +224,16 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                             </div>
                         </div>
                     </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Description
-                        </p>
-                        <p className="text-sm text-app-foreground mt-1">
-                            {description}
-                        </p>
-                    </Card>
                 </div>
+
+                <Card className="p-4">
+                    <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                        Description
+                    </p>
+                    <p className="text-sm text-app-foreground mt-1">
+                        {description}
+                    </p>
+                </Card>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card title="Allocation" className="lg:col-span-1">

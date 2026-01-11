@@ -13,26 +13,39 @@ import {
     Menu,
     Wallet as WalletIcon,
 } from "lucide-react";
-import { HoldingsTable, HoldingRow } from "../../components/HoldingsTable";
+import { HoldingRow, HoldingsTable } from "../../components/HoldingsTable";
 import { WalletTransactionsTable } from "../../components/WalletTransactionsTable";
 import { StooqAPIStockSelect } from "../../components/StooqAPIStockSelect";
+import { SyncStatusPills } from "../../components/SyncStatusPills";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { useWalletData } from "../../hooks/useWalletData";
+import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
+import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { Modal } from "../../ui/Modal";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { addWalletTransaction } from "../../store/thunks/walletThunks";
 import { addAsset } from "../../store/slices/assetsSlice";
 import { updatePie } from "../../store/slices/piesSlice";
+import { selectPies, selectSettings } from "../../store/selectors";
 import {
+    Asset,
     AssetType,
-    AssetsState,
     Currency,
+    AssetsState,
     WalletTx,
 } from "../../core/schema-types";
-import { selectPies, selectSettings } from "../../store/selectors";
-import { SyncStatusPills } from "../../components/SyncStatusPills";
-import { ThemeToggle } from "../../components/ThemeToggle";
+import {
+    getAllocationPercent,
+    getConvertedValue,
+    getPnL,
+    getPnLPercent,
+    getPositionCurrentValue,
+    getPositionInvestedValue,
+    getTotalValue,
+} from "../../core/finance";
+import { formatCurrency } from "../../utils/formatters";
 
-// Mock data strictly for UI demo
+// Mock data strictly for UI demoß
 const chartData = [
     { name: "Jan", value: 40000 },
     { name: "Feb", value: 42000 },
@@ -252,32 +265,117 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         }
     }, [tradeAssetType]);
 
-    const holdings = useMemo<HoldingRow[]>(() => {
-        const entries = Object.entries(walletPositions ?? {});
-        const rows = entries
-            .filter(([, position]) => position.amount > 0)
-            .map(([assetId, position]) => {
-                const asset = assets[assetId];
-                const price = position.avgCost.value;
-                const value = position.amount * price;
-                return {
+    const positionEntries = useMemo(
+        () =>
+            Object.entries(walletPositions ?? {}).filter(
+                ([, position]) => position.amount > 0
+            ),
+        [walletPositions]
+    );
+
+    const positionAssets = useMemo(
+        () =>
+            positionEntries
+                .map(([assetId]) => assets[assetId])
+                .filter((asset): asset is Asset => Boolean(asset)),
+        [assets, positionEntries]
+    );
+
+    const livePricesByAsset = useAssetLivePrices(positionAssets);
+
+    const { holdings, totals } = useMemo(() => {
+        const rows = positionEntries.map(([assetId, position]) => {
+            const asset = assets[assetId];
+            const costAverage = position.avgCost.value;
+            const currentPrice =
+                livePricesByAsset[assetId] ?? position.avgCost.value;
+            const value = getPositionCurrentValue(
+                position.amount,
+                currentPrice
+            );
+            const investedValue = getPositionInvestedValue(
+                position.amount,
+                costAverage
+            );
+            const pnl = getPnL(value, investedValue);
+            const pnlPercent = getPnLPercent(value, investedValue);
+
+            return {
+                row: {
                     asset: asset?.name ?? assetId,
                     ticker: asset?.ticker ?? assetId,
                     units: position.amount,
-                    price,
+                    costAverage,
+                    currentPrice,
                     value,
-                    pnl: 0,
-                };
-            });
-        const totalValue = rows.reduce((sum, row) => sum + row.value, 0);
-        return rows.map((row) => ({
-            ...row,
-            allocation:
-                totalValue > 0
-                    ? +((row.value / totalValue) * 100).toFixed(2)
-                    : 0,
-        }));
-    }, [walletPositions, assets]);
+                    pnl,
+                    pnlPercent: Number(pnlPercent.toFixed(2)),
+                    currency:
+                        asset?.tradingCurrency ?? position.avgCost.currency,
+                },
+                investedValue,
+            };
+        });
+
+        const totalValue = getTotalValue(rows.map((item) => item.row.value));
+        const totalInvested = getTotalValue(
+            rows.map((item) => item.investedValue)
+        );
+        const totalPnL = getTotalValue(rows.map((item) => item.row.pnl));
+
+        return {
+            holdings: rows.map(({ row }) => ({
+                ...row,
+                allocation: Number(
+                    getAllocationPercent(row.value, totalValue).toFixed(2)
+                ),
+            })),
+            totals: {
+                currentValue: totalValue,
+                invested: totalInvested,
+                pnl: totalPnL,
+            },
+        };
+    }, [assets, livePricesByAsset, positionEntries]);
+
+    const cashBuckets = useMemo(() => {
+        if (!walletCash) return [];
+        if (Array.isArray(walletCash)) {
+            return walletCash;
+        }
+        if (typeof walletCash === "object") {
+            return Object.entries(walletCash as Record<string, number>).map(
+                ([currency, value]) => ({
+                    currency: currency as Currency,
+                    value: Number(value),
+                })
+            );
+        }
+        return [];
+    }, [walletCash]);
+
+    const cashCurrencies = useMemo(
+        () => cashBuckets.map((bucket) => bucket.currency),
+        [cashBuckets]
+    );
+    const forexRates = useForexLivePrices(
+        cashCurrencies,
+        settings.visualCurrency
+    );
+    const cashConvertedTotal = useMemo(() => {
+        return getTotalValue(
+            cashBuckets.map((bucket) => {
+                if (bucket.currency === settings.visualCurrency) {
+                    return bucket.value;
+                }
+                const rate = forexRates[bucket.currency];
+                if (!rate) return bucket.value;
+                return getConvertedValue(bucket.value, rate);
+            })
+        );
+    }, [cashBuckets, forexRates, settings.visualCurrency]);
+
+    const walletValue = totals.currentValue + cashConvertedTotal;
 
     const pieData = useMemo(
         () =>
@@ -647,13 +745,27 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     </div>
                 </Card>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <Card className="p-4">
+                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                            Wallet Value
+                        </p>
+                        <p className="text-2xl font-bold text-app-foreground mt-1">
+                            {formatCurrency(
+                                walletValue,
+                                settings.visualCurrency
+                            )}
+                        </p>
+                    </Card>
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
                             Current Value
                         </p>
                         <p className="text-2xl font-bold text-app-foreground mt-1">
-                            $45,230.50
+                            {formatCurrency(
+                                totals.currentValue,
+                                settings.visualCurrency
+                            )}
                         </p>
                     </Card>
                     <Card className="p-4">
@@ -661,17 +773,36 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             Invested
                         </p>
                         <p className="text-2xl font-bold text-app-foreground mt-1">
-                            $42,030.00
+                            {formatCurrency(
+                                totals.invested,
+                                settings.visualCurrency
+                            )}
                         </p>
                     </Card>
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
                             Total PnL
                         </p>
-                        <div className="flex items-center gap-1 mt-1 text-app-success">
-                            <ArrowUpRight size={18} />
+                        <div
+                            className={`flex items-center gap-1 mt-1 ${
+                                totals.pnl > 0
+                                    ? "text-app-success"
+                                    : totals.pnl < 0
+                                    ? "text-app-danger"
+                                    : "text-app-muted"
+                            }`}
+                        >
+                            {totals.pnl >= 0 ? (
+                                <ArrowUpRight size={18} />
+                            ) : (
+                                <ArrowDownLeft size={18} />
+                            )}
                             <span className="text-2xl font-bold">
-                                +$3,200.50
+                                {totals.pnl > 0 ? "+" : ""}
+                                {formatCurrency(
+                                    totals.pnl,
+                                    settings.visualCurrency
+                                )}
                             </span>
                         </div>
                     </Card>
@@ -679,9 +810,23 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
                             Cash Available
                         </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">
-                            $1,200.00
-                        </p>
+                        <div className="mt-1 space-y-1">
+                            {cashBuckets.length > 0 ? (
+                                cashBuckets.map((bucket) => (
+                                    <p
+                                        key={bucket.currency}
+                                        className="text-lg font-semibold text-app-foreground"
+                                    >
+                                        {formatCurrency(
+                                            bucket.value,
+                                            bucket.currency
+                                        )}
+                                    </p>
+                                ))
+                            ) : (
+                                <p className="text-sm text-app-muted">-</p>
+                            )}
+                        </div>
                     </Card>
                 </div>
 
