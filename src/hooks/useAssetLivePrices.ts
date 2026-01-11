@@ -8,13 +8,15 @@ const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
 
 const getAssetPriceRequest = (asset: Asset) => {
     if (asset.assetType === "cash") return null;
-    const type: PriceAssetType =
-        asset.assetType === "crypto" ? "crypto" : "stock";
-    const ticker = normalizeTicker(
-        type === "stock" ? asset.stooqTicker ?? asset.ticker : asset.ticker
-    );
+    if (asset.assetType === "crypto") {
+        const ticker = normalizeTicker(asset.ticker);
+        if (!ticker) return null;
+        return { type: "crypto" as PriceAssetType, ticker };
+    }
+    if (!asset.stooqTicker) return null;
+    const ticker = normalizeTicker(asset.stooqTicker);
     if (!ticker) return null;
-    return { type, ticker };
+    return { type: "stock" as PriceAssetType, ticker };
 };
 
 export const useAssetLivePrices = (assets: Asset[]) => {
