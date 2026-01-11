@@ -8,8 +8,9 @@ interface WalletCardProps {
     walletId: string;
     name: string;
     value: number;
-    pnl: number;
-    pnlPercent: number;
+    unrealizedPnl: number;
+    unrealizedPnlPercent: number;
+    realizedPnl: number;
     currency: string;
     type?: string;
 }
@@ -18,12 +19,14 @@ export const WalletCard: React.FC<WalletCardProps> = ({
     walletId,
     name,
     value,
-    pnl,
-    pnlPercent,
+    unrealizedPnl,
+    unrealizedPnlPercent,
+    realizedPnl,
     currency,
     type,
 }) => {
-    const isPositive = pnl >= 0;
+    const unrealizedIsPositive = unrealizedPnl >= 0;
+    const realizedIsPositive = realizedPnl >= 0;
 
     return (
         <Link to={`/wallets/${walletId}`}>
@@ -46,21 +49,42 @@ export const WalletCard: React.FC<WalletCardProps> = ({
                     {formatCurrency(value, currency)}
                 </p>
 
-                <div
-                    className={`flex items-center text-sm font-medium ${
-                        isPositive ? "text-app-success" : "text-app-danger"
-                    }`}
-                >
-                    {isPositive ? (
-                        <ArrowUpRight size={16} />
-                    ) : (
-                        <ArrowDownRight size={16} />
-                    )}
-                    <span className="ml-1">
-                        {isPositive ? "+" : ""}
-                        {formatCurrency(pnl, currency)} ({pnlPercent.toFixed(2)}
-                        %)
-                    </span>
+                <div className="space-y-2 text-sm">
+                    <div
+                        className={`flex items-center font-medium ${
+                            unrealizedIsPositive
+                                ? "text-app-success"
+                                : "text-app-danger"
+                        }`}
+                    >
+                        {unrealizedIsPositive ? (
+                            <ArrowUpRight size={16} />
+                        ) : (
+                            <ArrowDownRight size={16} />
+                        )}
+                        <span className="ml-1">
+                            Unrealized {unrealizedIsPositive ? "+" : ""}
+                            {formatCurrency(unrealizedPnl, currency)} (
+                            {unrealizedPnlPercent.toFixed(2)}%)
+                        </span>
+                    </div>
+                    <div
+                        className={`flex items-center font-medium ${
+                            realizedIsPositive
+                                ? "text-app-success"
+                                : "text-app-danger"
+                        }`}
+                    >
+                        {realizedIsPositive ? (
+                            <ArrowUpRight size={16} />
+                        ) : (
+                            <ArrowDownRight size={16} />
+                        )}
+                        <span className="ml-1">
+                            Realized {realizedIsPositive ? "+" : ""}
+                            {formatCurrency(realizedPnl, currency)}
+                        </span>
+                    </div>
                 </div>
             </Card>
         </Link>

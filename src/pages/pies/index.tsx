@@ -5,8 +5,21 @@ import { Button } from "../../ui/Button";
 import { Modal } from "../../ui/Modal";
 import { AddPieCard } from "./AddPieCard";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { selectAssets, selectPies, selectSettings } from "../../store/selectors";
+import {
+    selectAssets,
+    selectPies,
+    selectSettings,
+    selectWalletTxState,
+} from "../../store/selectors";
 import { addPie } from "../../store/slices/piesSlice";
+import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
+import {
+    calculateRealizedPnl,
+    getPnL,
+    getPositionCurrentValue,
+    getPositionInvestedValue,
+} from "../../core/finance";
+import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 
 interface Props {
     onMenuClick: () => void;
@@ -16,6 +29,7 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
     const pies = useAppSelector(selectPies);
     const assets = useAppSelector(selectAssets);
     const settings = useAppSelector(selectSettings);
+    const walletTx = useAppSelector(selectWalletTxState);
     const dispatch = useAppDispatch();
 
     const [isAddOpen, setAddOpen] = useState(false);
@@ -34,6 +48,51 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
         existingNamesLower.has(pieNameTrimmed.toLowerCase());
 
     const pieList = useMemo(() => Object.values(pies), [pies]);
+
+    const pieAssets = useMemo(() => {
+        const assetIds = new Set<string>();
+        pieList.forEach((pie) => {
+            pie.assetIds.forEach((assetId) => assetIds.add(assetId));
+        });
+        return Array.from(assetIds)
+            .map((assetId) => assets[assetId])
+            .filter(Boolean);
+    }, [assets, pieList]);
+
+    const livePricesByAsset = useAssetLivePrices(pieAssets);
+
+    const transactionCurrencies = useMemo(() => {
+        const currencies = new Set<string>();
+        Object.values(walletTx).forEach((tx) => {
+            if (!tx.pieId) return;
+            switch (tx.type) {
+                case "deposit":
+                case "withdraw":
+                case "dividend":
+                    currencies.add(tx.amount.currency);
+                    break;
+                case "forex":
+                    currencies.add(tx.from.currency);
+                    currencies.add(tx.to.currency);
+                    if (tx.fees) currencies.add(tx.fees.currency);
+                    break;
+                case "buy":
+                case "sell":
+                    currencies.add(tx.price.currency);
+                    if (tx.fees) currencies.add(tx.fees.currency);
+                    break;
+            }
+        });
+        pieAssets.forEach((asset) =>
+            currencies.add(asset.tradingCurrency)
+        );
+        return Array.from(currencies);
+    }, [pieAssets, walletTx]);
+
+    const forexRates = useForexLivePrices(
+        transactionCurrencies,
+        settings.balanceCurrency
+    );
 
     const handleCreatePie = () => {
         const id = `pie_${Date.now()}`;
@@ -72,10 +131,41 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                         const pieAssets = pie.assetIds
                             .map((assetId) => assets[assetId])
                             .filter(Boolean);
-                        const totalValue = pieAssets.reduce(
-                            (total, asset) =>
-                                total + asset.amount * asset.avgCost.value,
+                        const holdingSummaries = pieAssets.map((asset) => {
+                            const currentPrice =
+                                livePricesByAsset[asset.id] ??
+                                asset.avgCost.value;
+                            const currentValue = getPositionCurrentValue(
+                                asset.amount,
+                                currentPrice
+                            );
+                            const investedValue = getPositionInvestedValue(
+                                asset.amount,
+                                asset.avgCost.value
+                            );
+                            return {
+                                currentValue,
+                                investedValue,
+                            };
+                        });
+                        const totalValue = holdingSummaries.reduce(
+                            (total, summary) => total + summary.currentValue,
                             0
+                        );
+                        const totalInvested = holdingSummaries.reduce(
+                            (total, summary) => total + summary.investedValue,
+                            0
+                        );
+                        const unrealizedPnl = getPnL(
+                            totalValue,
+                            totalInvested
+                        );
+                        const realizedPnl = calculateRealizedPnl(
+                            Object.values(walletTx).filter(
+                                (tx) => tx.pieId === pie.id
+                            ),
+                            settings.balanceCurrency,
+                            forexRates
                         );
                         return (
                             <PieCard
@@ -85,6 +175,8 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                                 description={pie.description}
                                 risk={pie.risk}
                                 totalValue={totalValue}
+                                unrealizedPnl={unrealizedPnl}
+                                realizedPnl={realizedPnl}
                                 assetCount={pieAssets.length}
                                 currency={settings.balanceCurrency}
                             />
