@@ -45,7 +45,7 @@ interface Props {
 const roundToTwo = (value: number) => Math.round(value * 100) / 100;
 const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
 
-export const WalletDetail: React.FC<Props> = () => {
+export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const { id } = useParams();
     const dispatch = useAppDispatch();
     const settings = useAppSelector(selectSettings);
