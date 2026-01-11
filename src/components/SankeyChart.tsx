@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import { ResponsiveContainer, Sankey, Tooltip } from "recharts";
 
 interface SankeyData {
@@ -15,31 +15,30 @@ interface SankeyChartProps {
 export const SankeyChart = React.memo(
     ({ data, height = 500 }: SankeyChartProps) => {
         console.log("SankeyChart re-rendered");
-        // Build nodes array: 0 = Income, 1-N = expense categories, N+1 = Savings
-        const nodes = [
-            { name: "Income" },
-            ...data.expenses.map((exp) => ({ name: exp.category })),
-            { name: "Savings" },
-        ];
-
-        // Build links array: Income -> each expense category, and Income -> Savings
-        const links = [
-            ...data.expenses.map((exp, i) => ({
-                source: 0, // Income
-                target: i + 1, // Expense category
-                value: exp.value,
-            })),
-            {
-                source: 0, // Income
-                target: nodes.length - 1, // Savings
-                value: data.savings,
-            },
-        ];
-
-        const sankeyData = { nodes, links };
+        const sankeyData = useMemo(() => {
+            const nodes = [
+                { name: "Income" },
+                ...data.expenses.map((exp) => ({ name: exp.category })),
+                { name: "Savings" },
+            ];
+            const links = [
+                ...data.expenses.map((exp, i) => ({
+                    source: 0,
+                    target: i + 1,
+                    value: exp.value,
+                })),
+                {
+                    source: 0,
+                    target: nodes.length - 1,
+                    value: data.savings,
+                },
+            ];
+            return { nodes, links };
+        }, [data.expenses, data.savings]);
+        const { nodes } = sankeyData;
 
         // Custom node rendering for color coding
-        const renderNode = (props: any) => {
+        const renderNode = useCallback((props: any) => {
             const { x, y, width, height, index, payload } = props;
             const isIncome = index === 0;
             const isSavings = index === nodes.length - 1;
@@ -75,10 +74,10 @@ export const SankeyChart = React.memo(
                     </text>
                 </g>
             );
-        };
+        }, [nodes.length]);
 
         // Custom link rendering for gradient colors
-        const renderLink = (props: any) => {
+        const renderLink = useCallback((props: any) => {
             const {
                 sourceX,
                 sourceY,
@@ -87,7 +86,6 @@ export const SankeyChart = React.memo(
                 sourceControlX,
                 targetControlX,
                 linkWidth,
-                index,
             } = props;
             const isSavingsLink = props.target === nodes.length - 1;
             const linkColor = isSavingsLink ? "#10b981" : "#ef4444";
@@ -104,9 +102,9 @@ export const SankeyChart = React.memo(
                     strokeOpacity={0.3}
                 />
             );
-        };
+        }, [nodes.length]);
 
-        const CustomTooltip = ({ active, payload }: any) => {
+        const CustomTooltip = useCallback(({ active, payload }: any) => {
             if (active && payload && payload.length) {
                 const data = payload[0].payload;
                 return (
@@ -134,10 +132,15 @@ export const SankeyChart = React.memo(
                 );
             }
             return null;
-        };
+        }, [nodes]);
+
+        const tooltipContent = useMemo(
+            () => <CustomTooltip />,
+            [CustomTooltip]
+        );
 
         return (
-            <div className="w-full" style={{ height }}>
+            <div className="w-full" style={{ height, minHeight: height }}>
                 <ResponsiveContainer width="100%" height="100%">
                     <Sankey
                         data={sankeyData}
@@ -146,7 +149,7 @@ export const SankeyChart = React.memo(
                         nodePadding={50}
                         margin={{ top: 20, right: 150, bottom: 20, left: 150 }}
                     >
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={tooltipContent} />
                     </Sankey>
                 </ResponsiveContainer>
             </div>

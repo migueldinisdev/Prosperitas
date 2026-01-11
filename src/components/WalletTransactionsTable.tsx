@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { WalletTx, AssetsState, Money } from "../core/schema-types";
 import { formatCurrency } from "../utils/formatters";
@@ -26,7 +26,10 @@ export const WalletTransactionsTable = React.memo(
         const dispatch = useAppDispatch();
         const [confirmTx, setConfirmTx] = useState<WalletTx | null>(null);
 
-        const totalPages = Math.ceil(transactions.length / transactionsPerPage);
+        const totalPages = useMemo(
+            () => Math.ceil(transactions.length / transactionsPerPage),
+            [transactions.length, transactionsPerPage]
+        );
 
         const handlePageChange = (page: number) => {
             setCurrentPage(page);
@@ -39,21 +42,11 @@ export const WalletTransactionsTable = React.memo(
             setCurrentPage(1); // Reset to first page when changing items per page
         };
 
-        const paginatedTransactions = transactions
-            .slice()
-            .sort((a, b) => {
-                const dateDiff =
-                    new Date(b.date).getTime() - new Date(a.date).getTime();
-                if (dateDiff !== 0) return dateDiff;
-                return (
-                    new Date(b.createdAt).getTime() -
-                    new Date(a.createdAt).getTime()
-                );
-            })
-            .slice(
-                (currentPage - 1) * transactionsPerPage,
-                currentPage * transactionsPerPage
-            );
+        const paginatedTransactions = useMemo(() => {
+            const start = (currentPage - 1) * transactionsPerPage;
+            const end = start + transactionsPerPage;
+            return transactions.slice(start, end);
+        }, [transactions, currentPage, transactionsPerPage]);
 
         if (transactions.length === 0) {
             return (

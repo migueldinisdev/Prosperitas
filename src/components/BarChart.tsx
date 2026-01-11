@@ -28,8 +28,8 @@ export const BarChart = React.memo(
         console.log("BarChart re-rendered");
 
         return (
-            <div style={{ width: "100%", height }}>
-                <ResponsiveContainer>
+            <div style={{ width: "100%", height, minHeight: height }}>
+                <ResponsiveContainer width="100%" height="100%">
                     <ReBarChart
                         data={data}
                         layout="vertical"
