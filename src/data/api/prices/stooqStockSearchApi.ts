@@ -4,7 +4,6 @@ import { fetchWithTimeout } from "./request";
 export interface StooqStockSearchResult {
     symbol: string;
     name: string;
-    exchange: string;
     price: number | null;
 }
 
@@ -43,12 +42,11 @@ export const parseStooqSearchResponse = (payload: string) => {
     return body
         .split("|")
         .map((entry) => entry.split("~"))
-        .map(([symbolRaw, nameRaw, , exchangeRaw, priceRaw]) => {
+        .map(([symbolRaw, nameRaw, , priceRaw]) => {
             const priceValue = priceRaw ? Number(priceRaw) : Number.NaN;
             return {
                 symbol: sanitizeField(symbolRaw || ""),
                 name: sanitizeField(nameRaw || ""),
-                exchange: sanitizeField(exchangeRaw || ""),
                 price: Number.isNaN(priceValue) ? null : priceValue,
             };
         })
