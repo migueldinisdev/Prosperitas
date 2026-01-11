@@ -2,6 +2,7 @@ import React from 'react';
 import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../ui/Card';
 import { PieChart } from '../../components/PieChart';
+import { NetWorthSummaryCard } from '../../components/NetWorthSummaryCard';
 
 const summaryStats = [
   {
@@ -79,6 +80,15 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
       />
       
       <main className="p-6 max-w-7xl mx-auto space-y-6">
+        <section className="grid grid-cols-1 gap-4">
+          <NetWorthSummaryCard
+            totalNetWorth="€139,250.00"
+            changeValue="+8.4%"
+            changeLabel="vs cost"
+            unrealizedPnl="+€8,400"
+            realizedPnl="+€2,450"
+          />
+        </section>
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {summaryStats.map((stat) => (
             <Card key={stat.label}>
