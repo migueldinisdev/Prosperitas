@@ -42,7 +42,7 @@ export const parseStooqSearchResponse = (payload: string) => {
     return body
         .split("|")
         .map((entry) => entry.split("~"))
-        .map(([symbolRaw, nameRaw, , , priceRaw]) => {
+        .map(([symbolRaw, nameRaw, , priceRaw]) => {
             const priceValue = priceRaw ? Number(priceRaw) : Number.NaN;
             return {
                 symbol: sanitizeField(symbolRaw || ""),

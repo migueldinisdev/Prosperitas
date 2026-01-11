@@ -888,58 +888,6 @@ export const WalletDetail: React.FC<Props> = () => {
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-3">
-                            <div>
-                                <label className="block text-xs font-medium text-app-muted mb-1">
-                                    Ticker
-                                </label>
-                                <input
-                                    type="text"
-                                    value={tradeTicker}
-                                    onChange={(event) =>
-                                        setTradeTicker(event.target.value)
-                                    }
-                                    disabled={Boolean(tradeAssetId)}
-                                    className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
-                                />
-                            </div>
-                            {tradeAssetType === "stock" && (
-                                <div className="space-y-1">
-                                    <label className="flex items-center gap-1 text-xs font-medium text-app-muted">
-                                        Stooq ticker
-                                        <Info
-                                            size={12}
-                                            className="text-app-muted"
-                                            title="For real-time market pricing, put here the stooq ticker (stooq.com)"
-                                        />
-                                    </label>
-                                    <StooqAPIStockSelect
-                                        searchValue={tradeStooqSearch}
-                                        onSearchChange={setTradeStooqSearch}
-                                        selectedValue={tradeStooqTicker}
-                                        onSelect={setTradeStooqTicker}
-                                        placeholder="Search stooq ticker"
-                                        disabled={Boolean(tradeAssetId)}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-app-muted mb-1">
-                                Asset Name
-                            </label>
-                            <input
-                                type="text"
-                                value={tradeName}
-                                onChange={(event) =>
-                                    setTradeName(event.target.value)
-                                }
-                                disabled={Boolean(tradeAssetId)}
-                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
-                            />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-medium text-app-muted mb-1">
                                 Asset Type
@@ -983,6 +931,56 @@ export const WalletDetail: React.FC<Props> = () => {
                                 ))}
                             </select>
                         </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Ticker
+                            </label>
+                            <input
+                                type="text"
+                                value={tradeTicker}
+                                onChange={(event) =>
+                                    setTradeTicker(event.target.value)
+                                }
+                                disabled={Boolean(tradeAssetId)}
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Asset Name
+                            </label>
+                            <input
+                                type="text"
+                                value={tradeName}
+                                onChange={(event) =>
+                                    setTradeName(event.target.value)
+                                }
+                                disabled={Boolean(tradeAssetId)}
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
+                            />
+                        </div>
+                        {tradeAssetType === "stock" && (
+                            <div className="col-span-2 space-y-1">
+                                <label className="flex items-center gap-1 text-xs font-medium text-app-muted">
+                                    Stooq ticker
+                                    <Info
+                                        size={12}
+                                        className="text-app-muted"
+                                        title="For real-time market pricing, put here the stooq ticker (stooq.com)"
+                                    />
+                                </label>
+                                <StooqAPIStockSelect
+                                    searchValue={tradeStooqSearch}
+                                    onSearchChange={setTradeStooqSearch}
+                                    selectedValue={tradeStooqTicker}
+                                    onSelect={setTradeStooqTicker}
+                                    placeholder="Search stooq ticker"
+                                    disabled={Boolean(tradeAssetId)}
+                                />
+                            </div>
+                        )}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
