@@ -45,6 +45,25 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
         };
     }, [monthData]);
 
+    const savingsRate = useMemo(() => {
+        if (cashFlow.income <= 0) {
+            return 0;
+        }
+
+        return (cashFlow.netSavings / cashFlow.income) * 100;
+    }, [cashFlow.income, cashFlow.netSavings]);
+
+    const spendingRate = useMemo(() => {
+        if (cashFlow.income <= 0) {
+            return 0;
+        }
+
+        return (cashFlow.expenses / cashFlow.income) * 100;
+    }, [cashFlow.expenses, cashFlow.income]);
+
+    const formatRate = (value: number) =>
+        `${Math.round(Math.min(Math.max(value, 0), 100))}%`;
+
     return (
         <div className="pb-20">
             <PageHeader
@@ -79,21 +98,59 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                     onChange={setMonthKey}
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card title="Savings Rate">
                         <div className="flex items-end gap-2 mb-2">
                             <span className="text-4xl font-bold text-app-foreground">
-                                42%
+                                {formatRate(savingsRate)}
                             </span>
                             <span className="text-app-muted mb-1">
                                 this month
                             </span>
                         </div>
                         <div className="w-full bg-app-surface h-2 rounded-full overflow-hidden">
-                            <div className="bg-app-success h-full w-[42%]"></div>
+                            <div
+                                className={`h-full ${savingsRate >= 0 ? "bg-app-success" : "bg-app-danger"}`}
+                                style={{
+                                    width: `${Math.min(Math.max(savingsRate, 0), 100)}%`,
+                                }}
+                            ></div>
                         </div>
                         <p className="text-xs text-app-muted mt-2">
-                            +$450 vs monthly average
+                            {formatCurrency(
+                                cashFlow.netSavings,
+                                balanceCurrency
+                            )}{" "}
+                            saved
+                        </p>
+                    </Card>
+
+                    <Card title="Spending Rate">
+                        <div className="flex items-end gap-2 mb-2">
+                            <span className="text-4xl font-bold text-app-foreground">
+                                {formatRate(spendingRate)}
+                            </span>
+                            <span className="text-app-muted mb-1">
+                                of income
+                            </span>
+                        </div>
+                        <div className="w-full bg-app-surface h-2 rounded-full overflow-hidden">
+                            <div
+                                className="bg-app-warning h-full"
+                                style={{
+                                    width: `${Math.min(
+                                        Math.max(spendingRate, 0),
+                                        100
+                                    )}%`,
+                                }}
+                            ></div>
+                        </div>
+                        <p className="text-xs text-app-muted mt-2">
+                            {formatCurrency(
+                                cashFlow.expenses,
+                                balanceCurrency
+                            )}{" "}
+                            spent
                         </p>
                     </Card>
 
