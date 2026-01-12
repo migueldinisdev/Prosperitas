@@ -81,11 +81,11 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
     );
     const pieTransactions = useMemo(() => {
         if (pieAssetIds.size === 0) return [];
-        return Object.values(walletTxState).filter((tx) => {
+        return Object.values(walletTx).filter((tx) => {
             if (!("assetId" in tx) || !tx.assetId) return false;
             return pieAssetIds.has(tx.assetId);
         });
-    }, [pieAssetIds, walletTxState]);
+    }, [pieAssetIds, walletTx]);
     const historyCurrencies = useMemo(
         () => getWalletTxCurrencies(pieTransactions),
         [pieTransactions]
