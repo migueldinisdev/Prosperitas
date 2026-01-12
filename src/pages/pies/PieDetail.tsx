@@ -9,15 +9,21 @@ import {
 } from "lucide-react";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
+import { AreaChart } from "../../components/AreaChart";
 import { PieChart } from "../../components/PieChart";
 import { HoldingsTable, HoldingRow } from "../../components/HoldingsTable";
 import { SyncStatusPills } from "../../components/SyncStatusPills";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { usePieData } from "../../hooks/usePieData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
+import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { useAppSelector } from "../../store/hooks";
 import { selectSettings, selectWalletTxState } from "../../store/selectors";
 import { formatCurrency } from "../../utils/formatters";
+import {
+    buildNetWorthHistory,
+    getWalletTxCurrencies,
+} from "../../utils/netWorthHistory";
 import {
     getAllocationPercent,
     calculateRealizedPnl,
@@ -27,7 +33,6 @@ import {
     getPositionInvestedValue,
     getTotalValue,
 } from "../../core/finance";
-import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 
 interface Props {
     onMenuClick: () => void;
@@ -68,6 +73,48 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
     const forexRates = useForexLivePrices(
         transactionCurrencies,
         settings.balanceCurrency
+    );
+
+    const pieAssetIds = useMemo(
+        () => new Set(pie?.assetIds ?? []),
+        [pie?.assetIds]
+    );
+    const pieTransactions = useMemo(() => {
+        if (pieAssetIds.size === 0) return [];
+        return Object.values(walletTxState).filter((tx) => {
+            if (!("assetId" in tx) || !tx.assetId) return false;
+            return pieAssetIds.has(tx.assetId);
+        });
+    }, [pieAssetIds, walletTxState]);
+    const historyCurrencies = useMemo(
+        () => getWalletTxCurrencies(pieTransactions),
+        [pieTransactions]
+    );
+    const historyForexRates = useForexLivePrices(
+        historyCurrencies,
+        settings.balanceCurrency
+    );
+    const netWorthHistory = useMemo(
+        () =>
+            buildNetWorthHistory({
+                transactions: pieTransactions,
+                forexRates: historyForexRates,
+                baseCurrency: settings.balanceCurrency,
+                locale: settings.locale,
+                assetFilter: pieAssetIds,
+                includeCash: false,
+                includeDeposits: false,
+                includeWithdrawals: false,
+                includeDividends: false,
+                includeForex: false,
+            }),
+        [
+            historyForexRates,
+            pieAssetIds,
+            pieTransactions,
+            settings.balanceCurrency,
+            settings.locale,
+        ]
     );
 
     const { holdings, totals } = useMemo(() => {
@@ -236,8 +283,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     <ArrowDownLeft size={18} />
                                 )}
                                 <span className="text-lg font-bold">
-                                    Unrealized{" "}
-                                    {unrealizedIsPositive ? "+" : ""}
+                                    Unrealized {unrealizedIsPositive ? "+" : ""}
                                     {formatCurrency(
                                         totals.pnl,
                                         settings.balanceCurrency
@@ -257,8 +303,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     <ArrowDownLeft size={18} />
                                 )}
                                 <span className="text-lg font-bold">
-                                    Realized{" "}
-                                    {realizedIsPositive ? "+" : ""}
+                                    Realized {realizedIsPositive ? "+" : ""}
                                     {formatCurrency(
                                         realizedPnl,
                                         settings.balanceCurrency
@@ -301,6 +346,19 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                 </Card>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <Card title="Performance History" className="lg:col-span-2">
+                        {netWorthHistory.length > 0 ? (
+                            <AreaChart
+                                data={netWorthHistory}
+                                dataKey="value"
+                                height={260}
+                            />
+                        ) : (
+                            <p className="text-sm text-app-muted">
+                                Add transactions to see pie performance.
+                            </p>
+                        )}
+                    </Card>
                     <Card title="Allocation" className="lg:col-span-1">
                         {allocation.length > 0 ? (
                             <PieChart data={allocation} height={250} />

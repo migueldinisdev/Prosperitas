@@ -15,6 +15,10 @@ import { Asset } from "../../core/schema-types";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import {
+    buildNetWorthHistory,
+    getWalletTxCurrencies,
+} from "../../utils/netWorthHistory";
+import {
     getConvertedValue,
     getNetWorth,
     calculateRealizedPnl,
@@ -26,19 +30,11 @@ import {
 } from "../../core/finance";
 import { formatCurrency } from "../../utils/formatters";
 
-const mockChartData = [
-    { name: "Jan", value: 105000 },
-    { name: "Feb", value: 108000 },
-    { name: "Mar", value: 106000 },
-    { name: "Apr", value: 112000 },
-    { name: "May", value: 118000 },
-    { name: "Jun", value: 124500 },
-];
-
 export const HomeSummarySection: React.FC = () => {
     const wallets = useAppSelector(selectWallets);
     const walletPositions = useAppSelector(selectWalletPositionsState);
     const assets = useAppSelector(selectAssets);
+    const walletTxState = useAppSelector(selectWalletTxState);
     const settings = useAppSelector(selectSettings);
     const walletTx = useAppSelector(selectWalletTxState);
 
@@ -112,6 +108,34 @@ export const HomeSummarySection: React.FC = () => {
     const forexRates = useForexLivePrices(
         forexCurrencies,
         settings.visualCurrency
+    );
+
+    const walletTransactions = useMemo(
+        () => Object.values(walletTxState),
+        [walletTxState]
+    );
+    const historyCurrencies = useMemo(
+        () => getWalletTxCurrencies(walletTransactions),
+        [walletTransactions]
+    );
+    const historyForexRates = useForexLivePrices(
+        historyCurrencies,
+        settings.visualCurrency
+    );
+    const netWorthHistory = useMemo(
+        () =>
+            buildNetWorthHistory({
+                transactions: walletTransactions,
+                forexRates: historyForexRates,
+                baseCurrency: settings.visualCurrency,
+                locale: settings.locale,
+            }),
+        [
+            historyForexRates,
+            settings.locale,
+            settings.visualCurrency,
+            walletTransactions,
+        ]
     );
 
     const toVisualValue = (amount: number, currency: string) => {
@@ -280,12 +304,18 @@ export const HomeSummarySection: React.FC = () => {
             </div>
 
             <Card title="Net Worth Growth">
-                <AreaChart
-                    data={mockChartData}
-                    dataKey="value"
-                    height={200}
-                    color="#10b981"
-                />
+                {netWorthHistory.length > 0 ? (
+                    <AreaChart
+                        data={netWorthHistory}
+                        dataKey="value"
+                        height={200}
+                        color="#10b981"
+                    />
+                ) : (
+                    <p className="text-sm text-app-muted">
+                        Add transactions to see net worth history.
+                    </p>
+                )}
             </Card>
         </div>
     );
