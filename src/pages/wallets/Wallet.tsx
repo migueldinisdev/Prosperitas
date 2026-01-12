@@ -37,6 +37,7 @@ import {
 import {
     getAllocationPercent,
     getConvertedValue,
+    calculateRealizedPnl,
     getPnL,
     getPnLPercent,
     getPositionCurrentValue,
@@ -361,10 +362,36 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         return [];
     }, [walletCash]);
 
-    const cashCurrencies = useMemo(
-        () => cashBuckets.map((bucket) => bucket.currency),
-        [cashBuckets]
-    );
+    const transactionCurrencies = useMemo(() => {
+        const currencies = new Set<Currency>();
+        walletTransactions.forEach((tx) => {
+            switch (tx.type) {
+                case "deposit":
+                case "withdraw":
+                case "dividend":
+                    currencies.add(tx.amount.currency);
+                    break;
+                case "forex":
+                    currencies.add(tx.from.currency);
+                    currencies.add(tx.to.currency);
+                    if (tx.fees) currencies.add(tx.fees.currency);
+                    break;
+                case "buy":
+                case "sell":
+                    currencies.add(tx.price.currency);
+                    if (tx.fees) currencies.add(tx.fees.currency);
+                    break;
+            }
+        });
+        return Array.from(currencies);
+    }, [walletTransactions]);
+
+    const cashCurrencies = useMemo(() => {
+        const currencies = new Set<Currency>();
+        cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
+        transactionCurrencies.forEach((currency) => currencies.add(currency));
+        return Array.from(currencies);
+    }, [cashBuckets, transactionCurrencies]);
     const forexRates = useForexLivePrices(
         cashCurrencies,
         settings.visualCurrency
@@ -407,6 +434,17 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     }, [cashBuckets, forexRates, settings.visualCurrency]);
 
     const walletValue = totals.currentValue + cashConvertedTotal;
+    const realizedPnl = useMemo(
+        () =>
+            calculateRealizedPnl(
+                walletTransactions,
+                settings.visualCurrency,
+                forexRates
+            ),
+        [forexRates, settings.visualCurrency, walletTransactions]
+    );
+    const unrealizedIsPositive = totals.pnl >= 0;
+    const realizedIsPositive = realizedPnl >= 0;
 
     const pieData = useMemo(
         () =>
@@ -812,29 +850,51 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     </Card>
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Total PnL
+                            PnL
                         </p>
-                        <div
-                            className={`flex items-center gap-1 mt-1 ${
-                                totals.pnl > 0
-                                    ? "text-app-success"
-                                    : totals.pnl < 0
-                                    ? "text-app-danger"
-                                    : "text-app-muted"
-                            }`}
-                        >
-                            {totals.pnl >= 0 ? (
-                                <ArrowUpRight size={18} />
-                            ) : (
-                                <ArrowDownLeft size={18} />
-                            )}
-                            <span className="text-2xl font-bold">
-                                {totals.pnl > 0 ? "+" : ""}
-                                {formatCurrency(
-                                    totals.pnl,
-                                    settings.visualCurrency
+                        <div className="mt-2 space-y-2">
+                            <div
+                                className={`flex items-center gap-2 ${
+                                    unrealizedIsPositive
+                                        ? "text-app-success"
+                                        : "text-app-danger"
+                                }`}
+                            >
+                                {unrealizedIsPositive ? (
+                                    <ArrowUpRight size={18} />
+                                ) : (
+                                    <ArrowDownLeft size={18} />
                                 )}
-                            </span>
+                                <span className="text-lg font-bold">
+                                    Unrealized{" "}
+                                    {unrealizedIsPositive ? "+" : ""}
+                                    {formatCurrency(
+                                        totals.pnl,
+                                        settings.visualCurrency
+                                    )}
+                                </span>
+                            </div>
+                            <div
+                                className={`flex items-center gap-2 ${
+                                    realizedIsPositive
+                                        ? "text-app-success"
+                                        : "text-app-danger"
+                                }`}
+                            >
+                                {realizedIsPositive ? (
+                                    <ArrowUpRight size={18} />
+                                ) : (
+                                    <ArrowDownLeft size={18} />
+                                )}
+                                <span className="text-lg font-bold">
+                                    Realized{" "}
+                                    {realizedIsPositive ? "+" : ""}
+                                    {formatCurrency(
+                                        realizedPnl,
+                                        settings.visualCurrency
+                                    )}
+                                </span>
+                            </div>
                         </div>
                     </Card>
                     <Card className="p-4">
