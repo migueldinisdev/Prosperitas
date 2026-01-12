@@ -7,6 +7,7 @@ import {
     selectAssets,
     selectSettings,
     selectWalletPositionsState,
+    selectWalletTxState,
     selectWallets,
 } from "../../store/selectors";
 import { useAppSelector } from "../../store/hooks";
@@ -16,6 +17,7 @@ import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import {
     getConvertedValue,
     getNetWorth,
+    calculateRealizedPnl,
     getPnL,
     getPnLPercent,
     getPositionCurrentValue,
@@ -38,6 +40,7 @@ export const HomeSummarySection: React.FC = () => {
     const walletPositions = useAppSelector(selectWalletPositionsState);
     const assets = useAppSelector(selectAssets);
     const settings = useAppSelector(selectSettings);
+    const walletTx = useAppSelector(selectWalletTxState);
 
     const positions = useMemo(
         () =>
@@ -84,8 +87,27 @@ export const HomeSummarySection: React.FC = () => {
             currencies.add(asset.tradingCurrency)
         );
         cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
+        Object.values(walletTx).forEach((tx) => {
+            switch (tx.type) {
+                case "deposit":
+                case "withdraw":
+                case "dividend":
+                    currencies.add(tx.amount.currency);
+                    break;
+                case "forex":
+                    currencies.add(tx.from.currency);
+                    currencies.add(tx.to.currency);
+                    if (tx.fees) currencies.add(tx.fees.currency);
+                    break;
+                case "buy":
+                case "sell":
+                    currencies.add(tx.price.currency);
+                    if (tx.fees) currencies.add(tx.fees.currency);
+                    break;
+            }
+        });
         return Array.from(currencies);
-    }, [cashBuckets, positionAssets]);
+    }, [cashBuckets, positionAssets, walletTx]);
 
     const forexRates = useForexLivePrices(
         forexCurrencies,
@@ -135,6 +157,11 @@ export const HomeSummarySection: React.FC = () => {
         );
         const pnl = getPnL(totalCurrent, totalInvested);
         const pnlPercent = getPnLPercent(totalCurrent, totalInvested);
+        const realizedPnl = calculateRealizedPnl(
+            Object.values(walletTx),
+            settings.visualCurrency,
+            forexRates
+        );
         const cashTotal = getTotalValue(
             cashBuckets.map((bucket) =>
                 toVisualValue(bucket.value, bucket.currency)
@@ -145,6 +172,7 @@ export const HomeSummarySection: React.FC = () => {
             netWorth: getNetWorth(totalCurrent, cashTotal),
             pnl,
             pnlPercent,
+            realizedPnl,
         };
     }, [
         assets,
@@ -153,6 +181,7 @@ export const HomeSummarySection: React.FC = () => {
         positions,
         settings.visualCurrency,
         forexRates,
+        walletTx,
     ]);
 
     const pnlIsPositive = totals.pnl >= 0;
@@ -229,11 +258,21 @@ export const HomeSummarySection: React.FC = () => {
                                     <ArrowDownRight size={16} />
                                 </div>
                                 <p className="text-app-muted text-xs font-medium">
-                                    Realized PnL (YTD)
+                                    Realized PnL (All-time)
                                 </p>
                             </div>
-                            <p className="text-xl font-bold text-app-muted">
-                                {formatCurrency(0, settings.visualCurrency)}
+                            <p
+                                className={`text-xl font-bold ${
+                                    totals.realizedPnl >= 0
+                                        ? "text-app-success"
+                                        : "text-app-danger"
+                                }`}
+                            >
+                                {totals.realizedPnl >= 0 ? "+" : ""}
+                                {formatCurrency(
+                                    totals.realizedPnl,
+                                    settings.visualCurrency
+                                )}
                             </p>
                         </div>
                     </div>

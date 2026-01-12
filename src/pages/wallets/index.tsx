@@ -9,6 +9,7 @@ import {
     selectAssets,
     selectSettings,
     selectWalletPositionsState,
+    selectWalletTxState,
     selectWallets,
 } from "../../store/selectors";
 import { addWallet } from "../../store/slices/walletsSlice";
@@ -17,6 +18,7 @@ import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import {
     getConvertedValue,
+    calculateRealizedPnl,
     getPnL,
     getPnLPercent,
     getPositionCurrentValue,
@@ -43,6 +45,7 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
     const wallets = useAppSelector(selectWallets);
     const settings = useAppSelector(selectSettings);
     const walletPositions = useAppSelector(selectWalletPositionsState);
+    const walletTx = useAppSelector(selectWalletTxState);
     const assets = useAppSelector(selectAssets);
     const dispatch = useAppDispatch();
 
@@ -77,6 +80,30 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
 
     const livePricesByAsset = useAssetLivePrices(walletAssets);
 
+    const transactionCurrencies = useMemo(() => {
+        const currencies = new Set<string>();
+        Object.values(walletTx).forEach((tx) => {
+            switch (tx.type) {
+                case "deposit":
+                case "withdraw":
+                case "dividend":
+                    currencies.add(tx.amount.currency);
+                    break;
+                case "forex":
+                    currencies.add(tx.from.currency);
+                    currencies.add(tx.to.currency);
+                    if (tx.fees) currencies.add(tx.fees.currency);
+                    break;
+                case "buy":
+                case "sell":
+                    currencies.add(tx.price.currency);
+                    if (tx.fees) currencies.add(tx.fees.currency);
+                    break;
+            }
+        });
+        return Array.from(currencies);
+    }, [walletTx]);
+
     const cashCurrencies = useMemo(() => {
         const currencies = new Set<string>();
         walletList.forEach((wallet) => {
@@ -84,8 +111,9 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
                 currencies.add(bucket.currency)
             );
         });
+        transactionCurrencies.forEach((currency) => currencies.add(currency));
         return Array.from(currencies);
-    }, [walletList]);
+    }, [transactionCurrencies, walletList]);
 
     const forexRates = useForexLivePrices(
         cashCurrencies,
@@ -133,11 +161,20 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
                 })
             );
 
+            const realizedPnl = calculateRealizedPnl(
+                Object.values(walletTx).filter(
+                    (tx) => tx.walletId === wallet.id
+                ),
+                settings.visualCurrency,
+                forexRates
+            );
+
             return {
                 wallet,
                 value: current + cashTotal,
-                pnl,
-                pnlPercent,
+                unrealizedPnl: pnl,
+                unrealizedPnlPercent: pnlPercent,
+                realizedPnl,
             };
         });
     }, [
@@ -147,6 +184,7 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
         settings.visualCurrency,
         walletList,
         walletPositions,
+        walletTx,
     ]);
 
     const handleCreateWallet = () => {
@@ -176,14 +214,22 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
 
             <main className="p-6 max-w-7xl mx-auto">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {walletSummaries.map(({ wallet, value, pnl, pnlPercent }) => (
+                    {walletSummaries.map(
+                        ({
+                            wallet,
+                            value,
+                            unrealizedPnl,
+                            unrealizedPnlPercent,
+                            realizedPnl,
+                        }) => (
                         <WalletCard
                             key={wallet.id}
                             walletId={wallet.id}
                             name={wallet.name}
                             value={value}
-                            pnl={pnl}
-                            pnlPercent={pnlPercent}
+                            unrealizedPnl={unrealizedPnl}
+                            unrealizedPnlPercent={unrealizedPnlPercent}
+                            realizedPnl={realizedPnl}
                             currency={settings.visualCurrency}
                             type={wallet.description}
                         />
