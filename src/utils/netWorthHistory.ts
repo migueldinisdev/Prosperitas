@@ -1,6 +1,6 @@
 import { WalletTx } from "../core/schema-types";
 
-interface NetWorthHistoryPoint {
+export interface NetWorthHistoryPoint {
     name: string;
     value: number;
     date: string;
@@ -17,9 +17,12 @@ interface NetWorthHistoryOptions {
     includeWithdrawals?: boolean;
     includeDividends?: boolean;
     includeForex?: boolean;
+    assetMetadata?: Record<string, { tradingCurrency?: string }>;
+    getAssetPrice?: (assetId: string, date: string) => number | null;
+    getForexRate?: (currency: string, date: string) => number | null;
 }
 
-const formatHistoryDate = (date: string, locale?: string) => {
+export const formatHistoryDate = (date: string, locale?: string) => {
     const parsed = new Date(date);
     if (Number.isNaN(parsed.getTime())) {
         return date;
@@ -44,16 +47,20 @@ const toBaseValue = (
     amount: number,
     currency: string,
     baseCurrency: string,
-    forexRates: Record<string, number>
+    forexRates: Record<string, number>,
+    date: string,
+    getForexRate?: (currency: string, date: string) => number | null
 ) => {
     if (currency === baseCurrency) {
         return amount;
     }
-    const rate = forexRates[currency];
-    if (!rate) {
+    const rate = getForexRate ? getForexRate(currency, date) : null;
+    const fallbackRate = forexRates[currency];
+    const resolvedRate = rate ?? fallbackRate;
+    if (!resolvedRate) {
         return amount;
     }
-    return amount * rate;
+    return amount * resolvedRate;
 };
 
 export const getWalletTxCurrencies = (transactions: WalletTx[]) => {
@@ -91,6 +98,9 @@ export const buildNetWorthHistory = ({
     includeWithdrawals = true,
     includeDividends = true,
     includeForex = true,
+    assetMetadata,
+    getAssetPrice,
+    getForexRate,
 }: NetWorthHistoryOptions): NetWorthHistoryPoint[] => {
     if (!transactions.length) {
         return [];
@@ -133,15 +143,18 @@ export const buildNetWorthHistory = ({
                 break;
             case "buy": {
                 if (assetFilter && !assetFilter.has(tx.assetId)) break;
+                const tradingCurrency =
+                    assetMetadata?.[tx.assetId]?.tradingCurrency ??
+                    tx.price.currency;
                 const holding = holdings.get(tx.assetId) ?? {
                     quantity: 0,
                     price: tx.price.value,
-                    currency: tx.price.currency,
+                    currency: tradingCurrency,
                 };
                 holdings.set(tx.assetId, {
                     quantity: holding.quantity + tx.quantity,
                     price: tx.price.value,
-                    currency: tx.price.currency,
+                    currency: tradingCurrency,
                 });
                 if (includeCash) {
                     addCash(
@@ -156,10 +169,13 @@ export const buildNetWorthHistory = ({
             }
             case "sell": {
                 if (assetFilter && !assetFilter.has(tx.assetId)) break;
+                const tradingCurrency =
+                    assetMetadata?.[tx.assetId]?.tradingCurrency ??
+                    tx.price.currency;
                 const holding = holdings.get(tx.assetId) ?? {
                     quantity: 0,
                     price: tx.price.value,
-                    currency: tx.price.currency,
+                    currency: tradingCurrency,
                 };
                 const nextQuantity = holding.quantity - tx.quantity;
                 if (nextQuantity <= 0) {
@@ -168,7 +184,7 @@ export const buildNetWorthHistory = ({
                     holdings.set(tx.assetId, {
                         quantity: nextQuantity,
                         price: tx.price.value,
-                        currency: tx.price.currency,
+                        currency: tradingCurrency,
                     });
                 }
                 if (includeCash) {
@@ -192,15 +208,22 @@ export const buildNetWorthHistory = ({
                 break;
         }
 
-        const holdingsValue = Array.from(holdings.values()).reduce(
-            (total, holding) =>
-                total +
-                toBaseValue(
-                    holding.quantity * holding.price,
-                    holding.currency,
-                    baseCurrency,
-                    forexRates
-                ),
+        const holdingsValue = Array.from(holdings.entries()).reduce(
+            (total, [assetId, holding]) => {
+                const marketPrice =
+                    getAssetPrice?.(assetId, tx.date) ?? holding.price;
+                return (
+                    total +
+                    toBaseValue(
+                        holding.quantity * marketPrice,
+                        holding.currency,
+                        baseCurrency,
+                        forexRates,
+                        tx.date,
+                        getForexRate
+                    )
+                );
+            },
             0
         );
 
@@ -208,7 +231,14 @@ export const buildNetWorthHistory = ({
             ? Array.from(cashByCurrency.entries()).reduce(
                   (total, [currency, value]) =>
                       total +
-                      toBaseValue(value, currency, baseCurrency, forexRates),
+                      toBaseValue(
+                          value,
+                          currency,
+                          baseCurrency,
+                          forexRates,
+                          tx.date,
+                          getForexRate
+                      ),
                   0
               )
             : 0;

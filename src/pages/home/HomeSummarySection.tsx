@@ -1,8 +1,7 @@
 import React, { useMemo } from "react";
 import { Card } from "../../ui/Card";
-import { ArrowUpRight, ArrowDownRight, DollarSign } from "lucide-react";
-import { AreaChart } from "../../components/AreaChart";
-import { NetWorthSummaryCard } from "../../components/NetWorthSummaryCard";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { NetWorthHistoryChart } from "../../components/NetWorthHistoryChart";
 import {
     selectAssets,
     selectSettings,
@@ -14,10 +13,7 @@ import { useAppSelector } from "../../store/hooks";
 import { Asset } from "../../core/schema-types";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
-import {
-    buildNetWorthHistory,
-    getWalletTxCurrencies,
-} from "../../utils/netWorthHistory";
+import { useNetWorthHistory } from "../../hooks/useNetWorthHistory";
 import {
     getConvertedValue,
     getNetWorth,
@@ -114,29 +110,12 @@ export const HomeSummarySection: React.FC = () => {
         () => Object.values(walletTxState),
         [walletTxState]
     );
-    const historyCurrencies = useMemo(
-        () => getWalletTxCurrencies(walletTransactions),
-        [walletTransactions]
-    );
-    const historyForexRates = useForexLivePrices(
-        historyCurrencies,
-        settings.visualCurrency
-    );
-    const netWorthHistory = useMemo(
-        () =>
-            buildNetWorthHistory({
-                transactions: walletTransactions,
-                forexRates: historyForexRates,
-                baseCurrency: settings.visualCurrency,
-                locale: settings.locale,
-            }),
-        [
-            historyForexRates,
-            settings.locale,
-            settings.visualCurrency,
-            walletTransactions,
-        ]
-    );
+    const { data: netWorthHistory } = useNetWorthHistory({
+        transactions: walletTransactions,
+        assets,
+        baseCurrency: settings.visualCurrency,
+        locale: settings.locale,
+    });
 
     const toVisualValue = (amount: number, currency: string) => {
         if (currency === settings.visualCurrency) {
@@ -305,11 +284,12 @@ export const HomeSummarySection: React.FC = () => {
 
             <Card title="Net Worth Growth">
                 {netWorthHistory.length > 0 ? (
-                    <AreaChart
+                    <NetWorthHistoryChart
                         data={netWorthHistory}
-                        dataKey="value"
                         height={200}
                         color="#10b981"
+                        currency={settings.visualCurrency}
+                        locale={settings.locale}
                     />
                 ) : (
                     <p className="text-sm text-app-muted">

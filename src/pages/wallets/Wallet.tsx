@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Card } from "../../ui/Card";
-import { AreaChart } from "../../components/AreaChart";
+import { NetWorthHistoryChart } from "../../components/NetWorthHistoryChart";
 import { Button } from "../../ui/Button";
 import { PieChart } from "../../components/PieChart";
 import {
@@ -45,10 +45,8 @@ import {
     getTotalValue,
 } from "../../core/finance";
 import { formatCurrency } from "../../utils/formatters";
-import {
-    buildNetWorthHistory,
-    getWalletTxCurrencies,
-} from "../../utils/netWorthHistory";
+import { NetWorthHistoryPoint } from "../../utils/netWorthHistory";
+import { useNetWorthHistory } from "../../hooks/useNetWorthHistory";
 
 const currencyOptions: Currency[] = ["EUR", "USD"];
 
@@ -65,14 +63,21 @@ interface WalletAllocationSectionProps {
 }
 
 interface WalletPerformanceSectionProps {
-    netWorthHistory: { name: string; value: number }[];
+    netWorthHistory: NetWorthHistoryPoint[];
+    currency: string;
+    locale?: string;
 }
 
 const WalletPerformanceSection = React.memo(
-    ({ netWorthHistory }: WalletPerformanceSectionProps) => (
+    ({ netWorthHistory, currency, locale }: WalletPerformanceSectionProps) => (
         <Card title="Performance History">
             {netWorthHistory.length > 0 ? (
-                <AreaChart data={netWorthHistory} dataKey="value" height={300} />
+                <NetWorthHistoryChart
+                    data={netWorthHistory}
+                    height={300}
+                    currency={currency}
+                    locale={locale}
+                />
             ) : (
                 <p className="text-sm text-app-muted">
                     Add transactions to see net worth history.
@@ -400,29 +405,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         settings.visualCurrency
     );
 
-    const historyCurrencies = useMemo(
-        () => getWalletTxCurrencies(walletTransactions),
-        [walletTransactions]
-    );
-    const historyForexRates = useForexLivePrices(
-        historyCurrencies,
-        settings.visualCurrency
-    );
-    const netWorthHistory = useMemo(
-        () =>
-            buildNetWorthHistory({
-                transactions: walletTransactions,
-                forexRates: historyForexRates,
-                baseCurrency: settings.visualCurrency,
-                locale: settings.locale,
-            }),
-        [
-            historyForexRates,
-            settings.locale,
-            settings.visualCurrency,
-            walletTransactions,
-        ]
-    );
+    const { data: netWorthHistory } = useNetWorthHistory({
+        transactions: walletTransactions,
+        assets,
+        baseCurrency: settings.visualCurrency,
+        locale: settings.locale,
+    });
     const cashConvertedTotal = useMemo(() => {
         return getTotalValue(
             cashBuckets.map((bucket) => {
@@ -925,7 +913,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     </Card>
                 </div>
 
-                <WalletPerformanceSection netWorthHistory={netWorthHistory} />
+                <WalletPerformanceSection
+                    netWorthHistory={netWorthHistory}
+                    currency={settings.visualCurrency}
+                    locale={settings.locale}
+                />
 
                 <div className="flex flex-wrap gap-4">
                     <Button

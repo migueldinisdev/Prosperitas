@@ -14,6 +14,11 @@ interface AreaChartProps {
     dataKey: string;
     color?: string;
     height?: number;
+    xDataKey?: string;
+    ticks?: Array<string | number>;
+    tickFormatter?: (value: string | number) => string;
+    labelFormatter?: (label: string | number) => string;
+    yTickFormatter?: (value: number) => string;
 }
 
 export const AreaChart = React.memo(
@@ -22,6 +27,11 @@ export const AreaChart = React.memo(
         dataKey,
         color = "rgb(var(--color-app-primary))",
         height = 300,
+        xDataKey = "name",
+        ticks,
+        tickFormatter,
+        labelFormatter,
+        yTickFormatter,
     }: AreaChartProps) => {
         return (
             <div style={{ width: "100%", height }}>
@@ -36,19 +46,24 @@ export const AreaChart = React.memo(
                             vertical={false}
                         />
                         <XAxis
-                            dataKey="name"
+                            dataKey={xDataKey}
                             stroke="rgb(var(--color-app-muted))"
                             fontSize={12}
                             tickLine={false}
                             axisLine={false}
                             dy={10}
+                            ticks={ticks}
+                            tickFormatter={tickFormatter}
                         />
                         <YAxis
                             stroke="rgb(var(--color-app-muted))"
                             fontSize={12}
                             tickLine={false}
                             axisLine={false}
-                            tickFormatter={(value) => `$${value}`}
+                            tickFormatter={
+                                yTickFormatter ??
+                                ((value) => `$${value}`)
+                            }
                         />
                         <Tooltip
                             contentStyle={{
@@ -64,6 +79,7 @@ export const AreaChart = React.memo(
                                 stroke: "rgb(var(--color-app-border))",
                                 strokeWidth: 1,
                             }}
+                            labelFormatter={labelFormatter}
                         />
                         <Area
                             type="monotone"
