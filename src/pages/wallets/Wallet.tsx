@@ -130,6 +130,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [cashCurrency, setCashCurrency] = useState<Currency>(
         settings.balanceCurrency
     );
+    const [cashDate, setCashDate] = useState(
+        new Date().toISOString().slice(0, 10)
+    );
 
     const [dividendAmount, setDividendAmount] = useState("");
     const [dividendCurrency, setDividendCurrency] = useState<Currency>(
@@ -564,12 +567,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 id: txId,
                 walletId: id,
                 type,
-                date: new Date().toISOString().slice(0, 10),
+                date: cashDate || new Date().toISOString().slice(0, 10),
                 amount: { value: Number(cashAmount), currency: cashCurrency },
                 createdAt: new Date().toISOString(),
             })
         );
         setCashAmount("");
+        setCashDate(new Date().toISOString().slice(0, 10));
     };
 
     const handleAddDividend = () => {
@@ -985,6 +989,17 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-app-muted mb-1">
+                            Date
+                        </label>
+                        <input
+                            type="date"
+                            value={cashDate}
+                            onChange={(event) => setCashDate(event.target.value)}
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
                             Currency
                         </label>
                         <select
@@ -1029,6 +1044,17 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             value={cashAmount}
                             onChange={handleNonNegativeChange(setCashAmount)}
                             min="0"
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Date
+                        </label>
+                        <input
+                            type="date"
+                            value={cashDate}
+                            onChange={(event) => setCashDate(event.target.value)}
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>
