@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ArrowUpRight, ArrowDownRight, Trash2 } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Pencil, Trash2 } from "lucide-react";
 import { Card } from "../../ui/Card";
 import { useBalanceData } from "../../hooks/useBalanceData";
 import { formatCurrency } from "../../utils/formatters";
@@ -7,6 +7,7 @@ import type { BalanceTransaction } from "../../core/schema-types";
 import { useAppDispatch } from "../../store/hooks";
 import { removeBalanceTransactionThunk } from "../../store/thunks/balanceThunks";
 import { ConfirmModal } from "../../ui/ConfirmModal";
+import { EditBalanceTransactionModal } from "../../components/EditBalanceTransactionModal";
 
 interface Props {
     monthKey: string;
@@ -29,6 +30,10 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
     const dispatch = useAppDispatch();
     const { categories, monthData } = useBalanceData(monthKey);
     const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
+    const [editingTx, setEditingTx] = useState<{
+        transaction: BalanceTransaction;
+        index: number;
+    } | null>(null);
     const transactions = useMemo(
         () =>
             (monthData?.txs ?? [])
@@ -79,63 +84,79 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                     ? t.amount.value
                                     : -t.amount.value;
                                 return (
-                                <div
-                                    key={`${t.createdAt}-${index}`}
-                                    className={`flex items-center justify-between pl-5 pr-7 transition-colors cursor-pointer ${
-                                        isLast
-                                            ? "py-4 pb-5"
-                                            : "py-4 border-b border-app-border"
-                                    } hover:bg-app-surface`}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div
-                                            className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                                t.type === "income"
-                                                    ? "bg-emerald-500/10 text-emerald-500"
-                                                    : "bg-app-danger/10 text-app-danger"
-                                            }`}
-                                        >
-                                            <Icon size={18} />
+                                    <div
+                                        key={`${t.createdAt}-${index}`}
+                                        className={`flex items-center justify-between pl-5 pr-7 transition-colors cursor-pointer ${
+                                            isLast
+                                                ? "py-4 pb-5"
+                                                : "py-4 border-b border-app-border"
+                                        } hover:bg-app-surface`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div
+                                                className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                                    t.type === "income"
+                                                        ? "bg-emerald-500/10 text-emerald-500"
+                                                        : "bg-app-danger/10 text-app-danger"
+                                                }`}
+                                            >
+                                                <Icon size={18} />
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-app-foreground">
+                                                    {t.description ||
+                                                        categoryLabel ||
+                                                        "Transaction"}
+                                                </p>
+                                                <p className="text-xs text-app-muted">
+                                                    {categoryLabel} •{" "}
+                                                    {formatTransactionDate(
+                                                        t.date
+                                                    )}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-medium text-app-foreground">
-                                                {t.description ||
-                                                    categoryLabel ||
-                                                    "Transaction"}
-                                            </p>
-                                            <p className="text-xs text-app-muted">
-                                                {categoryLabel} •{" "}
-                                                {formatTransactionDate(t.date)}
-                                            </p>
+                                        <div className="flex items-center gap-3">
+                                            <span
+                                                className={`font-semibold ${
+                                                    amountValue > 0
+                                                        ? "text-app-success"
+                                                        : "text-app-danger"
+                                                }`}
+                                            >
+                                                {isIncome ? "+" : "-"}
+                                                {formatCurrency(
+                                                    Math.abs(amountValue),
+                                                    t.amount.currency
+                                                )}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setEditingTx({
+                                                        transaction: t,
+                                                        index,
+                                                    });
+                                                }}
+                                                className="inline-flex items-center justify-center p-2 rounded-lg text-app-muted hover:text-app-foreground hover:bg-app-surface transition-colors"
+                                                aria-label="Edit transaction"
+                                            >
+                                                <Pencil size={16} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setConfirmIndex(index);
+                                                }}
+                                                className="inline-flex items-center justify-center p-2 rounded-lg text-app-danger hover:text-app-danger/90 hover:bg-app-danger/10 transition-colors"
+                                                aria-label="Delete transaction"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <span
-                                            className={`font-semibold ${
-                                                amountValue > 0
-                                                    ? "text-app-success"
-                                                    : "text-app-danger"
-                                            }`}
-                                        >
-                                            {isIncome ? "+" : "-"}
-                                            {formatCurrency(
-                                                Math.abs(amountValue),
-                                                t.amount.currency
-                                            )}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                setConfirmIndex(index);
-                                            }}
-                                            className="inline-flex items-center justify-center p-2 rounded-lg text-app-danger hover:text-app-danger/90 hover:bg-app-danger/10 transition-colors"
-                                            aria-label="Delete transaction"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </div>
                                 );
                             })
                         )}
@@ -158,6 +179,13 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                 title="Delete transaction"
                 description="This will remove the transaction from this month."
                 confirmLabel="Delete Transaction"
+            />
+            <EditBalanceTransactionModal
+                isOpen={Boolean(editingTx)}
+                onClose={() => setEditingTx(null)}
+                monthKey={monthKey}
+                transaction={editingTx?.transaction ?? null}
+                index={editingTx?.index ?? null}
             />
         </>
     );

@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { WalletTx, AssetsState, Money } from "../core/schema-types";
 import { formatCurrency } from "../utils/formatters";
 import { useAppDispatch } from "../store/hooks";
 import { removeWalletTransaction } from "../store/thunks/walletThunks";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { EditWalletTransactionModal } from "./EditWalletTransactionModal";
 
 interface WalletTransactionsTableProps {
     transactions: WalletTx[];
@@ -25,6 +26,7 @@ export const WalletTransactionsTable = React.memo(
         const [transactionsPerPage, setTransactionsPerPage] = useState(10);
         const dispatch = useAppDispatch();
         const [confirmTx, setConfirmTx] = useState<WalletTx | null>(null);
+        const [editingTx, setEditingTx] = useState<WalletTx | null>(null);
 
         const totalPages = useMemo(
             () => Math.ceil(transactions.length / transactionsPerPage),
@@ -120,6 +122,9 @@ export const WalletTransactionsTable = React.memo(
                                 FX
                             </th>
                             <th className="px-4 py-3 font-medium text-right">
+                                Edit
+                            </th>
+                            <th className="px-4 py-3 font-medium text-right">
                                 Delete
                             </th>
                         </tr>
@@ -207,6 +212,16 @@ export const WalletTransactionsTable = React.memo(
                                     <td className="px-4 py-3 text-right">
                                         <button
                                             type="button"
+                                            onClick={() => setEditingTx(tx)}
+                                            className="inline-flex items-center justify-center p-2 rounded-lg text-app-muted hover:text-app-foreground hover:bg-app-surface transition-colors"
+                                            aria-label="Edit transaction"
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        <button
+                                            type="button"
                                             onClick={() => setConfirmTx(tx)}
                                             className="inline-flex items-center justify-center p-2 rounded-lg text-app-danger hover:text-app-danger/90 hover:bg-app-danger/10 transition-colors"
                                             aria-label="Delete transaction"
@@ -230,6 +245,11 @@ export const WalletTransactionsTable = React.memo(
                     title="Delete transaction"
                     description="This will remove the transaction and update wallet balances."
                     confirmLabel="Delete Transaction"
+                />
+                <EditWalletTransactionModal
+                    isOpen={Boolean(editingTx)}
+                    onClose={() => setEditingTx(null)}
+                    transaction={editingTx}
                 />
             </div>
         );

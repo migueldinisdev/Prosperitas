@@ -131,6 +131,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
 
             return {
                 row: {
+                    assetId: asset.id,
                     asset: asset.name,
                     ticker: asset.ticker,
                     units: asset.amount,

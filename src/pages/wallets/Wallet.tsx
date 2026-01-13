@@ -18,6 +18,7 @@ import { WalletTransactionsTable } from "../../components/WalletTransactionsTabl
 import { StooqAPIStockSelect } from "../../components/StooqAPIStockSelect";
 import { SyncStatusPills } from "../../components/SyncStatusPills";
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { EditAssetModal } from "../../components/EditAssetModal";
 import { useWalletData } from "../../hooks/useWalletData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
@@ -62,6 +63,7 @@ const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
 interface WalletAllocationSectionProps {
     pieData: { name: string; value: number; color: string }[];
     holdings: HoldingRow[];
+    onEditAsset?: (assetId: string) => void;
 }
 
 interface WalletPerformanceSectionProps {
@@ -83,14 +85,14 @@ const WalletPerformanceSection = React.memo(
 );
 
 const WalletAllocationSection = React.memo(
-    ({ pieData, holdings }: WalletAllocationSectionProps) => (
+    ({ pieData, holdings, onEditAsset }: WalletAllocationSectionProps) => (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card title="Allocation" className="lg:col-span-1">
                 <PieChart data={pieData} height={250} />
             </Card>
 
             <Card title="Holdings" className="lg:col-span-2">
-                <HoldingsTable holdings={holdings} />
+                <HoldingsTable holdings={holdings} onEditAsset={onEditAsset} />
             </Card>
         </div>
     )
@@ -117,6 +119,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const dispatch = useAppDispatch();
     const settings = useAppSelector(selectSettings);
     const pies = useAppSelector(selectPies);
+    const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
 
     const { wallet, walletCash, walletTransactions, walletPositions, assets } =
         useWalletData(id);
@@ -313,6 +316,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
             return {
                 row: {
+                    assetId,
                     asset: asset?.name ?? assetId,
                     ticker: asset?.ticker ?? assetId,
                     units: position.amount,
@@ -458,6 +462,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             })),
         [holdings]
     );
+    const editingAsset = editingAssetId ? assets[editingAssetId] : null;
 
     const sortedTransactions = useMemo(
         () =>
@@ -961,11 +966,18 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 <WalletAllocationSection
                     pieData={pieData}
                     holdings={holdings}
+                    onEditAsset={(assetId) => setEditingAssetId(assetId)}
                 />
 
                 <WalletTransactionsSection
                     transactions={sortedTransactions}
                     assets={assets}
+                />
+                <EditAssetModal
+                    isOpen={Boolean(editingAssetId)}
+                    onClose={() => setEditingAssetId(null)}
+                    asset={editingAsset}
+                    pies={pies}
                 />
             </main>
 
