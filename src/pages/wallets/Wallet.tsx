@@ -45,8 +45,6 @@ import {
     getTotalValue,
 } from "../../core/finance";
 import { formatCurrency } from "../../utils/formatters";
-import { NetWorthHistoryPoint } from "../../utils/netWorthHistory";
-import { useNetWorthHistory } from "../../hooks/useNetWorthHistory";
 
 const currencyOptions: Currency[] = ["EUR", "USD"];
 
@@ -63,17 +61,27 @@ interface WalletAllocationSectionProps {
 }
 
 interface WalletPerformanceSectionProps {
-    netWorthHistory: NetWorthHistoryPoint[];
     currency: string;
     locale?: string;
+    baseCurrency: string;
+    transactions: WalletTx[];
+    assets: AssetsState;
 }
 
 const WalletPerformanceSection = React.memo(
-    ({ netWorthHistory, currency, locale }: WalletPerformanceSectionProps) => (
+    ({
+        currency,
+        locale,
+        baseCurrency,
+        transactions,
+        assets,
+    }: WalletPerformanceSectionProps) => (
         <Card title="Performance History">
-            {netWorthHistory.length > 0 ? (
+            {transactions.length > 0 ? (
                 <NetWorthHistoryChart
-                    data={netWorthHistory}
+                    transactions={transactions}
+                    assets={assets}
+                    baseCurrency={baseCurrency}
                     height={300}
                     currency={currency}
                     locale={locale}
@@ -405,12 +413,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         settings.visualCurrency
     );
 
-    const { data: netWorthHistory } = useNetWorthHistory({
-        transactions: walletTransactions,
-        assets,
-        baseCurrency: settings.visualCurrency,
-        locale: settings.locale,
-    });
     const cashConvertedTotal = useMemo(() => {
         return getTotalValue(
             cashBuckets.map((bucket) => {
@@ -914,9 +916,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 </div>
 
                 <WalletPerformanceSection
-                    netWorthHistory={netWorthHistory}
                     currency={settings.visualCurrency}
                     locale={settings.locale}
+                    baseCurrency={settings.visualCurrency}
+                    transactions={walletTransactions}
+                    assets={assets}
                 />
 
                 <div className="flex flex-wrap gap-4">

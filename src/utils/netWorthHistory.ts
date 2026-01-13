@@ -20,6 +20,7 @@ interface NetWorthHistoryOptions {
     assetMetadata?: Record<string, { tradingCurrency?: string }>;
     getAssetPrice?: (assetId: string, date: string) => number | null;
     getForexRate?: (currency: string, date: string) => number | null;
+    snapshotDates?: string[];
 }
 
 export const formatHistoryDate = (date: string, locale?: string) => {
@@ -101,6 +102,7 @@ export const buildNetWorthHistory = ({
     assetMetadata,
     getAssetPrice,
     getForexRate,
+    snapshotDates,
 }: NetWorthHistoryOptions): NetWorthHistoryPoint[] => {
     if (!transactions.length) {
         return [];
@@ -119,8 +121,7 @@ export const buildNetWorthHistory = ({
     };
 
     const sortedTransactions = sortTransactions(transactions);
-
-    sortedTransactions.forEach((tx) => {
+    const applyTransaction = (tx: WalletTx) => {
         switch (tx.type) {
             case "deposit":
                 if (includeCash && includeDeposits) {
@@ -207,11 +208,13 @@ export const buildNetWorthHistory = ({
                 }
                 break;
         }
+    };
 
+    const calculateSnapshotValue = (date: string) => {
         const holdingsValue = Array.from(holdings.entries()).reduce(
             (total, [assetId, holding]) => {
                 const marketPrice =
-                    getAssetPrice?.(assetId, tx.date) ?? holding.price;
+                    getAssetPrice?.(assetId, date) ?? holding.price;
                 return (
                     total +
                     toBaseValue(
@@ -219,7 +222,7 @@ export const buildNetWorthHistory = ({
                         holding.currency,
                         baseCurrency,
                         forexRates,
-                        tx.date,
+                        date,
                         getForexRate
                     )
                 );
@@ -236,14 +239,44 @@ export const buildNetWorthHistory = ({
                           currency,
                           baseCurrency,
                           forexRates,
-                          tx.date,
+                          date,
                           getForexRate
                       ),
                   0
               )
             : 0;
 
-        seriesByDate.set(tx.date, holdingsValue + cashValue);
+        return holdingsValue + cashValue;
+    };
+
+    if (snapshotDates && snapshotDates.length > 0) {
+        const uniqueSnapshotDates = Array.from(new Set(snapshotDates)).sort(
+            (a, b) => a.localeCompare(b)
+        );
+        let txIndex = 0;
+        uniqueSnapshotDates.forEach((snapshotDate) => {
+            while (
+                txIndex < sortedTransactions.length &&
+                sortedTransactions[txIndex].date <= snapshotDate
+            ) {
+                applyTransaction(sortedTransactions[txIndex]);
+                txIndex += 1;
+            }
+            seriesByDate.set(snapshotDate, calculateSnapshotValue(snapshotDate));
+        });
+
+        return Array.from(seriesByDate.entries())
+            .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+            .map(([date, value]) => ({
+                date,
+                name: formatHistoryDate(date, locale),
+                value: Number(value.toFixed(2)),
+            }));
+    }
+
+    sortedTransactions.forEach((tx) => {
+        applyTransaction(tx);
+        seriesByDate.set(tx.date, calculateSnapshotValue(tx.date));
     });
 
     return Array.from(seriesByDate.entries())

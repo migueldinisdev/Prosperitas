@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { AreaChart } from "./AreaChart";
-import { NetWorthHistoryPoint } from "../utils/netWorthHistory";
 import { formatCurrency } from "../utils/formatters";
+import { useNetWorthHistory } from "../hooks/useNetWorthHistory";
+import { Asset, WalletTx } from "../core/schema-types";
 
 type RangeKey = "1W" | "2W" | "1M" | "YTD" | "1Y" | "2Y" | "5Y" | "ALL";
 
@@ -112,72 +113,51 @@ const buildTickDates = (
     return ticks.sort((a, b) => a.localeCompare(b));
 };
 
-const addTickPoints = (
-    data: NetWorthHistoryPoint[],
-    tickDates: string[],
-    locale?: string
-) => {
-    if (!tickDates.length) return data;
-    const dataByDate = new Map(
-        data.map((point) => [point.date, point])
-    );
-    const combinedDates = Array.from(
-        new Set([...data.map((point) => point.date), ...tickDates])
-    ).sort((a, b) => a.localeCompare(b));
-    let lastValue: number | null = null;
-    return combinedDates
-        .map((date) => {
-            const existing = dataByDate.get(date);
-            if (existing) {
-                lastValue = existing.value;
-                return existing;
-            }
-            if (lastValue == null) {
-                return null;
-            }
-            return {
-                date,
-                name: formatDateLabel(date, locale),
-                value: lastValue,
-            };
-        })
-        .filter((point): point is NetWorthHistoryPoint => Boolean(point));
-};
-
 interface NetWorthHistoryChartProps {
-    data: NetWorthHistoryPoint[];
+    transactions: WalletTx[];
+    assets: Record<string, Asset>;
+    baseCurrency: string;
     currency: string;
     locale?: string;
     height?: number;
     color?: string;
+    assetFilter?: Set<string>;
+    includeCash?: boolean;
+    includeDeposits?: boolean;
+    includeWithdrawals?: boolean;
+    includeDividends?: boolean;
+    includeForex?: boolean;
 }
 
 export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
-    data,
+    transactions,
+    assets,
+    baseCurrency,
     currency,
     locale,
     height,
     color,
+    assetFilter,
+    includeCash,
+    includeDeposits,
+    includeWithdrawals,
+    includeDividends,
+    includeForex,
 }) => {
     const [range, setRange] = useState<RangeKey>("ALL");
 
-    const { chartData, ticks } = useMemo(() => {
-        if (!data.length) {
-            return { chartData: [], ticks: [] };
+    const { chartDates, ticks } = useMemo(() => {
+        if (!transactions.length) {
+            return { chartDates: [], ticks: [] };
         }
-        const sorted = [...data].sort((a, b) =>
+        const sortedTransactions = [...transactions].sort((a, b) =>
             a.date.localeCompare(b.date)
         );
-        const earliestDate = parseDate(sorted[0].date);
-        const latestDate = parseDate(sorted[sorted.length - 1].date);
-        const rangeStart = getRangeStart(range, latestDate, earliestDate);
-
-        const filtered = sorted.filter(
-            (point) => parseDate(point.date) >= rangeStart
+        const earliestDate = parseDate(sortedTransactions[0].date);
+        const latestDate = parseDate(
+            sortedTransactions[sortedTransactions.length - 1].date
         );
-        if (!filtered.length) {
-            return { chartData: [], ticks: [] };
-        }
+        const rangeStart = getRangeStart(range, latestDate, earliestDate);
 
         const tickDays = TICK_DAYS_BY_RANGE[range];
         const tickDates = buildTickDates(
@@ -185,14 +165,27 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
             latestDate,
             tickDays
         );
-        const chartData = addTickPoints(filtered, tickDates, locale);
         return {
-            chartData,
+            chartDates: tickDates,
             ticks: tickDates,
         };
-    }, [data, locale, range]);
+    }, [range, transactions]);
 
-    if (!data.length) {
+    const { data: chartData } = useNetWorthHistory({
+        transactions,
+        assets,
+        baseCurrency,
+        locale,
+        assetFilter,
+        includeCash,
+        includeDeposits,
+        includeWithdrawals,
+        includeDividends,
+        includeForex,
+        snapshotDates: chartDates,
+    });
+
+    if (!transactions.length) {
         return null;
     }
 

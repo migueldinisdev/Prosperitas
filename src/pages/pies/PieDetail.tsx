@@ -20,7 +20,6 @@ import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { useAppSelector } from "../../store/hooks";
 import { selectSettings, selectWalletTxState } from "../../store/selectors";
 import { formatCurrency } from "../../utils/formatters";
-import { useNetWorthHistory } from "../../hooks/useNetWorthHistory";
 import {
     getAllocationPercent,
     calculateRealizedPnl,
@@ -83,18 +82,6 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
             return pieAssetIds.has(tx.assetId);
         });
     }, [pieAssetIds, walletTx]);
-    const { data: netWorthHistory } = useNetWorthHistory({
-        transactions: pieTransactions,
-        assets,
-        baseCurrency: settings.balanceCurrency,
-        locale: settings.locale,
-        assetFilter: pieAssetIds,
-        includeCash: false,
-        includeDeposits: false,
-        includeWithdrawals: false,
-        includeDividends: false,
-        includeForex: false,
-    });
 
     const { holdings, totals } = useMemo(() => {
         const rows = assets.map((asset) => {
@@ -326,12 +313,20 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card title="Performance History" className="lg:col-span-2">
-                        {netWorthHistory.length > 0 ? (
+                        {pieTransactions.length > 0 ? (
                             <NetWorthHistoryChart
-                                data={netWorthHistory}
+                                transactions={pieTransactions}
+                                assets={assets}
+                                baseCurrency={settings.balanceCurrency}
                                 height={260}
                                 currency={settings.balanceCurrency}
                                 locale={settings.locale}
+                                assetFilter={pieAssetIds}
+                                includeCash={false}
+                                includeDeposits={false}
+                                includeWithdrawals={false}
+                                includeDividends={false}
+                                includeForex={false}
                             />
                         ) : (
                             <p className="text-sm text-app-muted">

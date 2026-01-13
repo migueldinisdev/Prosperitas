@@ -18,6 +18,7 @@ interface UseNetWorthHistoryOptions {
     includeWithdrawals?: boolean;
     includeDividends?: boolean;
     includeForex?: boolean;
+    snapshotDates?: string[];
 }
 
 const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
@@ -52,6 +53,7 @@ export const useNetWorthHistory = ({
     includeWithdrawals = true,
     includeDividends = true,
     includeForex = true,
+    snapshotDates,
 }: UseNetWorthHistoryOptions): {
     data: NetWorthHistoryPoint[];
     isLoading: boolean;
@@ -74,10 +76,15 @@ export const useNetWorthHistory = ({
     );
 
     const dates = useMemo(() => {
+        if (snapshotDates && snapshotDates.length > 0) {
+            return Array.from(new Set(snapshotDates)).sort((a, b) =>
+                a.localeCompare(b)
+            );
+        }
         const unique = new Set<string>();
         sortedTransactions.forEach((tx) => unique.add(tx.date));
         return Array.from(unique).sort((a, b) => a.localeCompare(b));
-    }, [sortedTransactions]);
+    }, [snapshotDates, sortedTransactions]);
 
     const assetIds = useMemo(() => {
         const ids = new Set<string>();
@@ -249,12 +256,14 @@ export const useNetWorthHistory = ({
             assetMetadata,
             getAssetPrice,
             getForexRate,
+            snapshotDates: dates,
         });
     }, [
         assetFilter,
         assetMetadata,
         assets,
         baseCurrency,
+        dates,
         forexMap,
         includeCash,
         includeDeposits,

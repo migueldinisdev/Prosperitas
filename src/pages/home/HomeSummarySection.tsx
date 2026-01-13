@@ -13,7 +13,6 @@ import { useAppSelector } from "../../store/hooks";
 import { Asset } from "../../core/schema-types";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
-import { useNetWorthHistory } from "../../hooks/useNetWorthHistory";
 import {
     getConvertedValue,
     getNetWorth,
@@ -110,12 +109,6 @@ export const HomeSummarySection: React.FC = () => {
         () => Object.values(walletTxState),
         [walletTxState]
     );
-    const { data: netWorthHistory } = useNetWorthHistory({
-        transactions: walletTransactions,
-        assets,
-        baseCurrency: settings.visualCurrency,
-        locale: settings.locale,
-    });
 
     const toVisualValue = (amount: number, currency: string) => {
         if (currency === settings.visualCurrency) {
@@ -283,9 +276,11 @@ export const HomeSummarySection: React.FC = () => {
             </div>
 
             <Card title="Net Worth Growth">
-                {netWorthHistory.length > 0 ? (
+                {walletTransactions.length > 0 ? (
                     <NetWorthHistoryChart
-                        data={netWorthHistory}
+                        transactions={walletTransactions}
+                        assets={assets}
+                        baseCurrency={settings.visualCurrency}
                         height={200}
                         color="#10b981"
                         currency={settings.visualCurrency}
