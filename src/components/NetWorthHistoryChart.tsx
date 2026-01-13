@@ -45,19 +45,19 @@ const formatDateLabel = (date: string, locale?: string) => {
 
 const addMonths = (date: Date, delta: number) => {
     const next = new Date(date);
-    next.setMonth(next.getMonth() + delta);
+    next.setUTCMonth(next.getUTCMonth() + delta);
     return next;
 };
 
 const addYears = (date: Date, delta: number) => {
     const next = new Date(date);
-    next.setFullYear(next.getFullYear() + delta);
+    next.setUTCFullYear(next.getUTCFullYear() + delta);
     return next;
 };
 
 const addDays = (date: Date, delta: number) => {
     const next = new Date(date);
-    next.setDate(next.getDate() + delta);
+    next.setUTCDate(next.getUTCDate() + delta);
     return next;
 };
 
