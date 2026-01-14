@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Info } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { useAppDispatch } from "../store/hooks";
 import { updateAsset } from "../store/slices/assetsSlice";
 import { setPieAssets } from "../store/slices/piesSlice";
 import type { Asset, PiesState } from "../core/schema-types";
+import { StooqAPIStockSelect } from "./StooqAPIStockSelect";
 
 interface Props {
     isOpen: boolean;
@@ -21,6 +23,7 @@ export const EditAssetModal: React.FC<Props> = ({
 }) => {
     const dispatch = useAppDispatch();
     const [ticker, setTicker] = useState("");
+    const [stooqSearch, setStooqSearch] = useState("");
     const [stooqTicker, setStooqTicker] = useState("");
     const [pieId, setPieId] = useState("");
 
@@ -36,7 +39,9 @@ export const EditAssetModal: React.FC<Props> = ({
     useEffect(() => {
         if (!asset) return;
         setTicker(asset.ticker);
-        setStooqTicker(asset.stooqTicker ?? "");
+        const nextStooq = asset.stooqTicker ?? "";
+        setStooqSearch(nextStooq);
+        setStooqTicker(nextStooq);
         setPieId(currentPieId);
     }, [asset, currentPieId]);
 
@@ -96,18 +101,25 @@ export const EditAssetModal: React.FC<Props> = ({
                     />
                 </div>
 
-                <div>
-                    <label className="block text-xs font-medium text-app-muted mb-1">
-                        Stooq Ticker
-                    </label>
-                    <input
-                        type="text"
-                        value={stooqTicker}
-                        onChange={(event) => setStooqTicker(event.target.value)}
-                        placeholder="Optional"
-                        className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
-                    />
-                </div>
+                {asset.assetType === "stock" ? (
+                    <div className="space-y-1">
+                        <label className="flex items-center gap-1 text-xs font-medium text-app-muted">
+                            Stooq ticker
+                            <Info
+                                size={12}
+                                className="text-app-muted"
+                                title="For real-time market pricing, put here the stooq ticker (stooq.com)"
+                            />
+                        </label>
+                        <StooqAPIStockSelect
+                            searchValue={stooqSearch}
+                            onSearchChange={setStooqSearch}
+                            selectedValue={stooqTicker}
+                            onSelect={setStooqTicker}
+                            placeholder="Search stooq ticker"
+                        />
+                    </div>
+                ) : null}
 
                 <div>
                     <label className="block text-xs font-medium text-app-muted mb-1">

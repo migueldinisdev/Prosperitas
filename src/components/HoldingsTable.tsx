@@ -126,11 +126,10 @@ export const HoldingsTable = React.memo(
                                                         holding.assetId
                                                     )
                                                 }
-                                                className="inline-flex items-center gap-1 text-xs text-app-muted hover:text-app-foreground transition-colors"
+                                                className="inline-flex items-center justify-center text-app-muted hover:text-app-foreground transition-colors"
                                                 aria-label="Edit Asset"
                                             >
                                                 <Pencil size={14} />
-                                                <span>Edit Asset</span>
                                             </button>
                                         </td>
                                     ) : null}
