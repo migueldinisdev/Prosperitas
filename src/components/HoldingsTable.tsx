@@ -1,7 +1,9 @@
 import React from "react";
+import { Pencil } from "lucide-react";
 import { formatCurrency } from "../utils/formatters";
 
 export interface HoldingRow {
+    assetId?: string;
     asset: string;
     ticker: string;
     units?: number;
@@ -16,102 +18,133 @@ export interface HoldingRow {
 
 interface HoldingsTableProps {
     holdings: HoldingRow[];
+    onEditAsset?: (assetId: string) => void;
 }
 
-export const HoldingsTable = React.memo(({ holdings }: HoldingsTableProps) => {
-    console.log("HoldingsTable re-rendered");
+export const HoldingsTable = React.memo(
+    ({ holdings, onEditAsset }: HoldingsTableProps) => {
+        console.log("HoldingsTable re-rendered");
+        const showEdit = Boolean(onEditAsset);
 
-    return (
-        <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-                <thead className="text-xs text-app-muted uppercase border-b border-app-border">
-                    <tr>
-                        <th className="px-4 py-3 font-medium">Asset</th>
-                        <th className="px-4 py-3 font-medium text-right">
-                            Units
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right">
-                            Cost Avg
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right">
-                            Price
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right">
-                            Value
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right">
-                            PnL
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right">
-                            Allocation
-                        </th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-app-border">
-                    {holdings.map((holding) => {
-                        const pnlColor =
-                            holding.pnl > 0
-                                ? "text-app-success"
-                                : holding.pnl < 0
-                                ? "text-app-danger"
-                                : "text-app-muted";
+        return (
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-app-muted uppercase border-b border-app-border">
+                        <tr>
+                            <th className="px-4 py-3 font-medium">Asset</th>
+                            <th className="px-4 py-3 font-medium text-right">
+                                Units
+                            </th>
+                            <th className="px-4 py-3 font-medium text-right">
+                                Cost Avg
+                            </th>
+                            <th className="px-4 py-3 font-medium text-right">
+                                Price
+                            </th>
+                            <th className="px-4 py-3 font-medium text-right">
+                                Value
+                            </th>
+                            <th className="px-4 py-3 font-medium text-right">
+                                PnL
+                            </th>
+                            <th className="px-4 py-3 font-medium text-right">
+                                Allocation
+                            </th>
+                            {showEdit && (
+                                <th className="px-4 py-3 font-medium text-right">
+                                    Edit
+                                </th>
+                            )}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-app-border">
+                        {holdings.map((holding) => {
+                            const pnlColor =
+                                holding.pnl > 0
+                                    ? "text-app-success"
+                                    : holding.pnl < 0
+                                    ? "text-app-danger"
+                                    : "text-app-muted";
 
-                        return (
-                            <tr
-                                key={holding.ticker}
-                                className="group hover:bg-app-surface transition-colors"
-                            >
-                                <td className="px-4 py-3 font-medium text-app-foreground">
-                                    {holding.asset}{" "}
-                                    <span className="text-app-muted ml-1">
-                                        {holding.ticker}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-3 text-right text-app-muted">
-                                    {holding.units?.toLocaleString() ?? "-"}
-                                </td>
-                                <td className="px-4 py-3 text-right text-app-muted">
-                                    {formatCurrency(
-                                        holding.costAverage,
-                                        holding.currency
-                                    )}
-                                </td>
-                                <td className="px-4 py-3 text-right text-app-muted">
-                                    {formatCurrency(
-                                        holding.currentPrice,
-                                        holding.currency
-                                    )}
-                                </td>
-                                <td className="px-4 py-3 text-right text-app-foreground font-medium">
-                                    {formatCurrency(
-                                        holding.value,
-                                        holding.currency
-                                    )}
-                                </td>
-                                <td
-                                    className={`px-4 py-3 text-right ${pnlColor}`}
+                            return (
+                                <tr
+                                    key={`${holding.ticker}-${holding.asset}`}
+                                    className="group hover:bg-app-surface transition-colors"
                                 >
-                                    {holding.pnl > 0 ? "+" : ""}
-                                    {formatCurrency(
-                                        holding.pnl,
-                                        holding.currency
-                                    )}
-                                    {holding.pnlPercent !== undefined && (
-                                        <span className="ml-1 text-xs text-app-muted">
-                                            ({holding.pnlPercent}%)
+                                    <td className="px-4 py-3 font-medium text-app-foreground">
+                                        {holding.asset}{" "}
+                                        <span className="text-app-muted ml-1">
+                                            {holding.ticker}
                                         </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-app-muted">
+                                        {holding.units?.toLocaleString() ?? "-"}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-app-muted">
+                                        {formatCurrency(
+                                            holding.costAverage,
+                                            holding.currency
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-app-muted">
+                                        {formatCurrency(
+                                            holding.currentPrice,
+                                            holding.currency
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-app-foreground font-medium">
+                                        {formatCurrency(
+                                            holding.value,
+                                            holding.currency
+                                        )}
+                                    </td>
+                                    <td
+                                        className={`px-4 py-3 text-right ${pnlColor}`}
+                                    >
+                                        {holding.pnl > 0 ? "+" : ""}
+                                        {formatCurrency(
+                                            holding.pnl,
+                                            holding.currency
+                                        )}
+                                        {holding.pnlPercent !== undefined && (
+                                            <span className="ml-1 text-xs text-app-muted">
+                                                ({holding.pnlPercent}%)
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-app-muted">
+                                        {holding.allocation !== undefined
+                                            ? `${holding.allocation}%`
+                                            : "-"}
+                                    </td>
+                                    {showEdit && (
+                                        <td className="px-4 py-3 text-right">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (
+                                                        onEditAsset &&
+                                                        holding.assetId
+                                                    ) {
+                                                        onEditAsset(
+                                                            holding.assetId
+                                                        );
+                                                    }
+                                                }}
+                                                className="inline-flex items-center justify-center p-2 rounded-lg text-app-muted hover:text-app-foreground hover:bg-app-surface transition-colors"
+                                                aria-label="Edit asset"
+                                                disabled={!holding.assetId}
+                                            >
+                                                <Pencil size={16} />
+                                            </button>
+                                        </td>
                                     )}
-                                </td>
-                                <td className="px-4 py-3 text-right text-app-muted">
-                                    {holding.allocation !== undefined
-                                        ? `${holding.allocation}%`
-                                        : "-"}
-                                </td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
-        </div>
-    );
-});
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        );
+    }
+);
