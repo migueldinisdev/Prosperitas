@@ -4,7 +4,7 @@ import { SyncStatusPills } from "../../components/SyncStatusPills";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { replaceState } from "../../store/actions";
-import { defaultState } from "../../store/initialState";
+import { defaultState, demoState } from "../../store/initialState";
 import { importFromFile, importFromGoogleDrive } from "../../store/sync";
 import { NoGoogleDriveSaveError } from "../../data/api/google/errors";
 import { addNotification } from "../../store/slices/notificationsSlice";
@@ -36,6 +36,12 @@ export const LandingPage: React.FC = () => {
     const handleStartOffline = () => {
         suppressNextDirty();
         dispatch(replaceState(defaultState));
+        setModeAndClean("offline");
+        navigate("/home");
+    };
+    const handleStartDemo = () => {
+        suppressNextDirty();
+        dispatch(replaceState(demoState));
         setModeAndClean("offline");
         navigate("/home");
     };
@@ -141,6 +147,13 @@ export const LandingPage: React.FC = () => {
                                             className="rounded-xl border border-app-border bg-app-card px-4 py-2 text-sm font-semibold hover:bg-app-surface"
                                         >
                                             New empty
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleStartDemo}
+                                            className="rounded-xl border border-app-accent/40 bg-app-accent/10 px-4 py-2 text-sm font-semibold text-app-accent hover:bg-app-accent/20"
+                                        >
+                                            View DEMO
                                         </button>
                                     </div>
                                 </div>
