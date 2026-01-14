@@ -63,7 +63,7 @@ const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
 interface WalletAllocationSectionProps {
     pieData: { name: string; value: number; color: string }[];
     holdings: HoldingRow[];
-    onEditAsset?: (assetId: string) => void;
+    onEditAsset?: (holding: HoldingRow) => void;
 }
 
 interface WalletPerformanceSectionProps {
@@ -119,7 +119,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const dispatch = useAppDispatch();
     const settings = useAppSelector(selectSettings);
     const pies = useAppSelector(selectPies);
-    const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
+    const [editingHolding, setEditingHolding] = useState<HoldingRow | null>(
+        null
+    );
 
     const { wallet, walletCash, walletTransactions, walletPositions, assets } =
         useWalletData(id);
@@ -319,6 +321,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     assetId,
                     asset: asset?.name ?? assetId,
                     ticker: asset?.ticker ?? assetId,
+                    assetType: asset?.assetType,
+                    stooqTicker: asset?.stooqTicker ?? null,
                     units: position.amount,
                     costAverage,
                     currentPrice,
@@ -462,7 +466,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             })),
         [holdings]
     );
-    const editingAsset = editingAssetId ? assets[editingAssetId] : null;
+    const editingAsset = editingHolding
+        ? assets[editingHolding.assetId]
+        : null;
 
     const sortedTransactions = useMemo(
         () =>
@@ -966,7 +972,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 <WalletAllocationSection
                     pieData={pieData}
                     holdings={holdings}
-                    onEditAsset={(assetId) => setEditingAssetId(assetId)}
+                    onEditAsset={(holding) => setEditingHolding(holding)}
                 />
 
                 <WalletTransactionsSection
@@ -974,9 +980,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     assets={assets}
                 />
                 <EditAssetModal
-                    isOpen={Boolean(editingAssetId)}
-                    onClose={() => setEditingAssetId(null)}
+                    isOpen={Boolean(editingHolding)}
+                    onClose={() => setEditingHolding(null)}
                     asset={editingAsset}
+                    holding={editingHolding}
                     pies={pies}
                 />
             </main>

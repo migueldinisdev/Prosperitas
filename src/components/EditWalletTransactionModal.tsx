@@ -101,7 +101,6 @@ export const EditWalletTransactionModal: React.FC<Props> = ({
             switch (transaction.type) {
                 case "deposit":
                 case "withdraw":
-                case "dividend":
                     return {
                         ...transaction,
                         date,
@@ -110,20 +109,39 @@ export const EditWalletTransactionModal: React.FC<Props> = ({
                             currency: amountCurrency,
                         },
                     };
-                case "buy":
-                case "sell":
+                case "dividend":
                     return {
                         ...transaction,
                         date,
+                        assetId: transaction.assetId,
+                        amount: {
+                            value: Number(amountValue),
+                            currency: amountCurrency,
+                        },
+                    };
+                case "buy":
+                case "sell": {
+                    const normalizedFxRate =
+                        Number(fxRate) > 0 ? Number(fxRate) : undefined;
+                    const trimmedFxPair = fxPair.trim();
+                    const resolvedFxPair =
+                        normalizedFxRate && trimmedFxPair
+                            ? trimmedFxPair
+                            : undefined;
+                    return {
+                        ...transaction,
+                        date,
+                        assetId: transaction.assetId,
                         quantity: Number(quantity),
                         price: {
                             value: Number(priceValue),
                             currency: priceCurrency,
                         },
                         fees: getOptionalMoney(feesValue, feesCurrency),
-                        fxPair: fxPair.trim() ? fxPair.trim() : undefined,
-                        fxRate: Number(fxRate) > 0 ? Number(fxRate) : undefined,
+                        fxPair: resolvedFxPair,
+                        fxRate: resolvedFxPair ? normalizedFxRate : undefined,
                     };
+                }
                 case "forex":
                     return {
                         ...transaction,

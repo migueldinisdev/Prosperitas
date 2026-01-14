@@ -134,6 +134,8 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                     assetId: asset.id,
                     asset: asset.name,
                     ticker: asset.ticker,
+                    assetType: asset.assetType,
+                    stooqTicker: asset.stooqTicker ?? null,
                     units: asset.amount,
                     costAverage,
                     currentPrice,

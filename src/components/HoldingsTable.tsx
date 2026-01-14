@@ -1,11 +1,14 @@
 import React from "react";
 import { Pencil } from "lucide-react";
 import { formatCurrency } from "../utils/formatters";
+import type { AssetType } from "../core/schema-types";
 
 export interface HoldingRow {
     assetId: string;
     asset: string;
     ticker: string;
+    assetType?: AssetType;
+    stooqTicker?: string | null;
     units?: number;
     costAverage: number;
     currentPrice: number;
@@ -18,7 +21,7 @@ export interface HoldingRow {
 
 interface HoldingsTableProps {
     holdings: HoldingRow[];
-    onEditAsset?: (assetId: string) => void;
+    onEditAsset?: (holding: HoldingRow) => void;
 }
 
 export const HoldingsTable = React.memo(
@@ -122,9 +125,7 @@ export const HoldingsTable = React.memo(
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    onEditAsset?.(
-                                                        holding.assetId
-                                                    )
+                                                    onEditAsset?.(holding)
                                                 }
                                                 className="inline-flex items-center justify-center text-app-muted hover:text-app-foreground transition-colors"
                                                 aria-label="Edit Asset"
