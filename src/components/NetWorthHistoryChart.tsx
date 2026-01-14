@@ -4,12 +4,10 @@ import { formatCurrency } from "../utils/formatters";
 import { useNetWorthHistory } from "../hooks/useNetWorthHistory";
 import { Asset, WalletTx } from "../core/schema-types";
 
-type RangeKey = "1W" | "2W" | "1M" | "YTD" | "1Y" | "2Y" | "5Y" | "ALL";
+type RangeKey = "YTD" | "1Y" | "2Y" | "5Y" | "ALL";
+type TickRateKey = "1W" | "2W" | "1M";
 
 const RANGE_OPTIONS: Array<{ key: RangeKey; label: string }> = [
-    { key: "1W", label: "1W" },
-    { key: "2W", label: "2W" },
-    { key: "1M", label: "1M" },
     { key: "YTD", label: "YTD" },
     { key: "1Y", label: "1Y" },
     { key: "2Y", label: "2Y" },
@@ -17,15 +15,16 @@ const RANGE_OPTIONS: Array<{ key: RangeKey; label: string }> = [
     { key: "ALL", label: "All time" },
 ];
 
-const TICK_DAYS_BY_RANGE: Record<RangeKey, number[]> = {
+const TICK_RATE_OPTIONS: Array<{ key: TickRateKey; label: string }> = [
+    { key: "1W", label: "1W" },
+    { key: "2W", label: "2W" },
+    { key: "1M", label: "1M" },
+];
+
+const TICK_DAYS_BY_RATE: Record<TickRateKey, number[]> = {
     "1W": [1, 7, 14, 21],
     "2W": [8, 23],
     "1M": [15],
-    YTD: [15],
-    "1Y": [15],
-    "2Y": [15],
-    "5Y": [15],
-    ALL: [15],
 };
 
 const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
@@ -63,12 +62,6 @@ const addDays = (date: Date, delta: number) => {
 
 const getRangeStart = (range: RangeKey, endDate: Date, earliest: Date) => {
     switch (range) {
-        case "1W":
-            return addDays(endDate, -7);
-        case "2W":
-            return addDays(endDate, -14);
-        case "1M":
-            return addMonths(endDate, -1);
         case "YTD":
             return new Date(Date.UTC(endDate.getUTCFullYear(), 0, 1));
         case "1Y":
@@ -145,6 +138,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
     includeForex,
 }) => {
     const [range, setRange] = useState<RangeKey>("ALL");
+    const [tickRate, setTickRate] = useState<TickRateKey>("1M");
 
     const { chartDates, ticks } = useMemo(() => {
         if (!transactions.length) {
@@ -159,7 +153,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         );
         const rangeStart = getRangeStart(range, latestDate, earliestDate);
 
-        const tickDays = TICK_DAYS_BY_RANGE[range];
+        const tickDays = TICK_DAYS_BY_RATE[tickRate];
         const tickDates = buildTickDates(
             rangeStart,
             latestDate,
@@ -169,7 +163,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
             chartDates: tickDates,
             ticks: tickDates,
         };
-    }, [range, transactions]);
+    }, [range, tickRate, transactions]);
 
     const { data: chartData } = useNetWorthHistory({
         transactions,
@@ -191,21 +185,40 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
 
     return (
         <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-                {RANGE_OPTIONS.map((option) => (
-                    <button
-                        key={option.key}
-                        type="button"
-                        onClick={() => setRange(option.key)}
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                            range === option.key
-                                ? "bg-app-primary text-white"
-                                : "bg-app-border text-app-muted hover:text-app-foreground"
-                        }`}
-                    >
-                        {option.label}
-                    </button>
-                ))}
+            <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap gap-2">
+                    {RANGE_OPTIONS.map((option) => (
+                        <button
+                            key={option.key}
+                            type="button"
+                            onClick={() => setRange(option.key)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                                range === option.key
+                                    ? "bg-app-primary text-white"
+                                    : "bg-app-border text-app-muted hover:text-app-foreground"
+                            }`}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+                <div className="h-4 w-px bg-app-border" aria-hidden="true" />
+                <div className="flex flex-wrap gap-2">
+                    {TICK_RATE_OPTIONS.map((option) => (
+                        <button
+                            key={option.key}
+                            type="button"
+                            onClick={() => setTickRate(option.key)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                                tickRate === option.key
+                                    ? "bg-app-primary text-white"
+                                    : "bg-app-border text-app-muted hover:text-app-foreground"
+                            }`}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
             </div>
             {chartData.length > 0 ? (
                 <AreaChart
