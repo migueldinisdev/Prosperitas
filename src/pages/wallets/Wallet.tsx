@@ -7,6 +7,7 @@ import { PieChart } from "../../components/PieChart";
 import {
     ArrowDownLeft,
     ArrowLeft,
+    ArrowLeftRight,
     ArrowUpRight,
     DollarSign,
     Info,
@@ -138,6 +139,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [isWithdrawOpen, setWithdrawOpen] = useState(false);
     const [isDividendOpen, setDividendOpen] = useState(false);
     const [isTradeOpen, setTradeOpen] = useState(false);
+    const [isFxOpen, setFxOpen] = useState(false);
 
     const [cashAmount, setCashAmount] = useState("");
     const [cashCurrency, setCashCurrency] = useState<Currency>(
@@ -152,6 +154,22 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         settings.balanceCurrency
     );
     const [dividendAssetId, setDividendAssetId] = useState<string>("");
+    const [fxFromAmount, setFxFromAmount] = useState("");
+    const [fxFromCurrency, setFxFromCurrency] = useState<Currency>(
+        settings.balanceCurrency
+    );
+    const [fxToCurrency, setFxToCurrency] = useState<Currency>(
+        settings.balanceCurrency === "EUR" ? "USD" : "EUR"
+    );
+    const [fxRate, setFxRate] = useState("");
+    const [fxFees, setFxFees] = useState("");
+    const [fxFeeCurrency, setFxFeeCurrency] = useState<Currency>(
+        settings.balanceCurrency
+    );
+    const [fxDate, setFxDate] = useState(
+        new Date().toISOString().slice(0, 10)
+    );
+    const [showFxOperationFees, setShowFxOperationFees] = useState(false);
 
     const [tradeType, setTradeType] = useState<"buy" | "sell">("buy");
     const [tradeAssetId, setTradeAssetId] = useState("");
@@ -185,6 +203,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const tradeQuantityValue = Number(tradeQuantity);
     const tradePriceValue = Number(tradePrice);
     const tradeTotal = tradeQuantityValue * tradePriceValue;
+    const fxFromAmountValue = Number(fxFromAmount);
+    const fxRateValue = Number(fxRate);
+    const fxToAmountValue =
+        fxFromAmountValue > 0 && fxRateValue > 0
+            ? roundToTwo(fxFromAmountValue * fxRateValue)
+            : 0;
+    const fxPairLabel = `${fxFromCurrency}/${fxToCurrency}`;
     const fxEnabled = tradeFundingCurrency !== tradeCurrency;
     const fxPair = fxEnabled
         ? tradeType === "sell"
@@ -489,6 +514,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const tradeFeesValue = showTradeFees ? Number(tradeFees) : 0;
     const tradeFxFeeValue = showFxFee ? Number(tradeFxFee) : 0;
+    const fxFeesValue = showFxOperationFees ? Number(fxFees) : 0;
 
     const hasSufficientAsset =
         tradeType === "sell"
@@ -538,6 +564,39 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             })
         );
         setDividendAmount("");
+    };
+
+    const handleAddFxOperation = () => {
+        if (!id) return;
+        if (
+            fxFromAmountValue <= 0 ||
+            fxRateValue <= 0 ||
+            fxFromCurrency === fxToCurrency
+        ) {
+            return;
+        }
+        const txId = `tx_${Date.now()}_fx`;
+        dispatch(
+            addWalletTransaction({
+                id: txId,
+                walletId: id,
+                type: "forex",
+                date: fxDate || new Date().toISOString().slice(0, 10),
+                from: { value: fxFromAmountValue, currency: fxFromCurrency },
+                to: { value: fxToAmountValue, currency: fxToCurrency },
+                fees:
+                    fxFeesValue > 0
+                        ? { value: fxFeesValue, currency: fxFeeCurrency }
+                        : undefined,
+                fxRate: fxRateValue,
+                createdAt: new Date().toISOString(),
+            })
+        );
+        setFxFromAmount("");
+        setFxRate("");
+        setFxFees("");
+        setShowFxOperationFees(false);
+        setFxDate(new Date().toISOString().slice(0, 10));
     };
 
     const handleAddTrade = () => {
@@ -907,6 +966,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         Add Dividend
                     </Button>
                     <Button
+                        variant="secondary"
+                        icon={<ArrowLeftRight size={16} />}
+                        onClick={() => setFxOpen(true)}
+                    >
+                        FX Operation
+                    </Button>
+                    <Button
                         variant="primary"
                         icon={<DollarSign size={16} />}
                         onClick={() => setTradeOpen(true)}
@@ -1114,6 +1180,184 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         }}
                     >
                         Add Dividend
+                    </Button>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={isFxOpen}
+                onClose={() => setFxOpen(false)}
+                title="FX Operation"
+            >
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                From Amount
+                            </label>
+                            <input
+                                type="number"
+                                value={fxFromAmount}
+                                onChange={handleNonNegativeChange(
+                                    setFxFromAmount
+                                )}
+                                min="0"
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                From Currency
+                            </label>
+                            <select
+                                value={fxFromCurrency}
+                                onChange={(event) =>
+                                    setFxFromCurrency(
+                                        event.target.value as Currency
+                                    )
+                                }
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            >
+                                {currencyOptions.map((currency) => (
+                                    <option key={currency} value={currency}>
+                                        {currency}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                To Currency
+                            </label>
+                            <select
+                                value={fxToCurrency}
+                                onChange={(event) =>
+                                    setFxToCurrency(
+                                        event.target.value as Currency
+                                    )
+                                }
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            >
+                                {currencyOptions.map((currency) => (
+                                    <option key={currency} value={currency}>
+                                        {currency}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                FX Rate ({fxPairLabel})
+                            </label>
+                            <input
+                                type="number"
+                                value={fxRate}
+                                onChange={handleNonNegativeChange(setFxRate)}
+                                min="0"
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            To Amount
+                        </label>
+                        <input
+                            type="number"
+                            value={
+                                fxFromAmountValue > 0 && fxRateValue > 0
+                                    ? fxToAmountValue.toFixed(2)
+                                    : ""
+                            }
+                            min="0"
+                            disabled
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
+                        />
+                    </div>
+                    <div className="space-y-3">
+                        <label className="flex items-center gap-2 text-xs text-app-muted">
+                            <input
+                                type="checkbox"
+                                checked={showFxOperationFees}
+                                onChange={(event) => {
+                                    const checked = event.target.checked;
+                                    setShowFxOperationFees(checked);
+                                    if (!checked) {
+                                        setFxFees("");
+                                    }
+                                }}
+                                className="h-4 w-4"
+                            />
+                            Add FX fee
+                        </label>
+                        {showFxOperationFees && (
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-medium text-app-muted mb-1">
+                                        FX Fee
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={fxFees}
+                                        onChange={handleNonNegativeChange(
+                                            setFxFees
+                                        )}
+                                        min="0"
+                                        className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-app-muted mb-1">
+                                        FX Fee Currency
+                                    </label>
+                                    <select
+                                        value={fxFeeCurrency}
+                                        onChange={(event) =>
+                                            setFxFeeCurrency(
+                                                event.target.value as Currency
+                                            )
+                                        }
+                                        className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                                    >
+                                        {currencyOptions.map((currency) => (
+                                            <option
+                                                key={currency}
+                                                value={currency}
+                                            >
+                                                {currency}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Date
+                        </label>
+                        <input
+                            type="date"
+                            value={fxDate}
+                            onChange={(event) => setFxDate(event.target.value)}
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                    </div>
+                    <Button
+                        className="w-full"
+                        onClick={() => {
+                            handleAddFxOperation();
+                            setFxOpen(false);
+                        }}
+                        disabled={
+                            fxFromAmountValue <= 0 ||
+                            fxRateValue <= 0 ||
+                            fxFromCurrency === fxToCurrency
+                        }
+                    >
+                        Add FX Operation
                     </Button>
                 </div>
             </Modal>
