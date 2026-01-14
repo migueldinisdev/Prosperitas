@@ -151,6 +151,7 @@ export interface BuyWalletTx extends WalletTxBase {
     assetId: string;
     quantity: number;
     price: Money;
+    assetDeposit?: boolean;
     fxPair?: string;
     fxRate?: number;
     fees?: Money;

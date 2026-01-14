@@ -190,22 +190,23 @@ const applyWalletTransactionEffects = (
             }
             break;
         case "buy":
-			
-            adjustWalletCash(
-                tx.walletId,
-                tx.price.currency,
-                -direction * tx.price.value * tx.quantity,
-                getState,
-                dispatch
-            );
-            if (tx.fees) {
+            if (!tx.assetDeposit) {
                 adjustWalletCash(
                     tx.walletId,
-                    tx.fees.currency,
-                    -direction * tx.fees.value,
+                    tx.price.currency,
+                    -direction * tx.price.value * tx.quantity,
                     getState,
                     dispatch
                 );
+                if (tx.fees) {
+                    adjustWalletCash(
+                        tx.walletId,
+                        tx.fees.currency,
+                        -direction * tx.fees.value,
+                        getState,
+                        dispatch
+                    );
+                }
             }
             updatePositions(
                 tx.walletId,

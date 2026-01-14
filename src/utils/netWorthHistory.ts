@@ -143,7 +143,7 @@ export const buildNetWorthHistory = ({
                     price: tx.price.value,
                     currency: tx.price.currency,
                 });
-                if (includeCash) {
+                if (includeCash && !tx.assetDeposit) {
                     addCash(
                         tx.price.currency,
                         -tx.price.value * tx.quantity

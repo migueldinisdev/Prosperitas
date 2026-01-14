@@ -104,9 +104,11 @@ const getCashBalancesAtDate = (transactions: WalletTx[], targetDate: string) => 
                 }
                 break;
             case "buy":
-                addCash(tx.price.currency, -tx.price.value * tx.quantity);
-                if (tx.fees) {
-                    addCash(tx.fees.currency, -tx.fees.value);
+                if (!tx.assetDeposit) {
+                    addCash(tx.price.currency, -tx.price.value * tx.quantity);
+                    if (tx.fees) {
+                        addCash(tx.fees.currency, -tx.fees.value);
+                    }
                 }
                 break;
             case "sell":
@@ -748,7 +750,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         if (!ignoresAvailableCash && !hasSufficientFunds) return;
         if (tradeType === "sell" && !hasSufficientAsset) return;
 
-        const shouldForex = fxEnabled && Number(tradeFxRate) > 0;
+        const shouldForex =
+            fxEnabled && Number(tradeFxRate) > 0 && !ignoresAvailableCash;
         const dispatchForex = () => {
             const forexId = `tx_${Date.now()}_fx`;
             dispatch(
@@ -797,6 +800,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 assetId,
                 quantity: tradeQuantityValue,
                 price: { value: tradePriceValue, currency: tradeCurrency },
+                assetDeposit: ignoresAvailableCash ? true : undefined,
                 fxPair: fxEnabled ? fxPair : undefined,
                 fxRate:
                     fxEnabled && tradeFxRate ? Number(tradeFxRate) : undefined,
