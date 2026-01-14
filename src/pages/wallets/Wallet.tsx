@@ -64,6 +64,19 @@ interface Props {
 const roundToTwo = (value: number) => Math.round(value * 100) / 100;
 const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
 
+const getFxRateBetween = (
+    rates: Record<string, number>,
+    from: Currency,
+    to: Currency,
+    visualCurrency: Currency
+) => {
+    if (from === to) return 1;
+    const rateFrom = from === visualCurrency ? 1 : rates[from];
+    const rateTo = to === visualCurrency ? 1 : rates[to];
+    if (!rateFrom || !rateTo) return 0;
+    return rateFrom / rateTo;
+};
+
 const sortWalletTransactionsAsc = (transactions: WalletTx[]) =>
     [...transactions].sort((a, b) => {
         const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -190,6 +203,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [isDividendOpen, setDividendOpen] = useState(false);
     const [isTradeOpen, setTradeOpen] = useState(false);
     const [isUndoOpen, setUndoOpen] = useState(false);
+    const [isForexOpen, setForexOpen] = useState(false);
 
     const [cashAmount, setCashAmount] = useState("");
     const [cashCurrency, setCashCurrency] = useState<Currency>(
@@ -227,6 +241,16 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [tradeFxRate, setTradeFxRate] = useState("");
     const [tradePieId, setTradePieId] = useState("");
     const [tradeDate, setTradeDate] = useState(
+        new Date().toISOString().slice(0, 10)
+    );
+    const [forexFromCurrency, setForexFromCurrency] = useState<Currency>(
+        settings.balanceCurrency
+    );
+    const [forexToCurrency, setForexToCurrency] = useState<Currency>(
+        settings.balanceCurrency === "EUR" ? "USD" : "EUR"
+    );
+    const [forexAmount, setForexAmount] = useState("");
+    const [forexDate, setForexDate] = useState(
         new Date().toISOString().slice(0, 10)
     );
 
@@ -474,6 +498,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         cashCurrencies,
         settings.visualCurrency
     );
+    const forexPreviewRates = useForexLivePrices(
+        [forexFromCurrency, forexToCurrency],
+        settings.visualCurrency
+    );
 
     const historyCurrencies = useMemo(
         () => getWalletTxCurrencies(walletTransactions),
@@ -558,6 +586,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const cashBalancesAtCashDate = useMemo(
         () => getCashBalancesAtDate(walletTransactions, cashDate),
         [cashDate, walletTransactions]
+    );
+    const cashBalancesAtForexDate = useMemo(
+        () => getCashBalancesAtDate(walletTransactions, forexDate),
+        [forexDate, walletTransactions]
     );
 
     const handleNonNegativeChange =
@@ -658,6 +690,28 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             ? `Insufficient ${cashCurrency} funds on ${cashDate} for this withdrawal.`
             : "";
 
+    const forexAmountValue = Number(forexAmount);
+    const forexRate = getFxRateBetween(
+        forexPreviewRates,
+        forexFromCurrency,
+        forexToCurrency,
+        settings.visualCurrency
+    );
+    const forexToValue = roundToTwo(forexAmountValue * forexRate);
+    const hasForexBasics =
+        forexAmountValue > 0 && forexFromCurrency !== forexToCurrency;
+    const hasForexRate = forexRate > 0;
+    const hasSufficientForexFunds =
+        forexAmountValue > 0
+            ? roundToTwo(
+                  getBalanceAtDate(cashBalancesAtForexDate, forexFromCurrency)
+              ) >= forexAmountValue
+            : true;
+    const forexInsufficientMessage =
+        forexAmountValue > 0 && !hasSufficientForexFunds
+            ? `Insufficient ${forexFromCurrency} funds on ${forexDate} for this FX conversion.`
+            : "";
+
     const handleAddCash = (type: "deposit" | "withdraw") => {
         if (!id) return;
         if (type === "withdraw" && !hasSufficientWithdrawal) return;
@@ -694,6 +748,26 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             })
         );
         setDividendAmount("");
+    };
+
+    const handleAddForex = () => {
+        if (!id) return;
+        if (!hasForexBasics || !hasForexRate || !hasSufficientForexFunds) return;
+        const txId = `tx_${Date.now()}`;
+        dispatch(
+            addWalletTransaction({
+                id: txId,
+                walletId: id,
+                type: "forex",
+                date: forexDate || new Date().toISOString().slice(0, 10),
+                from: { value: forexAmountValue, currency: forexFromCurrency },
+                to: { value: forexToValue, currency: forexToCurrency },
+                fxRate: forexRate,
+                createdAt: new Date().toISOString(),
+            })
+        );
+        setForexAmount("");
+        setForexDate(new Date().toISOString().slice(0, 10));
     };
 
     const handleAddTrade = () => {
@@ -1060,6 +1134,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     </Button>
                     <Button
                         variant="secondary"
+                        onClick={() => setForexOpen(true)}
+                    >
+                        Add FX
+                    </Button>
+                    <Button
+                        variant="secondary"
                         onClick={() => setUndoOpen(true)}
                         disabled={!lastTransaction}
                     >
@@ -1283,6 +1363,108 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         }}
                     >
                         Add Dividend
+                    </Button>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={isForexOpen}
+                onClose={() => setForexOpen(false)}
+                title="Add FX Conversion"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            From Currency
+                        </label>
+                        <select
+                            value={forexFromCurrency}
+                            onChange={(event) =>
+                                setForexFromCurrency(
+                                    event.target.value as Currency
+                                )
+                            }
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        >
+                            {currencyOptions.map((currency) => (
+                                <option key={currency} value={currency}>
+                                    {currency}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            To Currency
+                        </label>
+                        <select
+                            value={forexToCurrency}
+                            onChange={(event) =>
+                                setForexToCurrency(
+                                    event.target.value as Currency
+                                )
+                            }
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        >
+                            {currencyOptions.map((currency) => (
+                                <option key={currency} value={currency}>
+                                    {currency}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Amount
+                        </label>
+                        <input
+                            type="number"
+                            value={forexAmount}
+                            onChange={handleNonNegativeChange(setForexAmount)}
+                            min="0"
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Date
+                        </label>
+                        <input
+                            type="date"
+                            value={forexDate}
+                            onChange={(event) => setForexDate(event.target.value)}
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                    </div>
+                    {forexInsufficientMessage && (
+                        <p className="text-xs text-app-warning">
+                            {forexInsufficientMessage}
+                        </p>
+                    )}
+                    <div className="rounded-lg border border-app-border bg-app-surface px-4 py-3 text-xs text-app-muted space-y-1">
+                        <p>
+                            Current FX rate: 1 {forexFromCurrency} ={" "}
+                            {forexRate > 0 ? forexRate.toFixed(4) : "-"}{" "}
+                            {forexToCurrency}
+                        </p>
+                        <p>
+                            You will receive:{" "}
+                            <span className="text-app-foreground">
+                                {forexAmountValue > 0 && forexRate > 0
+                                    ? `${forexToValue.toFixed(2)} ${forexToCurrency}`
+                                    : "-"}
+                            </span>
+                        </p>
+                    </div>
+                    <Button
+                        className="w-full"
+                        onClick={() => {
+                            handleAddForex();
+                            setForexOpen(false);
+                        }}
+                        disabled={!hasForexBasics || !hasForexRate || !hasSufficientForexFunds}
+                    >
+                        Add FX Conversion
                     </Button>
                 </div>
             </Modal>
