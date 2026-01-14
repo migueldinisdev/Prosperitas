@@ -106,6 +106,13 @@ const buildTickDates = (
     return ticks.sort((a, b) => a.localeCompare(b));
 };
 
+const getTodayUtc = () => {
+    const now = new Date();
+    return new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    );
+};
+
 interface NetWorthHistoryChartProps {
     transactions: WalletTx[];
     assets: Record<string, Asset>;
@@ -151,17 +158,24 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         const latestDate = parseDate(
             sortedTransactions[sortedTransactions.length - 1].date
         );
-        const rangeStart = getRangeStart(range, latestDate, earliestDate);
+        const today = getTodayUtc();
+        const chartEndDate = latestDate > today ? latestDate : today;
+        const rangeStart = getRangeStart(range, chartEndDate, earliestDate);
 
         const tickDays = TICK_DAYS_BY_RATE[tickRate];
         const tickDates = buildTickDates(
             rangeStart,
-            latestDate,
+            chartEndDate,
             tickDays
         );
+        tickDates.push(toDateKey(today));
         return {
-            chartDates: tickDates,
-            ticks: tickDates,
+            chartDates: Array.from(new Set(tickDates)).sort((a, b) =>
+                a.localeCompare(b)
+            ),
+            ticks: Array.from(new Set(tickDates)).sort((a, b) =>
+                a.localeCompare(b)
+            ),
         };
     }, [range, tickRate, transactions]);
 
