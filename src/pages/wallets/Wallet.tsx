@@ -377,6 +377,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         }
         return [];
     }, [walletCash]);
+    const hasNegativeCash = useMemo(
+        () => cashBuckets.some((bucket) => bucket.value < 0),
+        [cashBuckets]
+    );
 
     const transactionCurrencies = useMemo(() => {
         const currencies = new Set<Currency>();
@@ -483,69 +487,19 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         return 0;
     };
 
-    const getAvailableCashAfterBase = (currency: Currency) => {
-        let available = getWalletCashValue(currency);
-        if (tradeType === "buy") {
-            if (currency === fundingCurrency) {
-                available -= requiredFundingBase;
-            }
-        } else {
-            if (currency === tradeCurrency) {
-                available += tradeTotal;
-            }
-            if (fxEnabled && currency === tradeCurrency) {
-                available -= tradeTotal;
-            }
-            if (fxEnabled && currency === tradeFundingCurrency) {
-                available += roundedFundingAmountValue;
-            }
-        }
-        return roundToTwo(available);
-    };
-
     const tradeFeesValue = showTradeFees ? Number(tradeFees) : 0;
     const tradeFxFeeValue = showFxFee ? Number(tradeFxFee) : 0;
-    const feeNeeds = new Map<Currency, number>();
-    if (tradeFeesValue > 0) {
-        feeNeeds.set(
-            tradeFeesCurrency,
-            (feeNeeds.get(tradeFeesCurrency) ?? 0) + tradeFeesValue
-        );
-    }
-    if (tradeFxFeeValue > 0) {
-        feeNeeds.set(
-            tradeFxFeeCurrency,
-            (feeNeeds.get(tradeFxFeeCurrency) ?? 0) + tradeFxFeeValue
-        );
-    }
 
-    const hasSufficientFunding =
-        tradeType === "buy"
-            ? roundToTwo(getWalletCashValue(fundingCurrency)) >=
-              requiredFundingBase
-            : true;
-    const hasSufficientFees = Array.from(feeNeeds.entries()).every(
-        ([currency, amount]) =>
-            getAvailableCashAfterBase(currency) >= roundToTwo(amount)
-    );
     const hasSufficientAsset =
         tradeType === "sell"
             ? (walletPositions?.[tradeAssetId]?.amount ?? 0) >=
               tradeQuantityValue
             : true;
-    const hasSufficientFunds = hasSufficientFunding && hasSufficientFees;
     const insufficientFundsMessage =
         hasTradeBasics &&
         hasFxDetails &&
-        tradeType === "buy" &&
-        !hasSufficientFunding
-            ? `Insufficient ${fundingCurrency} funds for this purchase.`
-            : hasTradeBasics && hasFxDetails && !hasSufficientFees
-            ? "Insufficient funds to cover fees."
-            : hasTradeBasics &&
-              hasFxDetails &&
-              tradeType === "sell" &&
-              !hasSufficientAsset
+        tradeType === "sell" &&
+        !hasSufficientAsset
             ? "Insufficient assets to sell."
             : "";
 
@@ -637,7 +591,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         }
         if (!assetId || tradeQuantityValue <= 0 || tradePriceValue <= 0) return;
 
-        if (!hasSufficientFunds) return;
         if (tradeType === "sell" && !hasSufficientAsset) return;
 
         const shouldForex = fxEnabled && Number(tradeFxRate) > 0;
@@ -910,6 +863,14 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 ))
                             ) : (
                                 <p className="text-sm text-app-muted">-</p>
+                            )}
+                            {hasNegativeCash && (
+                                <p className="text-xs text-app-warning">
+                                    Cash is negative because there aren't
+                                    sufficient funds for the asset purchases.
+                                    Add the remaining deposits to ensure
+                                    consistency.
+                                </p>
                             )}
                         </div>
                     </Card>
@@ -1656,7 +1617,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         disabled={
                             !hasTradeBasics ||
                             !hasFxDetails ||
-                            !hasSufficientFunds ||
                             !hasSufficientAsset
                         }
                         onClick={() => {
