@@ -35,6 +35,14 @@ interface PriceRequest {
     date?: string;
 }
 
+export interface PriceBatchRequest extends PriceRequest {}
+
+export interface PriceBatchResult {
+    request: PriceBatchRequest;
+    value: PriceResult | null;
+    error?: unknown;
+}
+
 const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
 
 const makeLivePriceKey = (type: PriceAssetType, ticker: string) =>
@@ -242,4 +250,21 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
 
         throw error;
     }
+};
+
+export const getPricesBatch = async (
+    requests: PriceBatchRequest[]
+): Promise<{ results: PriceBatchResult[] }> => {
+    const results = await Promise.all(
+        requests.map(async (request) => {
+            try {
+                const value = await getPrice(request);
+                return { request, value };
+            } catch (error) {
+                return { request, value: null, error };
+            }
+        })
+    );
+
+    return { results };
 };
