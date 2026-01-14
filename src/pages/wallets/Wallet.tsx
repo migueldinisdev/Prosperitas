@@ -234,6 +234,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const [showTradeFees, setShowTradeFees] = useState(false);
     const [showFxFee, setShowFxFee] = useState(false);
+    const [isAssetDeposit, setIsAssetDeposit] = useState(false);
 
     const walletName = wallet?.name ?? "Wallet";
     const tradeQuantityValue = Number(tradeQuantity);
@@ -342,6 +343,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             setTradeStooqTicker("");
         }
     }, [tradeAssetType]);
+
+    useEffect(() => {
+        if (tradeType === "sell" && isAssetDeposit) {
+            setIsAssetDeposit(false);
+        }
+    }, [isAssetDeposit, tradeType]);
 
     const positionEntries = useMemo(
         () =>
@@ -590,6 +597,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const tradeFeesValue = showTradeFees ? Number(tradeFees) : 0;
     const tradeFxFeeValue = showFxFee ? Number(tradeFxFee) : 0;
+    const ignoresAvailableCash = tradeType === "buy" && isAssetDeposit;
     const feeNeeds = new Map<Currency, number>();
     if (tradeFeesValue > 0) {
         feeNeeds.set(
@@ -605,15 +613,18 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     }
 
     const hasSufficientFunding =
-        tradeType === "buy"
+        ignoresAvailableCash ||
+        (tradeType === "buy"
             ? roundToTwo(
                   getBalanceAtDate(cashBalancesAtTradeDate, fundingCurrency)
               ) >= requiredFundingBase
-            : true;
-    const hasSufficientFees = Array.from(feeNeeds.entries()).every(
-        ([currency, amount]) =>
-            getAvailableCashAfterBaseAtDate(currency) >= roundToTwo(amount)
-    );
+            : true);
+    const hasSufficientFees =
+        ignoresAvailableCash ||
+        Array.from(feeNeeds.entries()).every(
+            ([currency, amount]) =>
+                getAvailableCashAfterBaseAtDate(currency) >= roundToTwo(amount)
+        );
     const hasSufficientAsset =
         tradeType === "sell"
             ? (walletPositions?.[tradeAssetId]?.amount ?? 0) >=
@@ -621,10 +632,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             : true;
     const hasSufficientFunds = hasSufficientFunding && hasSufficientFees;
     const insufficientFundsMessage =
-        hasTradeBasics &&
-        hasFxDetails &&
-        tradeType === "buy" &&
-        !hasSufficientFunding
+        ignoresAvailableCash
+            ? ""
+            : hasTradeBasics &&
+              hasFxDetails &&
+              tradeType === "buy" &&
+              !hasSufficientFunding
             ? `Insufficient ${fundingCurrency} funds on ${tradeDate} for this purchase.`
             : hasTradeBasics && hasFxDetails && !hasSufficientFees
             ? `Insufficient funds on ${tradeDate} to cover fees.`
@@ -736,7 +749,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         }
         if (!assetId || tradeQuantityValue <= 0 || tradePriceValue <= 0) return;
 
-        if (!hasSufficientFunds) return;
+        if (!ignoresAvailableCash && !hasSufficientFunds) return;
         if (tradeType === "sell" && !hasSufficientAsset) return;
 
         const shouldForex = fxEnabled && Number(tradeFxRate) > 0;
@@ -1568,6 +1581,24 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 </div>
                             )}
                         </div>
+                    )}
+                    {tradeType === "buy" && (
+                        <label className="flex items-center gap-2 text-xs text-app-muted">
+                            <input
+                                type="checkbox"
+                                checked={isAssetDeposit}
+                                onChange={(event) =>
+                                    setIsAssetDeposit(event.target.checked)
+                                }
+                                className="h-4 w-4"
+                            />
+                            <span>Asset Deposit (ignores available cash)</span>
+                            <Info
+                                size={12}
+                                className="text-app-muted"
+                                title="Ignores available cash when purchasing an asset essentially treating this as an Asset Deposit"
+                            />
+                        </label>
                     )}
                     <div className="space-y-3">
                         <label className="flex items-center gap-2 text-xs text-app-muted">
