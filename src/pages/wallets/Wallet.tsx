@@ -23,8 +23,12 @@ import { useWalletData } from "../../hooks/useWalletData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { Modal } from "../../ui/Modal";
+import { ConfirmModal } from "../../ui/ConfirmModal";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { addWalletTransaction } from "../../store/thunks/walletThunks";
+import {
+    addWalletTransaction,
+    removeWalletTransaction,
+} from "../../store/thunks/walletThunks";
 import { addAsset } from "../../store/slices/assetsSlice";
 import { updatePie } from "../../store/slices/piesSlice";
 import { selectPies, selectSettings } from "../../store/selectors";
@@ -157,21 +161,12 @@ const WalletAllocationSection = React.memo(
 interface WalletTransactionsSectionProps {
     transactions: WalletTx[];
     assets: AssetsState;
-    lastTransactionId?: string;
 }
 
 const WalletTransactionsSection = React.memo(
-    ({
-        transactions,
-        assets,
-        lastTransactionId,
-    }: WalletTransactionsSectionProps) => (
+    ({ transactions, assets }: WalletTransactionsSectionProps) => (
         <Card title="Transactions">
-            <WalletTransactionsTable
-                transactions={transactions}
-                assets={assets}
-                lastTransactionId={lastTransactionId}
-            />
+            <WalletTransactionsTable transactions={transactions} assets={assets} />
         </Card>
     )
 );
@@ -192,6 +187,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [isWithdrawOpen, setWithdrawOpen] = useState(false);
     const [isDividendOpen, setDividendOpen] = useState(false);
     const [isTradeOpen, setTradeOpen] = useState(false);
+    const [isUndoOpen, setUndoOpen] = useState(false);
 
     const [cashAmount, setCashAmount] = useState("");
     const [cashCurrency, setCashCurrency] = useState<Currency>(
@@ -552,7 +548,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             }),
         [walletTransactions]
     );
-    const lastTransactionId = sortedTransactions[0]?.id;
+    const lastTransaction = sortedTransactions[0];
     const cashBalancesAtTradeDate = useMemo(
         () => getCashBalancesAtDate(walletTransactions, tradeDate),
         [tradeDate, walletTransactions]
@@ -1058,6 +1054,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     >
                         Add Trade
                     </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={() => setUndoOpen(true)}
+                        disabled={!lastTransaction}
+                    >
+                        Undo last transaction
+                    </Button>
                 </div>
 
                 <WalletAllocationSection
@@ -1069,7 +1072,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 <WalletTransactionsSection
                     transactions={sortedTransactions}
                     assets={assets}
-                    lastTransactionId={lastTransactionId}
                 />
                 <EditAssetModal
                     isOpen={Boolean(editingHolding)}
@@ -1798,7 +1800,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         disabled={
                             !hasTradeBasics ||
                             !hasFxDetails ||
-                            !hasSufficientFunds ||
+                            (!hasSufficientFunds && !ignoresAvailableCash) ||
                             !hasSufficientAsset
                         }
                         onClick={() => {
@@ -1810,6 +1812,18 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     </Button>
                 </div>
             </Modal>
+            <ConfirmModal
+                isOpen={isUndoOpen}
+                onClose={() => setUndoOpen(false)}
+                onConfirm={() => {
+                    if (!lastTransaction) return;
+                    dispatch(removeWalletTransaction(lastTransaction.id));
+                    setUndoOpen(false);
+                }}
+                title="Undo last transaction"
+                description="This will remove your most recent wallet transaction."
+                confirmLabel="Undo Transaction"
+            />
         </div>
     );
 };

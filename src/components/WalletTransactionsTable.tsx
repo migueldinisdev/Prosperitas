@@ -1,16 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
 import { WalletTx, AssetsState, Money } from "../core/schema-types";
 import { formatCurrency } from "../utils/formatters";
-import { useAppDispatch } from "../store/hooks";
-import { removeWalletTransaction } from "../store/thunks/walletThunks";
-import { ConfirmModal } from "../ui/ConfirmModal";
-import { EditWalletTransactionModal } from "./EditWalletTransactionModal";
 
 interface WalletTransactionsTableProps {
     transactions: WalletTx[];
     assets: AssetsState;
-    lastTransactionId?: string;
 }
 
 const formatMoney = (money?: Money) =>
@@ -20,14 +14,11 @@ const formatType = (type: WalletTx["type"]) =>
     type.charAt(0).toUpperCase() + type.slice(1);
 
 export const WalletTransactionsTable = React.memo(
-    ({ transactions, assets, lastTransactionId }: WalletTransactionsTableProps) => {
+    ({ transactions, assets }: WalletTransactionsTableProps) => {
         console.log("WalletTransactionsTable re-rendered");
 
         const [currentPage, setCurrentPage] = useState(1);
         const [transactionsPerPage, setTransactionsPerPage] = useState(10);
-        const dispatch = useAppDispatch();
-        const [confirmTx, setConfirmTx] = useState<WalletTx | null>(null);
-        const [editingTx, setEditingTx] = useState<WalletTx | null>(null);
 
         const totalPages = useMemo(
             () => Math.ceil(transactions.length / transactionsPerPage),
@@ -122,12 +113,6 @@ export const WalletTransactionsTable = React.memo(
                             <th className="px-4 py-3 font-medium text-right">
                                 FX
                             </th>
-                            <th className="px-4 py-3 font-medium text-right">
-                                Edit
-                            </th>
-                            <th className="px-4 py-3 font-medium text-right">
-                                Delete
-                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-app-border">
@@ -139,7 +124,6 @@ export const WalletTransactionsTable = React.memo(
                             const assetLabel = asset
                                 ? `${asset.ticker} • ${asset.name}`
                                 : "-";
-                            const canEdit = tx.id === lastTransactionId;
 
                             let quantity: string | number = "-";
                             let price = "-";
@@ -211,60 +195,11 @@ export const WalletTransactionsTable = React.memo(
                                     <td className="px-4 py-3 text-right text-app-muted">
                                         {fx}
                                     </td>
-                                    <td className="px-4 py-3 text-right">
-                                        {canEdit ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => setEditingTx(tx)}
-                                                className="inline-flex items-center justify-center p-2 rounded-lg text-app-muted hover:text-app-foreground hover:bg-app-surface transition-colors"
-                                                aria-label="Edit transaction"
-                                            >
-                                                <Pencil size={16} />
-                                            </button>
-                                        ) : (
-                                            <span className="text-xs text-app-muted">
-                                                -
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        {canEdit ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => setConfirmTx(tx)}
-                                                className="inline-flex items-center justify-center p-2 rounded-lg text-app-danger hover:text-app-danger/90 hover:bg-app-danger/10 transition-colors"
-                                                aria-label="Delete transaction"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        ) : (
-                                            <span className="text-xs text-app-muted">
-                                                -
-                                            </span>
-                                        )}
-                                    </td>
                                 </tr>
                             );
                         })}
                     </tbody>
                 </table>
-                <ConfirmModal
-                    isOpen={Boolean(confirmTx)}
-                    onClose={() => setConfirmTx(null)}
-                    onConfirm={() => {
-                        if (!confirmTx) return;
-                        dispatch(removeWalletTransaction(confirmTx.id));
-                        setConfirmTx(null);
-                    }}
-                    title="Delete transaction"
-                    description="This will remove the transaction and update wallet balances."
-                    confirmLabel="Delete Transaction"
-                />
-                <EditWalletTransactionModal
-                    isOpen={Boolean(editingTx)}
-                    onClose={() => setEditingTx(null)}
-                    transaction={editingTx}
-                />
             </div>
         );
     }
