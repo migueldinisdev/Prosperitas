@@ -60,6 +60,62 @@ interface Props {
 const roundToTwo = (value: number) => Math.round(value * 100) / 100;
 const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
 
+const sortWalletTransactionsAsc = (transactions: WalletTx[]) =>
+    [...transactions].sort((a, b) => {
+        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return (
+            new Date(a.createdAt).getTime() -
+            new Date(b.createdAt).getTime()
+        );
+    });
+
+const getCashBalancesAtDate = (transactions: WalletTx[], targetDate: string) => {
+    const balances = new Map<Currency, number>();
+    if (!targetDate) return balances;
+    const targetTime = new Date(targetDate).getTime();
+    if (Number.isNaN(targetTime)) return balances;
+    const addCash = (currency: Currency, delta: number) => {
+        const current = balances.get(currency) ?? 0;
+        balances.set(currency, current + delta);
+    };
+    const sortedTransactions = sortWalletTransactionsAsc(transactions);
+    sortedTransactions.forEach((tx) => {
+        if (new Date(tx.date).getTime() > targetTime) return;
+        switch (tx.type) {
+            case "deposit":
+                addCash(tx.amount.currency, tx.amount.value);
+                break;
+            case "withdraw":
+                addCash(tx.amount.currency, -tx.amount.value);
+                break;
+            case "dividend":
+                addCash(tx.amount.currency, tx.amount.value);
+                break;
+            case "forex":
+                addCash(tx.from.currency, -tx.from.value);
+                addCash(tx.to.currency, tx.to.value);
+                if (tx.fees) {
+                    addCash(tx.fees.currency, -tx.fees.value);
+                }
+                break;
+            case "buy":
+                addCash(tx.price.currency, -tx.price.value * tx.quantity);
+                if (tx.fees) {
+                    addCash(tx.fees.currency, -tx.fees.value);
+                }
+                break;
+            case "sell":
+                addCash(tx.price.currency, tx.price.value * tx.quantity);
+                if (tx.fees) {
+                    addCash(tx.fees.currency, -tx.fees.value);
+                }
+                break;
+        }
+    });
+    return balances;
+};
+
 interface WalletAllocationSectionProps {
     pieData: { name: string; value: number; color: string }[];
     holdings: HoldingRow[];
@@ -101,14 +157,20 @@ const WalletAllocationSection = React.memo(
 interface WalletTransactionsSectionProps {
     transactions: WalletTx[];
     assets: AssetsState;
+    lastTransactionId?: string;
 }
 
 const WalletTransactionsSection = React.memo(
-    ({ transactions, assets }: WalletTransactionsSectionProps) => (
+    ({
+        transactions,
+        assets,
+        lastTransactionId,
+    }: WalletTransactionsSectionProps) => (
         <Card title="Transactions">
             <WalletTransactionsTable
                 transactions={transactions}
                 assets={assets}
+                lastTransactionId={lastTransactionId}
             />
         </Card>
     )
@@ -483,6 +545,15 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             }),
         [walletTransactions]
     );
+    const lastTransactionId = sortedTransactions[0]?.id;
+    const cashBalancesAtTradeDate = useMemo(
+        () => getCashBalancesAtDate(walletTransactions, tradeDate),
+        [tradeDate, walletTransactions]
+    );
+    const cashBalancesAtCashDate = useMemo(
+        () => getCashBalancesAtDate(walletTransactions, cashDate),
+        [cashDate, walletTransactions]
+    );
 
     const handleNonNegativeChange =
         (setter: React.Dispatch<React.SetStateAction<string>>) =>
@@ -492,20 +563,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             setter(value);
         };
 
-    const getWalletCashValue = (currency: Currency) => {
-        if (!walletCash) return 0;
-        if (Array.isArray(walletCash)) {
-            return walletCash.find((m) => m.currency === currency)?.value ?? 0;
-        }
-        if (typeof walletCash === "object") {
-            const value = (walletCash as Record<string, number>)[currency];
-            return typeof value === "number" ? value : 0;
-        }
-        return 0;
-    };
+    const getBalanceAtDate = (
+        balances: Map<Currency, number>,
+        currency: Currency
+    ) => balances.get(currency) ?? 0;
 
-    const getAvailableCashAfterBase = (currency: Currency) => {
-        let available = getWalletCashValue(currency);
+    const getAvailableCashAfterBaseAtDate = (currency: Currency) => {
+        let available = getBalanceAtDate(cashBalancesAtTradeDate, currency);
         if (tradeType === "buy") {
             if (currency === fundingCurrency) {
                 available -= requiredFundingBase;
@@ -542,12 +606,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const hasSufficientFunding =
         tradeType === "buy"
-            ? roundToTwo(getWalletCashValue(fundingCurrency)) >=
-              requiredFundingBase
+            ? roundToTwo(
+                  getBalanceAtDate(cashBalancesAtTradeDate, fundingCurrency)
+              ) >= requiredFundingBase
             : true;
     const hasSufficientFees = Array.from(feeNeeds.entries()).every(
         ([currency, amount]) =>
-            getAvailableCashAfterBase(currency) >= roundToTwo(amount)
+            getAvailableCashAfterBaseAtDate(currency) >= roundToTwo(amount)
     );
     const hasSufficientAsset =
         tradeType === "sell"
@@ -560,9 +625,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         hasFxDetails &&
         tradeType === "buy" &&
         !hasSufficientFunding
-            ? `Insufficient ${fundingCurrency} funds for this purchase.`
+            ? `Insufficient ${fundingCurrency} funds on ${tradeDate} for this purchase.`
             : hasTradeBasics && hasFxDetails && !hasSufficientFees
-            ? "Insufficient funds to cover fees."
+            ? `Insufficient funds on ${tradeDate} to cover fees.`
             : hasTradeBasics &&
               hasFxDetails &&
               tradeType === "sell" &&
@@ -570,8 +635,21 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             ? "Insufficient assets to sell."
             : "";
 
+    const withdrawAmountValue = Number(cashAmount);
+    const hasSufficientWithdrawal =
+        withdrawAmountValue > 0
+            ? roundToTwo(
+                  getBalanceAtDate(cashBalancesAtCashDate, cashCurrency)
+              ) >= withdrawAmountValue
+            : true;
+    const withdrawInsufficientMessage =
+        withdrawAmountValue > 0 && !hasSufficientWithdrawal
+            ? `Insufficient ${cashCurrency} funds on ${cashDate} for this withdrawal.`
+            : "";
+
     const handleAddCash = (type: "deposit" | "withdraw") => {
         if (!id) return;
+        if (type === "withdraw" && !hasSufficientWithdrawal) return;
         const txId = `tx_${Date.now()}`;
         dispatch(
             addWalletTransaction({
@@ -978,6 +1056,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 <WalletTransactionsSection
                     transactions={sortedTransactions}
                     assets={assets}
+                    lastTransactionId={lastTransactionId}
                 />
                 <EditAssetModal
                     isOpen={Boolean(editingHolding)}
@@ -1095,6 +1174,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             ))}
                         </select>
                     </div>
+                    {withdrawInsufficientMessage && (
+                        <p className="text-xs text-app-warning">
+                            {withdrawInsufficientMessage}
+                        </p>
+                    )}
                     <Button
                         className="w-full"
                         variant="secondary"
@@ -1102,7 +1186,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             handleAddCash("withdraw");
                             setWithdrawOpen(false);
                         }}
-                        disabled={!cashAmount || Number(cashAmount) <= 0} // Disable button if amount is zero or empty
+                        disabled={
+                            !cashAmount ||
+                            Number(cashAmount) <= 0 ||
+                            !hasSufficientWithdrawal
+                        } // Disable button if amount is zero or empty
                     >
                         Add Withdrawal
                     </Button>

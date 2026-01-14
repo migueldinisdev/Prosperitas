@@ -10,6 +10,7 @@ import { EditWalletTransactionModal } from "./EditWalletTransactionModal";
 interface WalletTransactionsTableProps {
     transactions: WalletTx[];
     assets: AssetsState;
+    lastTransactionId?: string;
 }
 
 const formatMoney = (money?: Money) =>
@@ -19,7 +20,7 @@ const formatType = (type: WalletTx["type"]) =>
     type.charAt(0).toUpperCase() + type.slice(1);
 
 export const WalletTransactionsTable = React.memo(
-    ({ transactions, assets }: WalletTransactionsTableProps) => {
+    ({ transactions, assets, lastTransactionId }: WalletTransactionsTableProps) => {
         console.log("WalletTransactionsTable re-rendered");
 
         const [currentPage, setCurrentPage] = useState(1);
@@ -138,6 +139,7 @@ export const WalletTransactionsTable = React.memo(
                             const assetLabel = asset
                                 ? `${asset.ticker} • ${asset.name}`
                                 : "-";
+                            const canEdit = tx.id === lastTransactionId;
 
                             let quantity: string | number = "-";
                             let price = "-";
@@ -210,24 +212,36 @@ export const WalletTransactionsTable = React.memo(
                                         {fx}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditingTx(tx)}
-                                            className="inline-flex items-center justify-center p-2 rounded-lg text-app-muted hover:text-app-foreground hover:bg-app-surface transition-colors"
-                                            aria-label="Edit transaction"
-                                        >
-                                            <Pencil size={16} />
-                                        </button>
+                                        {canEdit ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditingTx(tx)}
+                                                className="inline-flex items-center justify-center p-2 rounded-lg text-app-muted hover:text-app-foreground hover:bg-app-surface transition-colors"
+                                                aria-label="Edit transaction"
+                                            >
+                                                <Pencil size={16} />
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs text-app-muted">
+                                                -
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <button
-                                            type="button"
-                                            onClick={() => setConfirmTx(tx)}
-                                            className="inline-flex items-center justify-center p-2 rounded-lg text-app-danger hover:text-app-danger/90 hover:bg-app-danger/10 transition-colors"
-                                            aria-label="Delete transaction"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        {canEdit ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setConfirmTx(tx)}
+                                                className="inline-flex items-center justify-center p-2 rounded-lg text-app-danger hover:text-app-danger/90 hover:bg-app-danger/10 transition-colors"
+                                                aria-label="Delete transaction"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs text-app-muted">
+                                                -
+                                            </span>
+                                        )}
                                     </td>
                                 </tr>
                             );

@@ -70,6 +70,7 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                         ) : (
                             transactions.map(({ transaction: t, index }, i) => {
                                 const isLast = i === transactions.length - 1;
+                                const canEdit = i === 0;
                                 const category = t.categoryId
                                     ? categories[t.categoryId]
                                     : undefined;
@@ -130,31 +131,41 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                                     t.amount.currency
                                                 )}
                                             </span>
-                                            <button
-                                                type="button"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    setEditingTx({
-                                                        transaction: t,
-                                                        index,
-                                                    });
-                                                }}
-                                                className="inline-flex items-center justify-center p-2 rounded-lg text-app-muted hover:text-app-foreground hover:bg-app-surface transition-colors"
-                                                aria-label="Edit transaction"
-                                            >
-                                                <Pencil size={16} />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    setConfirmIndex(index);
-                                                }}
-                                                className="inline-flex items-center justify-center p-2 rounded-lg text-app-danger hover:text-app-danger/90 hover:bg-app-danger/10 transition-colors"
-                                                aria-label="Delete transaction"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            {canEdit ? (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            setEditingTx({
+                                                                transaction: t,
+                                                                index,
+                                                            });
+                                                        }}
+                                                        className="inline-flex items-center justify-center p-2 rounded-lg text-app-muted hover:text-app-foreground hover:bg-app-surface transition-colors"
+                                                        aria-label="Edit transaction"
+                                                    >
+                                                        <Pencil size={16} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            setConfirmIndex(
+                                                                index
+                                                            );
+                                                        }}
+                                                        className="inline-flex items-center justify-center p-2 rounded-lg text-app-danger hover:text-app-danger/90 hover:bg-app-danger/10 transition-colors"
+                                                        aria-label="Delete transaction"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <span className="text-xs text-app-muted">
+                                                    -
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 );
