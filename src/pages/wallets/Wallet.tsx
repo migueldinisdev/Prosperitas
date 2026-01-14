@@ -25,7 +25,7 @@ import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { Modal } from "../../ui/Modal";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { addWalletTransaction } from "../../store/thunks/walletThunks";
-import { addAsset } from "../../store/slices/assetsSlice";
+import { addAsset, updateAsset } from "../../store/slices/assetsSlice";
 import { updatePie } from "../../store/slices/piesSlice";
 import { selectPies, selectSettings } from "../../store/selectors";
 import {
@@ -97,14 +97,23 @@ const WalletPerformanceSection = React.memo(
 );
 
 const WalletAllocationSection = React.memo(
-    ({ pieData, holdings }: WalletAllocationSectionProps) => (
+    ({
+        pieData,
+        holdings,
+        onEditAsset,
+    }: WalletAllocationSectionProps & {
+        onEditAsset?: (assetId: string) => void;
+    }) => (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card title="Allocation" className="lg:col-span-1">
                 <PieChart data={pieData} height={250} />
             </Card>
 
             <Card title="Holdings" className="lg:col-span-2">
-                <HoldingsTable holdings={holdings} />
+                <HoldingsTable
+                    holdings={holdings}
+                    onEditAsset={onEditAsset}
+                />
             </Card>
         </div>
     )
@@ -140,6 +149,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [isDividendOpen, setDividendOpen] = useState(false);
     const [isTradeOpen, setTradeOpen] = useState(false);
     const [isFxOpen, setFxOpen] = useState(false);
+    const [isEditAssetOpen, setEditAssetOpen] = useState(false);
 
     const [cashAmount, setCashAmount] = useState("");
     const [cashCurrency, setCashCurrency] = useState<Currency>(
@@ -154,6 +164,14 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         settings.balanceCurrency
     );
     const [dividendAssetId, setDividendAssetId] = useState<string>("");
+    const [editAssetId, setEditAssetId] = useState<string | null>(null);
+    const [editAssetType, setEditAssetType] = useState<AssetType>("stock");
+    const [editAssetTicker, setEditAssetTicker] = useState("");
+    const [editAssetName, setEditAssetName] = useState("");
+    const [editAssetStooq, setEditAssetStooq] = useState("");
+    const [editAssetCurrency, setEditAssetCurrency] =
+        useState<Currency>("USD");
+    const [editAssetDecimals, setEditAssetDecimals] = useState("2");
     const [fxFromAmount, setFxFromAmount] = useState("");
     const [fxFromCurrency, setFxFromCurrency] = useState<Currency>(
         settings.balanceCurrency
@@ -351,6 +369,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
             return {
                 row: {
+                    assetId,
                     asset: asset?.name ?? assetId,
                     ticker: asset?.ticker ?? assetId,
                     units: position.amount,
@@ -564,6 +583,44 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             })
         );
         setDividendAmount("");
+    };
+
+    const handleEditAssetOpen = (assetId: string) => {
+        const asset = assets[assetId];
+        if (!asset) return;
+        setEditAssetId(assetId);
+        setEditAssetType(asset.assetType);
+        setEditAssetTicker(asset.ticker);
+        setEditAssetName(asset.name);
+        setEditAssetStooq(asset.stooqTicker ?? "");
+        setEditAssetCurrency(asset.tradingCurrency);
+        setEditAssetDecimals(asset.decimals.toString());
+        setEditAssetOpen(true);
+    };
+
+    const handleEditAssetSave = () => {
+        if (!editAssetId) return;
+        const nextDecimals = Number(editAssetDecimals);
+        if (Number.isNaN(nextDecimals) || nextDecimals < 0) return;
+        const stooqValue =
+            editAssetType === "stock"
+                ? editAssetStooq.trim() || null
+                : null;
+        dispatch(
+            updateAsset({
+                id: editAssetId,
+                changes: {
+                    assetType: editAssetType,
+                    ticker: editAssetTicker.trim().toUpperCase(),
+                    name: editAssetName.trim() || editAssetTicker.trim(),
+                    stooqTicker: stooqValue,
+                    tradingCurrency: editAssetCurrency,
+                    decimals: nextDecimals,
+                    updatedAt: new Date().toISOString(),
+                },
+            })
+        );
+        setEditAssetOpen(false);
     };
 
     const handleAddFxOperation = () => {
@@ -984,6 +1041,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 <WalletAllocationSection
                     pieData={pieData}
                     holdings={holdings}
+                    onEditAsset={handleEditAssetOpen}
                 />
 
                 <WalletTransactionsSection
@@ -1358,6 +1416,128 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         }
                     >
                         Add FX Operation
+                    </Button>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={isEditAssetOpen}
+                onClose={() => setEditAssetOpen(false)}
+                title="Edit Asset"
+            >
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Ticker
+                            </label>
+                            <input
+                                type="text"
+                                value={editAssetTicker}
+                                onChange={(event) =>
+                                    setEditAssetTicker(event.target.value)
+                                }
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Name
+                            </label>
+                            <input
+                                type="text"
+                                value={editAssetName}
+                                onChange={(event) =>
+                                    setEditAssetName(event.target.value)
+                                }
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Asset Type
+                            </label>
+                            <select
+                                value={editAssetType}
+                                onChange={(event) =>
+                                    setEditAssetType(
+                                        event.target.value as AssetType
+                                    )
+                                }
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            >
+                                <option value="stock">Stock</option>
+                                <option value="etf">ETF</option>
+                                <option value="crypto">Crypto</option>
+                                <option value="bond">Bond</option>
+                                <option value="cash">Cash</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Trading Currency
+                            </label>
+                            <select
+                                value={editAssetCurrency}
+                                onChange={(event) =>
+                                    setEditAssetCurrency(
+                                        event.target.value as Currency
+                                    )
+                                }
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            >
+                                {currencyOptions.map((currency) => (
+                                    <option key={currency} value={currency}>
+                                        {currency}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Stooq Ticker
+                            </label>
+                            <input
+                                type="text"
+                                value={editAssetStooq}
+                                onChange={(event) =>
+                                    setEditAssetStooq(event.target.value)
+                                }
+                                disabled={editAssetType !== "stock"}
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Decimals
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={editAssetDecimals}
+                                onChange={(event) =>
+                                    setEditAssetDecimals(event.target.value)
+                                }
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            />
+                        </div>
+                    </div>
+                    <Button
+                        className="w-full"
+                        onClick={handleEditAssetSave}
+                        disabled={
+                            !editAssetTicker.trim() ||
+                            !editAssetName.trim() ||
+                            Number.isNaN(Number(editAssetDecimals)) ||
+                            Number(editAssetDecimals) < 0
+                        }
+                    >
+                        Update Asset
                     </Button>
                 </div>
             </Modal>
