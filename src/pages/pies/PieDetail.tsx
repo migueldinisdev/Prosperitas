@@ -17,10 +17,12 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { usePieData } from "../../hooks/usePieData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
+import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
 import { useAppSelector } from "../../store/hooks";
 import { selectSettings, selectWalletTxState } from "../../store/selectors";
 import { formatCurrency } from "../../utils/formatters";
 import {
+    calculatePositionCostBasis,
     getAllocationPercent,
     calculateRealizedPnl,
     getPnL,
@@ -28,7 +30,9 @@ import {
     getPositionCurrentValue,
     getPositionInvestedValue,
     getTotalValue,
+    toVisualValue,
 } from "../../core/finance";
+import { getWalletTxCurrencies } from "../../utils/netWorthHistory";
 
 interface Props {
     onMenuClick: () => void;
@@ -42,33 +46,13 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const livePricesByAsset = useAssetLivePrices(assets);
     const transactionCurrencies = useMemo(() => {
-        const currencies = new Set<string>();
-        Object.values(walletTx).forEach((tx) => {
-            if (tx.pieId !== id) return;
-            switch (tx.type) {
-                case "deposit":
-                case "withdraw":
-                case "dividend":
-                    currencies.add(tx.amount.currency);
-                    break;
-                case "forex":
-                    currencies.add(tx.from.currency);
-                    currencies.add(tx.to.currency);
-                    if (tx.fees) currencies.add(tx.fees.currency);
-                    break;
-                case "buy":
-                case "sell":
-                    currencies.add(tx.price.currency);
-                    if (tx.fees) currencies.add(tx.fees.currency);
-                    break;
-            }
-        });
-        return Array.from(currencies);
+        const filtered = Object.values(walletTx).filter((tx) => tx.pieId === id);
+        return getWalletTxCurrencies(filtered);
     }, [id, walletTx]);
 
     const forexRates = useForexLivePrices(
         transactionCurrencies,
-        settings.balanceCurrency
+        settings.visualCurrency
     );
 
     const pieAssetIds = useMemo(
@@ -83,17 +67,52 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
         });
     }, [pieAssetIds, walletTx]);
 
+    const transactionDates = useMemo(
+        () => pieTransactions.map((tx) => tx.date),
+        [pieTransactions]
+    );
+
+    const { getForexRate } = useForexHistoricalRates(
+        transactionCurrencies,
+        transactionDates,
+        settings.visualCurrency
+    );
+
     const { holdings, totals } = useMemo(() => {
+        const costBasisByAsset = calculatePositionCostBasis(
+            pieTransactions,
+            settings.visualCurrency,
+            forexRates,
+            getForexRate
+        );
         const rows = assets.map((asset) => {
             const costAverage = asset.avgCost.value;
             const currentPrice = livePricesByAsset[asset.id] ?? costAverage;
             const value = getPositionCurrentValue(asset.amount, currentPrice);
-            const investedValue = getPositionInvestedValue(
-                asset.amount,
-                costAverage
+            const valueVisual = toVisualValue(
+                value,
+                asset.tradingCurrency,
+                settings.visualCurrency,
+                forexRates
             );
-            const pnl = getPnL(value, investedValue);
-            const pnlPercent = getPnLPercent(value, investedValue);
+            const investedValue =
+                costBasisByAsset.get(asset.id)?.costBasisVisual ??
+                toVisualValue(
+                    getPositionInvestedValue(asset.amount, costAverage),
+                    asset.tradingCurrency,
+                    settings.visualCurrency,
+                    forexRates
+                );
+            const pnl = getPnL(valueVisual, investedValue);
+            const pnlPercent = getPnLPercent(valueVisual, investedValue);
+            const costAverageVisual =
+                asset.amount > 0 ? investedValue / asset.amount : 0;
+            const currentPriceVisual = toVisualValue(
+                currentPrice,
+                asset.tradingCurrency,
+                settings.visualCurrency,
+                forexRates
+            );
 
             return {
                 row: {
@@ -101,12 +120,12 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                     asset: asset.name,
                     ticker: asset.ticker,
                     units: asset.amount,
-                    costAverage,
-                    currentPrice,
-                    value,
+                    costAverage: costAverageVisual,
+                    currentPrice: currentPriceVisual,
+                    value: valueVisual,
                     pnl,
                     pnlPercent: Number(pnlPercent.toFixed(2)),
-                    currency: asset.tradingCurrency,
+                    currency: settings.visualCurrency,
                 },
                 investedValue,
             };
@@ -131,15 +150,23 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                 pnl: totalPnL,
             },
         };
-    }, [assets, livePricesByAsset]);
+    }, [
+        assets,
+        forexRates,
+        getForexRate,
+        livePricesByAsset,
+        pieTransactions,
+        settings.visualCurrency,
+    ]);
     const realizedPnl = useMemo(
         () =>
             calculateRealizedPnl(
                 Object.values(walletTx).filter((tx) => tx.pieId === id),
-                settings.balanceCurrency,
-                forexRates
+                settings.visualCurrency,
+                forexRates,
+                getForexRate
             ),
-        [forexRates, id, settings.balanceCurrency, walletTx]
+        [forexRates, getForexRate, id, settings.visualCurrency, walletTx]
     );
     const unrealizedIsPositive = totals.pnl >= 0;
     const realizedIsPositive = realizedPnl >= 0;
@@ -209,7 +236,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <p className="text-2xl font-bold text-app-foreground mt-1">
                             {formatCurrency(
                                 totals.currentValue,
-                                settings.balanceCurrency
+                                settings.visualCurrency
                             )}
                         </p>
                     </Card>
@@ -228,7 +255,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <p className="text-2xl font-bold text-app-foreground mt-1">
                             {formatCurrency(
                                 totals.invested,
-                                settings.balanceCurrency
+                                settings.visualCurrency
                             )}
                         </p>
                     </Card>
@@ -253,7 +280,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     Unrealized {unrealizedIsPositive ? "+" : ""}
                                     {formatCurrency(
                                         totals.pnl,
-                                        settings.balanceCurrency
+                                        settings.visualCurrency
                                     )}
                                 </span>
                             </div>
@@ -273,7 +300,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     Realized {realizedIsPositive ? "+" : ""}
                                     {formatCurrency(
                                         realizedPnl,
-                                        settings.balanceCurrency
+                                        settings.visualCurrency
                                     )}
                                 </span>
                             </div>
@@ -318,9 +345,9 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                             <NetWorthHistoryChart
                                 transactions={pieTransactions}
                                 assets={assets}
-                                baseCurrency={settings.balanceCurrency}
+                                baseCurrency={settings.visualCurrency}
                                 height={260}
-                                currency={settings.balanceCurrency}
+                                currency={settings.visualCurrency}
                                 locale={settings.locale}
                                 assetFilter={pieAssetIds}
                                 includeCash={false}

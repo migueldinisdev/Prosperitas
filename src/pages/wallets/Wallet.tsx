@@ -22,6 +22,7 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { useWalletData } from "../../hooks/useWalletData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
+import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
 import { Modal } from "../../ui/Modal";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { addWalletTransaction } from "../../store/thunks/walletThunks";
@@ -36,14 +37,16 @@ import {
     WalletTx,
 } from "../../core/schema-types";
 import {
+    calculatePositionCostBasis,
+    calculateRealizedPnl,
     getAllocationPercent,
     getConvertedValue,
-    calculateRealizedPnl,
     getPnL,
     getPnLPercent,
     getPositionCurrentValue,
     getPositionInvestedValue,
     getTotalValue,
+    toVisualValue,
 } from "../../core/finance";
 import { formatCurrency } from "../../utils/formatters";
 
@@ -350,62 +353,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const livePricesByAsset = useAssetLivePrices(positionAssets);
 
-    const { holdings, totals } = useMemo(() => {
-        const rows = positionEntries.map(([assetId, position]) => {
-            const asset = assets[assetId];
-            const costAverage = position.avgCost.value;
-            const currentPrice =
-                livePricesByAsset[assetId] ?? position.avgCost.value;
-            const value = getPositionCurrentValue(
-                position.amount,
-                currentPrice
-            );
-            const investedValue = getPositionInvestedValue(
-                position.amount,
-                costAverage
-            );
-            const pnl = getPnL(value, investedValue);
-            const pnlPercent = getPnLPercent(value, investedValue);
-
-            return {
-                row: {
-                    assetId,
-                    asset: asset?.name ?? assetId,
-                    ticker: asset?.ticker ?? assetId,
-                    units: position.amount,
-                    costAverage,
-                    currentPrice,
-                    value,
-                    pnl,
-                    pnlPercent: Number(pnlPercent.toFixed(2)),
-                    currency:
-                        asset?.tradingCurrency ?? position.avgCost.currency,
-                },
-                investedValue,
-            };
-        });
-
-        const totalValue = getTotalValue(rows.map((item) => item.row.value));
-        const totalInvested = getTotalValue(
-            rows.map((item) => item.investedValue)
-        );
-        const totalPnL = getTotalValue(rows.map((item) => item.row.pnl));
-
-        return {
-            holdings: rows.map(({ row }) => ({
-                ...row,
-                allocation: Number(
-                    getAllocationPercent(row.value, totalValue).toFixed(2)
-                ),
-            })),
-            totals: {
-                currentValue: totalValue,
-                invested: totalInvested,
-                pnl: totalPnL,
-            },
-        };
-    }, [assets, livePricesByAsset, positionEntries]);
-
     const cashBuckets = useMemo(() => {
         if (!walletCash) return [];
         if (Array.isArray(walletCash)) {
@@ -461,6 +408,106 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         settings.visualCurrency
     );
 
+    const transactionDates = useMemo(
+        () => walletTransactions.map((tx) => tx.date),
+        [walletTransactions]
+    );
+
+    const { getForexRate } = useForexHistoricalRates(
+        transactionCurrencies,
+        transactionDates,
+        settings.visualCurrency
+    );
+
+    const { holdings, totals } = useMemo(() => {
+        const costBasisByAsset = calculatePositionCostBasis(
+            walletTransactions,
+            settings.visualCurrency,
+            forexRates,
+            getForexRate
+        );
+        const rows = positionEntries.map(([assetId, position]) => {
+            const asset = assets[assetId];
+            const costAverage = position.avgCost.value;
+            const currentPrice =
+                livePricesByAsset[assetId] ?? position.avgCost.value;
+            const value = getPositionCurrentValue(
+                position.amount,
+                currentPrice
+            );
+            const tradingCurrency =
+                asset?.tradingCurrency ?? position.avgCost.currency;
+            const valueVisual = toVisualValue(
+                value,
+                tradingCurrency,
+                settings.visualCurrency,
+                forexRates
+            );
+            const investedValueVisual =
+                costBasisByAsset.get(assetId)?.costBasisVisual ??
+                toVisualValue(
+                    getPositionInvestedValue(position.amount, costAverage),
+                    tradingCurrency,
+                    settings.visualCurrency,
+                    forexRates
+                );
+            const pnl = getPnL(valueVisual, investedValueVisual);
+            const pnlPercent = getPnLPercent(valueVisual, investedValueVisual);
+            const costAverageVisual =
+                position.amount > 0 ? investedValueVisual / position.amount : 0;
+            const currentPriceVisual = toVisualValue(
+                currentPrice,
+                tradingCurrency,
+                settings.visualCurrency,
+                forexRates
+            );
+
+            return {
+                row: {
+                    assetId,
+                    asset: asset?.name ?? assetId,
+                    ticker: asset?.ticker ?? assetId,
+                    units: position.amount,
+                    costAverage: costAverageVisual,
+                    currentPrice: currentPriceVisual,
+                    value: valueVisual,
+                    pnl,
+                    pnlPercent: Number(pnlPercent.toFixed(2)),
+                    currency: settings.visualCurrency,
+                },
+                investedValue: investedValueVisual,
+            };
+        });
+
+        const totalValue = getTotalValue(rows.map((item) => item.row.value));
+        const totalInvested = getTotalValue(
+            rows.map((item) => item.investedValue)
+        );
+        const totalPnL = getTotalValue(rows.map((item) => item.row.pnl));
+
+        return {
+            holdings: rows.map(({ row }) => ({
+                ...row,
+                allocation: Number(
+                    getAllocationPercent(row.value, totalValue).toFixed(2)
+                ),
+            })),
+            totals: {
+                currentValue: totalValue,
+                invested: totalInvested,
+                pnl: totalPnL,
+            },
+        };
+    }, [
+        assets,
+        forexRates,
+        getForexRate,
+        livePricesByAsset,
+        positionEntries,
+        settings.visualCurrency,
+        walletTransactions,
+    ]);
+
     const cashConvertedTotal = useMemo(() => {
         return getTotalValue(
             cashBuckets.map((bucket) => {
@@ -480,9 +527,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             calculateRealizedPnl(
                 walletTransactions,
                 settings.visualCurrency,
-                forexRates
+                forexRates,
+                getForexRate
             ),
-        [forexRates, settings.visualCurrency, walletTransactions]
+        [forexRates, getForexRate, settings.visualCurrency, walletTransactions]
     );
     const unrealizedIsPositive = totals.pnl >= 0;
     const realizedIsPositive = realizedPnl >= 0;
@@ -614,7 +662,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     ticker: editAssetTicker.trim().toUpperCase(),
                     name: editAssetName.trim() || editAssetTicker.trim(),
                     stooqTicker: stooqValue,
-                    tradingCurrency: editAssetCurrency,
                     decimals: nextDecimals,
                     updatedAt: new Date().toISOString(),
                 },
@@ -1482,12 +1529,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             </label>
                             <select
                                 value={editAssetCurrency}
-                                onChange={(event) =>
-                                    setEditAssetCurrency(
-                                        event.target.value as Currency
-                                    )
-                                }
-                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                                disabled
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                             >
                                 {currencyOptions.map((currency) => (
                                     <option key={currency} value={currency}>
