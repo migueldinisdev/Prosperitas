@@ -41,13 +41,6 @@ const assetTypeColors: Record<string, string> = {
 
 const currencyPalette = ["#0ea5e9", "#22c55e", "#6366f1", "#f43f5e", "#14b8a6"];
 
-const momentumStats = [
-    { label: "Best month", value: "April +4.1%" },
-    { label: "Worst month", value: "September -2.3%" },
-    { label: "Avg monthly flow", value: "+€1,120" },
-    { label: "Fees paid YTD", value: "€320" },
-];
-
 interface Props {
     onMenuClick: () => void;
 }
@@ -246,6 +239,19 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 totals.current + totals.cash
             ).toFixed(2)}% of total`,
             helper: "Liquid reserves",
+        },
+    ];
+
+    const momentumStats = [
+        { label: "Best month", value: "April +4.1%" },
+        { label: "Worst month", value: "September -2.3%" },
+        {
+            label: "Avg monthly flow",
+            value: `+${formatCurrency(1120, settings.visualCurrency)}`,
+        },
+        {
+            label: "Fees paid YTD",
+            value: formatCurrency(320, settings.visualCurrency),
         },
     ];
 

@@ -85,6 +85,22 @@ export const toVisualValue = (
     return getConvertedValue(amount, rate);
 };
 
+export const toVisualMoney = (
+    money: Money,
+    visualCurrency: string,
+    forexRates: Record<string, number>,
+    date?: string,
+    getForexRate?: ForexRateGetter
+) =>
+    toVisualValue(
+        money.value,
+        money.currency,
+        visualCurrency,
+        forexRates,
+        date,
+        getForexRate
+    );
+
 export const calculatePositionCostBasis = (
     transactions: WalletTx[],
     visualCurrency: string,

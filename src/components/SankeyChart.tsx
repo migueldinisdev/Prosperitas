@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import { ResponsiveContainer, Sankey, Tooltip } from "recharts";
 import { ChartContainer } from "./ChartContainer";
+import { formatCurrency } from "../utils/formatters";
 
 interface SankeyData {
     income: number;
@@ -12,12 +13,14 @@ interface SankeyChartProps {
     data: SankeyData;
     height?: number;
     isLoading?: boolean;
+    currency?: string;
 }
 
 export const SankeyChart = React.memo(
-    ({ data, height = 500, isLoading }: SankeyChartProps) => {
+    ({ data, height = 500, isLoading, currency }: SankeyChartProps) => {
         console.log("SankeyChart re-rendered");
         const resolvedLoading = isLoading ?? false;
+        const resolvedCurrency = currency ?? "USD";
         const sankeyData = useMemo(() => {
             const nodes = [
                 { name: "Income" },
@@ -120,7 +123,10 @@ export const SankeyChart = React.memo(
                                     {nodes[data.target].name}
                                 </p>
                                 <p className="text-app-muted text-sm">
-                                    ${data.value.toFixed(2)}
+                                    {formatCurrency(
+                                        data.value,
+                                        resolvedCurrency
+                                    )}
                                 </p>
                             </>
                         ) : (
@@ -135,7 +141,7 @@ export const SankeyChart = React.memo(
                 );
             }
             return null;
-        }, [nodes]);
+        }, [nodes, resolvedCurrency]);
 
         const tooltipContent = useMemo(
             () => <CustomTooltip />,

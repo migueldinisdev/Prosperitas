@@ -47,8 +47,10 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
     const livePricesByAsset = useAssetLivePrices(assets);
     const transactionCurrencies = useMemo(() => {
         const filtered = Object.values(walletTx).filter((tx) => tx.pieId === id);
-        return getWalletTxCurrencies(filtered);
-    }, [id, walletTx]);
+        const currencies = new Set<string>(getWalletTxCurrencies(filtered));
+        assets.forEach((asset) => currencies.add(asset.tradingCurrency));
+        return Array.from(currencies);
+    }, [assets, id, walletTx]);
 
     const forexRates = useForexLivePrices(
         transactionCurrencies,

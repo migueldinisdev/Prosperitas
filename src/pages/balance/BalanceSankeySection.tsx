@@ -2,6 +2,8 @@ import React, { useMemo } from "react";
 import { Card } from "../../ui/Card";
 import { SankeyChart } from "../../components/SankeyChart";
 import { useBalanceData } from "../../hooks/useBalanceData";
+import { useAppSelector } from "../../store/hooks";
+import { selectSettings } from "../../store/selectors";
 
 interface Props {
     monthKey: string;
@@ -9,6 +11,7 @@ interface Props {
 
 export const BalanceSankeySection: React.FC<Props> = ({ monthKey }) => {
     const { categories, monthData } = useBalanceData(monthKey);
+    const settings = useAppSelector(selectSettings);
     const sankeyData = useMemo(() => {
         let income = 0;
         let expensesTotal = 0;
@@ -47,7 +50,11 @@ export const BalanceSankeySection: React.FC<Props> = ({ monthKey }) => {
             {sankeyData.income === 0 && sankeyData.expenses.length === 0 ? (
                 <p className="text-sm text-app-muted">No cash flow data yet.</p>
             ) : (
-                <SankeyChart data={sankeyData} height={400} />
+                <SankeyChart
+                    data={sankeyData}
+                    height={400}
+                    currency={settings.balanceCurrency}
+                />
             )}
         </Card>
     );
