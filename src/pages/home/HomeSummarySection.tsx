@@ -13,17 +13,20 @@ import { useAppSelector } from "../../store/hooks";
 import { Asset } from "../../core/schema-types";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
+import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
 import {
-    getConvertedValue,
-    getNetWorth,
+    calculatePositionCostBasis,
     calculateRealizedPnl,
+    getNetWorth,
     getPnL,
     getPnLPercent,
     getPositionCurrentValue,
     getPositionInvestedValue,
     getTotalValue,
+    toVisualValue,
 } from "../../core/finance";
 import { formatCurrency } from "../../utils/formatters";
+import { getWalletTxCurrencies } from "../../utils/netWorthHistory";
 
 export const HomeSummarySection: React.FC = () => {
     const wallets = useAppSelector(selectWallets);
@@ -73,30 +76,11 @@ export const HomeSummarySection: React.FC = () => {
     );
 
     const forexCurrencies = useMemo(() => {
-        const currencies = new Set<string>();
+        const currencies = new Set<string>(getWalletTxCurrencies(walletTx));
         positionAssets.forEach((asset) =>
             currencies.add(asset.tradingCurrency)
         );
         cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
-        Object.values(walletTx).forEach((tx) => {
-            switch (tx.type) {
-                case "deposit":
-                case "withdraw":
-                case "dividend":
-                    currencies.add(tx.amount.currency);
-                    break;
-                case "forex":
-                    currencies.add(tx.from.currency);
-                    currencies.add(tx.to.currency);
-                    if (tx.fees) currencies.add(tx.fees.currency);
-                    break;
-                case "buy":
-                case "sell":
-                    currencies.add(tx.price.currency);
-                    if (tx.fees) currencies.add(tx.fees.currency);
-                    break;
-            }
-        });
         return Array.from(currencies);
     }, [cashBuckets, positionAssets, walletTx]);
 
@@ -110,16 +94,24 @@ export const HomeSummarySection: React.FC = () => {
         [walletTxState]
     );
 
-    const toVisualValue = (amount: number, currency: string) => {
-        if (currency === settings.visualCurrency) {
-            return amount;
-        }
-        const rate = forexRates[currency];
-        if (!rate) return amount;
-        return getConvertedValue(amount, rate);
-    };
+    const transactionDates = useMemo(
+        () => walletTransactions.map((tx) => tx.date),
+        [walletTransactions]
+    );
+
+    const { getForexRate } = useForexHistoricalRates(
+        forexCurrencies,
+        transactionDates,
+        settings.visualCurrency
+    );
 
     const totals = useMemo(() => {
+        const costBasisByAsset = calculatePositionCostBasis(
+            walletTransactions,
+            settings.visualCurrency,
+            forexRates,
+            getForexRate
+        );
         const holdingValues = positions.map(({ assetId, position }) => {
             const asset = assets[assetId];
             const costAverage = position.avgCost.value;
@@ -128,20 +120,23 @@ export const HomeSummarySection: React.FC = () => {
                 position.amount,
                 currentPrice
             );
-            const investedValue = getPositionInvestedValue(
-                position.amount,
-                costAverage
-            );
             const tradingCurrency = asset?.tradingCurrency ?? "USD";
+            const investedValue =
+                costBasisByAsset.get(assetId)?.costBasisVisual ??
+                toVisualValue(
+                    getPositionInvestedValue(position.amount, costAverage),
+                    tradingCurrency,
+                    settings.visualCurrency,
+                    forexRates
+                );
             return {
                 currentValueVisual: toVisualValue(
                     currentValue,
-                    tradingCurrency
+                    tradingCurrency,
+                    settings.visualCurrency,
+                    forexRates
                 ),
-                investedValueVisual: toVisualValue(
-                    investedValue,
-                    tradingCurrency
-                ),
+                investedValueVisual: investedValue,
             };
         });
 
@@ -156,11 +151,17 @@ export const HomeSummarySection: React.FC = () => {
         const realizedPnl = calculateRealizedPnl(
             Object.values(walletTx),
             settings.visualCurrency,
-            forexRates
+            forexRates,
+            getForexRate
         );
         const cashTotal = getTotalValue(
             cashBuckets.map((bucket) =>
-                toVisualValue(bucket.value, bucket.currency)
+                toVisualValue(
+                    bucket.value,
+                    bucket.currency,
+                    settings.visualCurrency,
+                    forexRates
+                )
             )
         );
 
@@ -173,11 +174,13 @@ export const HomeSummarySection: React.FC = () => {
     }, [
         assets,
         cashBuckets,
+        forexRates,
+        getForexRate,
         livePricesByAsset,
         positions,
         settings.visualCurrency,
-        forexRates,
         walletTx,
+        walletTransactions,
     ]);
 
     const pnlIsPositive = totals.pnl >= 0;
