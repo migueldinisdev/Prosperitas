@@ -353,6 +353,26 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const livePricesByAsset = useAssetLivePrices(positionAssets);
 
+    const cashBuckets = useMemo(() => {
+        if (!walletCash) return [];
+        if (Array.isArray(walletCash)) {
+            return walletCash;
+        }
+        if (typeof walletCash === "object") {
+            return Object.entries(walletCash as Record<string, number>).map(
+                ([currency, value]) => ({
+                    currency: currency as Currency,
+                    value: Number(value),
+                })
+            );
+        }
+        return [];
+    }, [walletCash]);
+    const hasNegativeCash = useMemo(
+        () => cashBuckets.some((bucket) => bucket.value < 0),
+        [cashBuckets]
+    );
+
     const transactionCurrencies = useMemo(() => {
         const currencies = new Set<Currency>();
         walletTransactions.forEach((tx) => {
@@ -376,6 +396,17 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         });
         return Array.from(currencies);
     }, [walletTransactions]);
+
+    const cashCurrencies = useMemo(() => {
+        const currencies = new Set<Currency>();
+        cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
+        transactionCurrencies.forEach((currency) => currencies.add(currency));
+        return Array.from(currencies);
+    }, [cashBuckets, transactionCurrencies]);
+    const forexRates = useForexLivePrices(
+        cashCurrencies,
+        settings.visualCurrency
+    );
 
     const transactionDates = useMemo(
         () => walletTransactions.map((tx) => tx.date),
@@ -476,37 +507,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         settings.visualCurrency,
         walletTransactions,
     ]);
-
-    const cashBuckets = useMemo(() => {
-        if (!walletCash) return [];
-        if (Array.isArray(walletCash)) {
-            return walletCash;
-        }
-        if (typeof walletCash === "object") {
-            return Object.entries(walletCash as Record<string, number>).map(
-                ([currency, value]) => ({
-                    currency: currency as Currency,
-                    value: Number(value),
-                })
-            );
-        }
-        return [];
-    }, [walletCash]);
-    const hasNegativeCash = useMemo(
-        () => cashBuckets.some((bucket) => bucket.value < 0),
-        [cashBuckets]
-    );
-
-    const cashCurrencies = useMemo(() => {
-        const currencies = new Set<Currency>();
-        cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
-        transactionCurrencies.forEach((currency) => currencies.add(currency));
-        return Array.from(currencies);
-    }, [cashBuckets, transactionCurrencies]);
-    const forexRates = useForexLivePrices(
-        cashCurrencies,
-        settings.visualCurrency
-    );
 
     const cashConvertedTotal = useMemo(() => {
         return getTotalValue(
