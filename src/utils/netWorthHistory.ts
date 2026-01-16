@@ -64,9 +64,14 @@ const toBaseValue = (
     return amount * resolvedRate;
 };
 
-export const getWalletTxCurrencies = (transactions: WalletTx[]) => {
+export const getWalletTxCurrencies = (
+    transactions: WalletTx[] | Record<string, WalletTx> | null | undefined
+) => {
     const currencies = new Set<string>();
-    transactions.forEach((tx) => {
+    const txList = Array.isArray(transactions)
+        ? transactions
+        : Object.values(transactions ?? {});
+    txList.forEach((tx) => {
         switch (tx.type) {
             case "deposit":
             case "withdraw":
