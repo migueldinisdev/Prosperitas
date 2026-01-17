@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { replaceState } from "../../store/actions";
 import { defaultState } from "../../store/initialState";
+import { createDemoState } from "../../data/demoState";
 import { importFromFile, importFromGoogleDrive } from "../../store/sync";
 import { NoGoogleDriveSaveError } from "../../data/api/google/errors";
 import { addNotification } from "../../store/slices/notificationsSlice";
@@ -36,6 +37,12 @@ export const LandingPage: React.FC = () => {
     const handleStartOffline = () => {
         suppressNextDirty();
         dispatch(replaceState(defaultState));
+        setModeAndClean("offline");
+        navigate("/home");
+    };
+    const handleViewDemo = () => {
+        suppressNextDirty();
+        dispatch(replaceState(createDemoState()));
         setModeAndClean("offline");
         navigate("/home");
     };
@@ -135,13 +142,22 @@ export const LandingPage: React.FC = () => {
                                         >
                                             Upload file
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleStartOffline}
-                                            className="rounded-xl border border-app-border bg-app-card px-4 py-2 text-sm font-semibold hover:bg-app-surface"
-                                        >
-                                            New empty
-                                        </button>
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleStartOffline}
+                                                className="rounded-xl border border-app-border bg-app-card px-4 py-2 text-sm font-semibold hover:bg-app-surface"
+                                            >
+                                                New empty
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleViewDemo}
+                                                className="rounded-xl border border-purple-500/70 bg-transparent px-4 py-2 text-sm font-semibold text-purple-600 transition hover:bg-purple-500/10 hover:text-purple-700"
+                                            >
+                                                View demo
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
