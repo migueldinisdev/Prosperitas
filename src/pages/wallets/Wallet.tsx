@@ -114,10 +114,7 @@ const WalletAllocationSection = React.memo(
             </Card>
 
             <Card title="Holdings" className="lg:col-span-2">
-                <HoldingsTable
-                    holdings={holdings}
-                    onEditAsset={onEditAsset}
-                />
+                <HoldingsTable holdings={holdings} onEditAsset={onEditAsset} />
             </Card>
         </div>
     )
@@ -173,8 +170,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [editAssetTicker, setEditAssetTicker] = useState("");
     const [editAssetName, setEditAssetName] = useState("");
     const [editAssetStooq, setEditAssetStooq] = useState("");
-    const [editAssetCurrency, setEditAssetCurrency] =
-        useState<Currency>("USD");
+    const [editAssetCurrency, setEditAssetCurrency] = useState<Currency>("USD");
     const [editAssetDecimals, setEditAssetDecimals] = useState("2");
     const [fxFromAmount, setFxFromAmount] = useState("");
     const [fxFromCurrency, setFxFromCurrency] = useState<Currency>(
@@ -188,9 +184,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [fxFeeCurrency, setFxFeeCurrency] = useState<Currency>(
         settings.balanceCurrency
     );
-    const [fxDate, setFxDate] = useState(
-        new Date().toISOString().slice(0, 10)
-    );
+    const [fxDate, setFxDate] = useState(new Date().toISOString().slice(0, 10));
     const [showFxOperationFees, setShowFxOperationFees] = useState(false);
 
     const [tradeType, setTradeType] = useState<"buy" | "sell">("buy");
@@ -402,7 +396,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         const currencies = new Set<Currency>();
         cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
         transactionCurrencies.forEach((currency) => currencies.add(currency));
-        positionAssets.forEach((asset) => currencies.add(asset.tradingCurrency));
+        positionAssets.forEach((asset) =>
+            currencies.add(asset.tradingCurrency)
+        );
         return Array.from(currencies);
     }, [cashBuckets, positionAssets, transactionCurrencies]);
     const forexRates = useForexLivePrices(
@@ -425,8 +421,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         const costBasisByAsset = calculatePositionCostBasis(
             walletTransactions,
             settings.visualCurrency,
-            forexRates,
-            getForexRate
+            forexRates
         );
         const costBasisFxByAsset = calculatePositionCostBasisFx(
             walletTransactions,
@@ -681,9 +676,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         const nextDecimals = Number(editAssetDecimals);
         if (Number.isNaN(nextDecimals) || nextDecimals < 0) return;
         const stooqValue =
-            editAssetType === "stock"
-                ? editAssetStooq.trim() || null
-                : null;
+            editAssetType === "stock" ? editAssetStooq.trim() || null : null;
         dispatch(
             updateAsset({
                 id: editAssetId,
@@ -896,64 +889,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             </header>
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <Card title="Wallet State (Redux)">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div>
-                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                                Name
-                            </p>
-                            <p className="text-lg font-semibold text-app-foreground">
-                                {wallet?.name ?? "Unknown wallet"}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                                Transactions
-                            </p>
-                            <p className="text-lg font-semibold text-app-foreground">
-                                {walletTransactions.length}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                                Cash Buckets
-                            </p>
-                            <div className="space-y-1">
-                                {walletCash && Array.isArray(walletCash) ? (
-                                    walletCash.map((m) => (
-                                        <p
-                                            key={m.currency}
-                                            className="text-sm text-app-foreground"
-                                        >
-                                            {m.currency}: {m.value.toFixed(2)}
-                                        </p>
-                                    ))
-                                ) : walletCash &&
-                                  typeof walletCash === "object" ? (
-                                    Object.entries(
-                                        walletCash as unknown as Record<
-                                            string,
-                                            number
-                                        >
-                                    ).map(([currency, amount]) => (
-                                        <p
-                                            key={currency}
-                                            className="text-sm text-app-foreground"
-                                        >
-                                            {currency}:{" "}
-                                            {Number(amount).toFixed(2)}
-                                        </p>
-                                    ))
-                                ) : (
-                                    <p className="text-sm text-app-muted">
-                                        No cash data
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </Card>
-
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
@@ -1006,8 +941,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     <ArrowDownLeft size={18} />
                                 )}
                                 <span className="text-lg font-bold">
-                                    Unrealized{" "}
-                                    {unrealizedIsPositive ? "+" : ""}
+                                    Unrealized {unrealizedIsPositive ? "+" : ""}
                                     {formatCurrency(
                                         totals.pnl,
                                         settings.visualCurrency
@@ -1032,8 +966,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     <ArrowDownLeft size={18} />
                                 )}
                                 <span className="text-lg font-bold">
-                                    Realized{" "}
-                                    {realizedIsPositive ? "+" : ""}
+                                    Realized {realizedIsPositive ? "+" : ""}
                                     {formatCurrency(
                                         realizedPnl,
                                         settings.visualCurrency
@@ -1174,7 +1107,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <input
                             type="date"
                             value={cashDate}
-                            onChange={(event) => setCashDate(event.target.value)}
+                            onChange={(event) =>
+                                setCashDate(event.target.value)
+                            }
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>
@@ -1234,7 +1169,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <input
                             type="date"
                             value={cashDate}
-                            onChange={(event) => setCashDate(event.target.value)}
+                            onChange={(event) =>
+                                setCashDate(event.target.value)
+                            }
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>

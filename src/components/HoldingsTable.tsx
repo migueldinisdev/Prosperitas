@@ -176,8 +176,7 @@ export const HoldingsTable = React.memo(
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-right text-app-muted">
-                                            {holding.units?.toLocaleString() ??
-                                                "-"}
+                                            {holding.units?.toLocaleString() ?? "-"}
                                         </td>
                                         <td className="px-4 py-3 text-right text-app-muted">
                                             {formatCurrency(
@@ -259,8 +258,7 @@ export const HoldingsTable = React.memo(
                                     </tr>
                                 );
                             })}
-                        </tbody>
-                    </table>
+                        </tbody></table>
                 </div>
                 <Modal
                     isOpen={Boolean(activeHolding && pnlModal)}

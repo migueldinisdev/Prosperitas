@@ -84,8 +84,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
         const costBasisByAsset = calculatePositionCostBasis(
             pieTransactions,
             settings.visualCurrency,
-            forexRates,
-            getForexRate
+            forexRates
         );
         const rows = assets.map((asset) => {
             const costAverage = asset.avgCost.value;
