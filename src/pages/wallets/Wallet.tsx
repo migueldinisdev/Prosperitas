@@ -857,64 +857,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             </header>
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <Card title="Wallet State (Redux)">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div>
-                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                                Name
-                            </p>
-                            <p className="text-lg font-semibold text-app-foreground">
-                                {wallet?.name ?? "Unknown wallet"}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                                Transactions
-                            </p>
-                            <p className="text-lg font-semibold text-app-foreground">
-                                {walletTransactions.length}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                                Cash Buckets
-                            </p>
-                            <div className="space-y-1">
-                                {walletCash && Array.isArray(walletCash) ? (
-                                    walletCash.map((m) => (
-                                        <p
-                                            key={m.currency}
-                                            className="text-sm text-app-foreground"
-                                        >
-                                            {m.currency}: {m.value.toFixed(2)}
-                                        </p>
-                                    ))
-                                ) : walletCash &&
-                                  typeof walletCash === "object" ? (
-                                    Object.entries(
-                                        walletCash as unknown as Record<
-                                            string,
-                                            number
-                                        >
-                                    ).map(([currency, amount]) => (
-                                        <p
-                                            key={currency}
-                                            className="text-sm text-app-foreground"
-                                        >
-                                            {currency}:{" "}
-                                            {Number(amount).toFixed(2)}
-                                        </p>
-                                    ))
-                                ) : (
-                                    <p className="text-sm text-app-muted">
-                                        No cash data
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </Card>
-
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
