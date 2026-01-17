@@ -433,9 +433,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         );
         const rows = positionEntries.map(([assetId, position]) => {
             const asset = assets[assetId];
-            const costAverage = position.avgCost.value;
-            const currentPrice =
-                livePricesByAsset[assetId] ?? position.avgCost.value;
+            const fxEntryData = costBasisFxByAsset.get(assetId);
+            const costAverage =
+                position.amount > 0 && fxEntryData
+                    ? fxEntryData.costBasisQuote / position.amount
+                    : position.avgCost.value;
+            const currentPrice = livePricesByAsset[assetId] ?? costAverage;
             const value = getPositionCurrentValue(
                 position.amount,
                 currentPrice
@@ -458,7 +461,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 );
             const pnl = getPnL(valueVisual, investedValueVisual);
             const pnlPercent = getPnLPercent(valueVisual, investedValueVisual);
-            const fxEntryData = costBasisFxByAsset.get(assetId);
             const baseCurrency = settings.visualCurrency;
             const quoteCurrency = tradingCurrency ?? baseCurrency;
             const entryFx =

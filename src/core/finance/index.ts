@@ -28,25 +28,6 @@ export const getTotalValue = (values: number[]) =>
 export const getNetWorth = (currentValue: number, cashValue: number) =>
     currentValue + cashValue;
 
-const calculateWeightedAverage = (
-    currentAmount: number,
-    currentAvgCost: Money,
-    deltaQuantity: number,
-    txPrice: Money
-): Money => {
-    const nextAmount = currentAmount + deltaQuantity;
-    if (nextAmount <= 0) {
-        return { value: 0, currency: txPrice.currency };
-    }
-
-    const currentCost = currentAmount * currentAvgCost.value;
-    const deltaCost = deltaQuantity * txPrice.value;
-    return {
-        currency: txPrice.currency,
-        value: (currentCost + deltaCost) / nextAmount,
-    };
-};
-
 export type ForexRateGetter = (currency: string, date: string) => number | null;
 
 const resolveForexRate = (
@@ -143,7 +124,10 @@ export const calculatePositionCostBasis = (
     visualCurrency: string,
     forexRates: Record<string, number>
 ) => {
-    const positions = new Map<string, { amount: number; costBasisVisual: number }>();
+    const lotsByAsset = new Map<
+        string,
+        Array<{ quantity: number; costBasisVisual: number }>
+    >();
     const sorted = [...transactions].sort((a, b) => {
         const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
         if (dateDiff !== 0) return dateDiff;
@@ -154,10 +138,6 @@ export const calculatePositionCostBasis = (
 
     sorted.forEach((tx) => {
         if (tx.type !== "buy" && tx.type !== "sell") return;
-        const current = positions.get(tx.assetId) ?? {
-            amount: 0,
-            costBasisVisual: 0,
-        };
         if (tx.type === "buy") {
             const cost = tx.price.value * tx.quantity;
             const costVisual = toVisualValueUsingTxFx(
@@ -178,30 +158,44 @@ export const calculatePositionCostBasis = (
                       tx.fxRate
                   )
                 : 0;
-            positions.set(tx.assetId, {
-                amount: current.amount + tx.quantity,
-                costBasisVisual: current.costBasisVisual + costVisual + feesVisual,
+            const lots = lotsByAsset.get(tx.assetId) ?? [];
+            lots.push({
+                quantity: tx.quantity,
+                costBasisVisual: costVisual + feesVisual,
             });
+            lotsByAsset.set(tx.assetId, lots);
             return;
         }
 
-        if (current.amount <= 0) {
-            positions.set(tx.assetId, { amount: 0, costBasisVisual: 0 });
-            return;
+        const lots = lotsByAsset.get(tx.assetId) ?? [];
+        let remainingQuantity = tx.quantity;
+        while (remainingQuantity > 0 && lots.length > 0) {
+            const lot = lots[0];
+            const quantityToConsume = Math.min(remainingQuantity, lot.quantity);
+            const costPerUnit = lot.costBasisVisual / lot.quantity;
+            lot.quantity -= quantityToConsume;
+            lot.costBasisVisual -= costPerUnit * quantityToConsume;
+            remainingQuantity -= quantityToConsume;
+            if (lot.quantity <= 0) {
+                lots.shift();
+            }
         }
+        lotsByAsset.set(tx.assetId, lots);
+    });
 
-        const quantity = Math.min(tx.quantity, current.amount);
-        const avgCostVisual = current.costBasisVisual / current.amount;
-        const costBasisSold = avgCostVisual * quantity;
-        const remainingAmount = current.amount - quantity;
-        const remainingCostBasis = Math.max(
-            current.costBasisVisual - costBasisSold,
-            0
+    const positions = new Map<
+        string,
+        { amount: number; costBasisVisual: number }
+    >();
+    lotsByAsset.forEach((lots, assetId) => {
+        const totals = lots.reduce(
+            (sum, lot) => ({
+                amount: sum.amount + lot.quantity,
+                costBasisVisual: sum.costBasisVisual + lot.costBasisVisual,
+            }),
+            { amount: 0, costBasisVisual: 0 }
         );
-        positions.set(tx.assetId, {
-            amount: remainingAmount,
-            costBasisVisual: remainingCostBasis,
-        });
+        positions.set(assetId, totals);
     });
 
     return positions;
@@ -213,12 +207,14 @@ export const calculatePositionCostBasisFx = (
     forexRates: Record<string, number>,
     getForexRate?: ForexRateGetter
 ) => {
-    const positions = new Map<
+    const lotsByAsset = new Map<
         string,
         {
-            amount: number;
-            costBasisQuote: number;
-            costBasisBase: number;
+            lots: Array<{
+                quantity: number;
+                costBasisQuote: number;
+                costBasisBase: number;
+            }>;
             hasMissingFx: boolean;
         }
     >();
@@ -230,10 +226,8 @@ export const calculatePositionCostBasisFx = (
 
     sorted.forEach((tx) => {
         if (tx.type !== "buy" && tx.type !== "sell") return;
-        const current = positions.get(tx.assetId) ?? {
-            amount: 0,
-            costBasisQuote: 0,
-            costBasisBase: 0,
+        const current = lotsByAsset.get(tx.assetId) ?? {
+            lots: [],
             hasMissingFx: false,
         };
         if (tx.type === "buy") {
@@ -248,46 +242,56 @@ export const calculatePositionCostBasisFx = (
             const hasMissingFx =
                 current.hasMissingFx ||
                 (rate === null && tx.price.currency !== visualCurrency);
-            positions.set(tx.assetId, {
-                amount: current.amount + tx.quantity,
-                costBasisQuote: current.costBasisQuote + costQuote,
-                costBasisBase:
-                    current.costBasisBase +
-                    (rate === null ? 0 : costQuote * rate),
+            current.lots.push({
+                quantity: tx.quantity,
+                costBasisQuote: costQuote,
+                costBasisBase: rate === null ? 0 : costQuote * rate,
+            });
+            lotsByAsset.set(tx.assetId, {
+                lots: current.lots,
                 hasMissingFx,
             });
             return;
         }
 
-        if (current.amount <= 0) {
-            positions.set(tx.assetId, {
-                amount: 0,
-                costBasisQuote: 0,
-                costBasisBase: 0,
-                hasMissingFx: current.hasMissingFx,
-            });
-            return;
+        let remainingQuantity = tx.quantity;
+        while (remainingQuantity > 0 && current.lots.length > 0) {
+            const lot = current.lots[0];
+            const quantityToConsume = Math.min(remainingQuantity, lot.quantity);
+            const costPerUnitQuote = lot.costBasisQuote / lot.quantity;
+            const costPerUnitBase = lot.costBasisBase / lot.quantity;
+            lot.quantity -= quantityToConsume;
+            lot.costBasisQuote -= costPerUnitQuote * quantityToConsume;
+            lot.costBasisBase -= costPerUnitBase * quantityToConsume;
+            remainingQuantity -= quantityToConsume;
+            if (lot.quantity <= 0) {
+                current.lots.shift();
+            }
         }
+        lotsByAsset.set(tx.assetId, current);
+    });
 
-        const quantity = Math.min(tx.quantity, current.amount);
-        const avgCostQuote = current.costBasisQuote / current.amount;
-        const avgCostBase = current.costBasisBase / current.amount;
-        const costBasisSoldQuote = avgCostQuote * quantity;
-        const costBasisSoldBase = avgCostBase * quantity;
-        const remainingAmount = current.amount - quantity;
-        const remainingCostQuote = Math.max(
-            current.costBasisQuote - costBasisSoldQuote,
-            0
+    const positions = new Map<
+        string,
+        {
+            amount: number;
+            costBasisQuote: number;
+            costBasisBase: number;
+            hasMissingFx: boolean;
+        }
+    >();
+    lotsByAsset.forEach((entry, assetId) => {
+        const totals = entry.lots.reduce(
+            (sum, lot) => ({
+                amount: sum.amount + lot.quantity,
+                costBasisQuote: sum.costBasisQuote + lot.costBasisQuote,
+                costBasisBase: sum.costBasisBase + lot.costBasisBase,
+            }),
+            { amount: 0, costBasisQuote: 0, costBasisBase: 0 }
         );
-        const remainingCostBase = Math.max(
-            current.costBasisBase - costBasisSoldBase,
-            0
-        );
-        positions.set(tx.assetId, {
-            amount: remainingAmount,
-            costBasisQuote: remainingCostQuote,
-            costBasisBase: remainingCostBase,
-            hasMissingFx: current.hasMissingFx,
+        positions.set(assetId, {
+            ...totals,
+            hasMissingFx: entry.hasMissingFx,
         });
     });
 
@@ -300,7 +304,10 @@ export const calculateRealizedPnl = (
     forexRates: Record<string, number>,
     getForexRate?: ForexRateGetter
 ) => {
-    const positions = new Map<string, { amount: number; avgCost: Money }>();
+    const lotsByAsset = new Map<
+        string,
+        Array<{ quantity: number; costBasisVisual: number }>
+    >();
     const sorted = [...transactions].sort((a, b) => {
         const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
         if (dateDiff !== 0) return dateDiff;
@@ -309,33 +316,9 @@ export const calculateRealizedPnl = (
         );
     });
 
-    const positionsVisual = new Map<
-        string,
-        { amount: number; costBasisVisual: number }
-    >();
-
     return sorted.reduce((total, tx) => {
         switch (tx.type) {
             case "buy": {
-                const current =
-                    positions.get(tx.assetId) ?? {
-                        amount: 0,
-                        avgCost: { value: 0, currency: tx.price.currency },
-                    };
-                const nextAvgCost = calculateWeightedAverage(
-                    current.amount,
-                    current.avgCost,
-                    tx.quantity,
-                    tx.price
-                );
-                positions.set(tx.assetId, {
-                    amount: current.amount + tx.quantity,
-                    avgCost: nextAvgCost,
-                });
-                const currentVisual = positionsVisual.get(tx.assetId) ?? {
-                    amount: 0,
-                    costBasisVisual: 0,
-                };
                 const costVisual = toVisualValue(
                     tx.price.value * tx.quantity,
                     tx.price.currency,
@@ -354,28 +337,21 @@ export const calculateRealizedPnl = (
                           getForexRate
                       )
                     : 0;
-                positionsVisual.set(tx.assetId, {
-                    amount: currentVisual.amount + tx.quantity,
-                    costBasisVisual:
-                        currentVisual.costBasisVisual + costVisual + feesVisual,
+                const lots = lotsByAsset.get(tx.assetId) ?? [];
+                lots.push({
+                    quantity: tx.quantity,
+                    costBasisVisual: costVisual + feesVisual,
                 });
+                lotsByAsset.set(tx.assetId, lots);
                 return total;
             }
             case "sell": {
-                const current =
-                    positions.get(tx.assetId) ?? {
-                        amount: 0,
-                        avgCost: { value: 0, currency: tx.price.currency },
-                    };
-                const currentVisual = positionsVisual.get(tx.assetId) ?? {
-                    amount: 0,
-                    costBasisVisual: 0,
-                };
-                const quantity = Math.min(tx.quantity, current.amount);
-                const avgCostVisual =
-                    currentVisual.amount > 0
-                        ? currentVisual.costBasisVisual / currentVisual.amount
-                        : 0;
+                const lots = lotsByAsset.get(tx.assetId) ?? [];
+                const availableQuantity = lots.reduce(
+                    (sum, lot) => sum + lot.quantity,
+                    0
+                );
+                const quantity = Math.min(tx.quantity, availableQuantity);
                 const proceedsVisual = toVisualValue(
                     tx.price.value * quantity,
                     tx.price.currency,
@@ -394,27 +370,25 @@ export const calculateRealizedPnl = (
                           getForexRate
                       )
                     : 0;
-                const realized = proceedsVisual - avgCostVisual * quantity;
-                const nextAmount = Math.max(current.amount - tx.quantity, 0);
-                positions.set(tx.assetId, {
-                    amount: nextAmount,
-                    avgCost:
-                        nextAmount === 0
-                            ? { value: 0, currency: current.avgCost.currency }
-                            : current.avgCost,
-                });
-                const remainingAmount = Math.max(
-                    currentVisual.amount - quantity,
-                    0
-                );
-                const remainingCostBasis = Math.max(
-                    currentVisual.costBasisVisual - avgCostVisual * quantity,
-                    0
-                );
-                positionsVisual.set(tx.assetId, {
-                    amount: remainingAmount,
-                    costBasisVisual: remainingCostBasis,
-                });
+                let remainingQuantity = quantity;
+                let costBasisConsumed = 0;
+                while (remainingQuantity > 0 && lots.length > 0) {
+                    const lot = lots[0];
+                    const quantityToConsume = Math.min(
+                        remainingQuantity,
+                        lot.quantity
+                    );
+                    const costPerUnit = lot.costBasisVisual / lot.quantity;
+                    costBasisConsumed += costPerUnit * quantityToConsume;
+                    lot.quantity -= quantityToConsume;
+                    lot.costBasisVisual -= costPerUnit * quantityToConsume;
+                    remainingQuantity -= quantityToConsume;
+                    if (lot.quantity <= 0) {
+                        lots.shift();
+                    }
+                }
+                lotsByAsset.set(tx.assetId, lots);
+                const realized = proceedsVisual - costBasisConsumed;
                 return total + realized - fees;
             }
             case "dividend": {
