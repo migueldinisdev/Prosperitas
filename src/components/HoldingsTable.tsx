@@ -258,7 +258,8 @@ export const HoldingsTable = React.memo(
                                     </tr>
                                 );
                             })}
-                        </tbody></table>
+                        </tbody>
+                    </table>
                 </div>
                 <Modal
                     isOpen={Boolean(activeHolding && pnlModal)}
