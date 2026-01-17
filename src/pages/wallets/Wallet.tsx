@@ -173,6 +173,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [editAssetStooq, setEditAssetStooq] = useState("");
     const [editAssetCurrency, setEditAssetCurrency] = useState<Currency>("USD");
     const [editAssetDecimals, setEditAssetDecimals] = useState("2");
+    const [editAssetPieId, setEditAssetPieId] = useState("");
     const [fxFromAmount, setFxFromAmount] = useState("");
     const [fxFromCurrency, setFxFromCurrency] = useState<Currency>(
         settings.balanceCurrency
@@ -663,6 +664,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const handleEditAssetOpen = (assetId: string) => {
         const asset = assets[assetId];
         if (!asset) return;
+        const currentPieId =
+            Object.values(pies).find((pie) => pie.assetIds.includes(assetId))
+                ?.id ?? "";
         setEditAssetId(assetId);
         setEditAssetType(asset.assetType);
         setEditAssetTicker(asset.ticker);
@@ -670,6 +674,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         setEditAssetStooq(asset.stooqTicker ?? "");
         setEditAssetCurrency(asset.tradingCurrency);
         setEditAssetDecimals(asset.decimals.toString());
+        setEditAssetPieId(currentPieId);
         setEditAssetOpen(true);
     };
 
@@ -692,6 +697,34 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 },
             })
         );
+        const nextPieId = editAssetPieId;
+        Object.values(pies).forEach((pie) => {
+            if (!pie.assetIds.includes(editAssetId)) return;
+            if (pie.id === nextPieId) return;
+            dispatch(
+                updatePie({
+                    id: pie.id,
+                    changes: {
+                        assetIds: pie.assetIds.filter(
+                            (existingId) => existingId !== editAssetId
+                        ),
+                    },
+                })
+            );
+        });
+        if (nextPieId) {
+            const targetPie = pies[nextPieId];
+            if (targetPie && !targetPie.assetIds.includes(editAssetId)) {
+                dispatch(
+                    updatePie({
+                        id: targetPie.id,
+                        changes: {
+                            assetIds: [...targetPie.assetIds, editAssetId],
+                        },
+                    })
+                );
+            }
+        }
         setEditAssetOpen(false);
     };
 
@@ -1545,6 +1578,27 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 {currencyOptions.map((currency) => (
                                     <option key={currency} value={currency}>
                                         {currency}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Pie
+                            </label>
+                            <select
+                                value={editAssetPieId}
+                                onChange={(event) =>
+                                    setEditAssetPieId(event.target.value)
+                                }
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            >
+                                <option value="">No pie</option>
+                                {Object.values(pies).map((pie) => (
+                                    <option key={pie.id} value={pie.id}>
+                                        {pie.name}
                                     </option>
                                 ))}
                             </select>
