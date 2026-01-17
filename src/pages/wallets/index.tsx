@@ -144,8 +144,7 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
             const costBasisByAsset = calculatePositionCostBasis(
                 walletTransactions,
                 settings.visualCurrency,
-                forexRates,
-                getForexRate
+                forexRates
             );
             const positionRows = Object.entries(positions)
                 .filter(([, position]) => position.amount > 0)

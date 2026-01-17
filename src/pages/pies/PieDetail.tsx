@@ -84,8 +84,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
         const costBasisByAsset = calculatePositionCostBasis(
             pieTransactions,
             settings.visualCurrency,
-            forexRates,
-            getForexRate
+            forexRates
         );
         const rows = assets.map((asset) => {
             const costAverage = asset.avgCost.value;
@@ -123,9 +122,13 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                     ticker: asset.ticker,
                     units: asset.amount,
                     costAverage: costAverageVisual,
+                    costCurrency: settings.visualCurrency,
                     currentPrice: currentPriceVisual,
+                    currentPriceCurrency: settings.visualCurrency,
                     value: valueVisual,
+                    valueCurrency: settings.visualCurrency,
                     pnl,
+                    pnlCurrency: settings.visualCurrency,
                     pnlPercent: Number(pnlPercent.toFixed(2)),
                     currency: settings.visualCurrency,
                 },
