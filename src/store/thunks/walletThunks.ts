@@ -10,7 +10,7 @@ import {
     removeWalletTxId,
     setWalletCash,
 } from "../slices/walletsSlice";
-import { updateAsset, setAssetAggregate, removeAsset } from "../slices/assetsSlice";
+import { updateAsset, setAssetAggregate } from "../slices/assetsSlice";
 import { setPieAssets } from "../slices/piesSlice";
 import {
     removeWalletPositionsForWallet,
@@ -389,7 +389,20 @@ const updateAssetAggregates = (
                     })
                 );
             });
-            dispatch(removeAsset(assetId));
+            const txIds = Object.values(nextWalletTx)
+                .filter((tx) => "assetId" in tx && tx.assetId === assetId)
+                .map((tx) => tx.id);
+            dispatch(
+                setAssetAggregate({
+                    assetId,
+                    amount: 0,
+                    avgCost: {
+                        value: 0,
+                        currency: asset.tradingCurrency,
+                    },
+                })
+            );
+            dispatch(updateAsset({ id: assetId, changes: { txIds } }));
             return;
         }
 

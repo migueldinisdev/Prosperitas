@@ -262,6 +262,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     );
 
     const selectedAsset = tradeAssetId ? assets[tradeAssetId] : undefined;
+    const canEditTradeCurrency = !tradeAssetId || selectedAsset?.amount === 0;
     const selectedAssetPieId = useMemo(() => {
         if (!tradeAssetId) return "";
         return (
@@ -742,6 +743,23 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     );
                 }
             }
+        }
+        const existingAsset = assetId ? assets[assetId] : undefined;
+        const shouldUpdateAssetCurrency =
+            existingAsset &&
+            existingAsset.amount === 0 &&
+            existingAsset.tradingCurrency !== tradeCurrency;
+        if (shouldUpdateAssetCurrency) {
+            dispatch(
+                updateAsset({
+                    id: existingAsset.id,
+                    changes: {
+                        tradingCurrency: tradeCurrency,
+                        avgCost: { value: 0, currency: tradeCurrency },
+                        updatedAt: new Date().toISOString(),
+                    },
+                })
+            );
         }
         if (!assetId || tradeQuantityValue <= 0 || tradePriceValue <= 0) return;
 
@@ -1596,7 +1614,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         event.target.value as Currency
                                     )
                                 }
-                                disabled={Boolean(tradeAssetId)}
+                                disabled={!canEditTradeCurrency}
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                             >
                                 {currencyOptions.map((currency) => (
