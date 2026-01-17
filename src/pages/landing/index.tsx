@@ -153,7 +153,7 @@ export const LandingPage: React.FC = () => {
                                             <button
                                                 type="button"
                                                 onClick={handleViewDemo}
-                                                className="rounded-xl border border-app-border bg-app-card px-4 py-2 text-sm font-semibold hover:bg-app-surface"
+                                                className="rounded-xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-500"
                                             >
                                                 View demo
                                             </button>
