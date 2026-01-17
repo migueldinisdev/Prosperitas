@@ -138,8 +138,7 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                         const costBasisByAsset = calculatePositionCostBasis(
                             pieTransactionsForCard,
                             settings.visualCurrency,
-                            forexRates,
-                            getForexRate
+                            forexRates
                         );
                         const holdingSummaries = pieAssets.map((asset) => {
                             const currentPrice =

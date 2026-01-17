@@ -85,6 +85,43 @@ export const toVisualValue = (
     return getConvertedValue(amount, rate);
 };
 
+const parseFxPair = (fxPair?: string) => {
+    if (!fxPair) return null;
+    const [base, quote] = fxPair
+        .split("/")
+        .map((part) => part.trim().toUpperCase());
+    if (!base || !quote) return null;
+    return { base, quote };
+};
+
+const toVisualValueUsingTxFx = (
+    amount: number,
+    currency: string,
+    visualCurrency: string,
+    forexRates: Record<string, number>,
+    fxPair?: string,
+    fxRate?: number
+) => {
+    const normalizedCurrency = currency.trim().toUpperCase();
+    const normalizedVisualCurrency = visualCurrency.trim().toUpperCase();
+    const pair = parseFxPair(fxPair);
+    if (pair && fxRate) {
+        if (
+            normalizedVisualCurrency === pair.base &&
+            normalizedCurrency === pair.quote
+        ) {
+            return amount / fxRate;
+        }
+        if (
+            normalizedVisualCurrency === pair.quote &&
+            normalizedCurrency === pair.base
+        ) {
+            return amount * fxRate;
+        }
+    }
+    return toVisualValue(amount, currency, visualCurrency, forexRates);
+};
+
 export const toVisualMoney = (
     money: Money,
     visualCurrency: string,
@@ -104,8 +141,7 @@ export const toVisualMoney = (
 export const calculatePositionCostBasis = (
     transactions: WalletTx[],
     visualCurrency: string,
-    forexRates: Record<string, number>,
-    getForexRate?: ForexRateGetter
+    forexRates: Record<string, number>
 ) => {
     const positions = new Map<string, { amount: number; costBasisVisual: number }>();
     const sorted = [...transactions].sort((a, b) => {
@@ -124,22 +160,22 @@ export const calculatePositionCostBasis = (
         };
         if (tx.type === "buy") {
             const cost = tx.price.value * tx.quantity;
-            const costVisual = toVisualValue(
+            const costVisual = toVisualValueUsingTxFx(
                 cost,
                 tx.price.currency,
                 visualCurrency,
                 forexRates,
-                tx.date,
-                getForexRate
+                tx.fxPair,
+                tx.fxRate
             );
             const feesVisual = tx.fees
-                ? toVisualValue(
+                ? toVisualValueUsingTxFx(
                       tx.fees.value,
                       tx.fees.currency,
                       visualCurrency,
                       forexRates,
-                      tx.date,
-                      getForexRate
+                      tx.fxPair,
+                      tx.fxRate
                   )
                 : 0;
             positions.set(tx.assetId, {

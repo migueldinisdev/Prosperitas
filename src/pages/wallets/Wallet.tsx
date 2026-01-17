@@ -424,8 +424,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         const costBasisByAsset = calculatePositionCostBasis(
             walletTransactions,
             settings.visualCurrency,
-            forexRates,
-            getForexRate
+            forexRates
         );
         const rows = positionEntries.map(([assetId, position]) => {
             const asset = assets[assetId];

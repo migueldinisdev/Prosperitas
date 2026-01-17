@@ -126,8 +126,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         const costBasisByAsset = calculatePositionCostBasis(
             walletTransactions,
             settings.visualCurrency,
-            forexRates,
-            getForexRate
+            forexRates
         );
         return positions.map(({ assetId, position }) => {
             const asset = assets[assetId];

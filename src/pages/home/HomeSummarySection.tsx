@@ -109,8 +109,7 @@ export const HomeSummarySection: React.FC = () => {
         const costBasisByAsset = calculatePositionCostBasis(
             walletTransactions,
             settings.visualCurrency,
-            forexRates,
-            getForexRate
+            forexRates
         );
         const holdingValues = positions.map(({ assetId, position }) => {
             const asset = assets[assetId];
