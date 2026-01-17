@@ -454,14 +454,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 );
             const pnl = getPnL(valueVisual, investedValueVisual);
             const pnlPercent = getPnLPercent(valueVisual, investedValueVisual);
-            const costAverageVisual =
-                position.amount > 0 ? investedValueVisual / position.amount : 0;
-            const currentPriceVisual = toVisualValue(
-                currentPrice,
-                tradingCurrency,
-                settings.visualCurrency,
-                forexRates
-            );
 
             return {
                 row: {
@@ -469,10 +461,14 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     asset: asset?.name ?? assetId,
                     ticker: asset?.ticker ?? assetId,
                     units: position.amount,
-                    costAverage: costAverageVisual,
-                    currentPrice: currentPriceVisual,
+                    costAverage,
+                    costCurrency: position.avgCost.currency ?? tradingCurrency,
+                    currentPrice,
+                    currentPriceCurrency: tradingCurrency,
                     value: valueVisual,
+                    valueCurrency: settings.visualCurrency,
                     pnl,
+                    pnlCurrency: settings.visualCurrency,
                     pnlPercent: Number(pnlPercent.toFixed(2)),
                     currency: settings.visualCurrency,
                 },
@@ -979,6 +975,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         settings.visualCurrency
                                     )}
                                 </span>
+                                <Info
+                                    size={14}
+                                    className="text-app-muted"
+                                    title="Unrealized: current unrealized profit and loss of your assets converted to visualization currency at current forex rate."
+                                />
                             </div>
                             <div
                                 className={`flex items-center gap-2 ${
@@ -1000,6 +1001,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         settings.visualCurrency
                                     )}
                                 </span>
+                                <Info
+                                    size={14}
+                                    className="text-app-muted"
+                                    title="Realized: realized profit and loss of your transactions converted to visualization currency at the forex rate of the date of the transaction. the posterior forex fluctuations belong to cash bucket, so this value may not correspond to current reality because of currency depreciation/appreciation."
+                                />
                             </div>
                         </div>
                     </Card>
@@ -1018,6 +1024,18 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                             bucket.value,
                                             bucket.currency
                                         )}
+                                        <span className="text-sm text-app-muted ml-2">
+                                            (~
+                                            {formatCurrency(
+                                                toVisualMoney(
+                                                    bucket,
+                                                    settings.visualCurrency,
+                                                    forexRates
+                                                ),
+                                                settings.visualCurrency
+                                            )}
+                                            )
+                                        </span>
                                     </p>
                                 ))
                             ) : (
