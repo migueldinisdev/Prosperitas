@@ -61,8 +61,7 @@ export const AreaChart = React.memo(
                             tickLine={false}
                             axisLine={false}
                             tickFormatter={
-                                yTickFormatter ??
-                                ((value) => `$${value}`)
+                                yTickFormatter ?? ((value) => String(value))
                             }
                         />
                         <Tooltip

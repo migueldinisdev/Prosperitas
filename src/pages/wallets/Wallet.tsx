@@ -40,12 +40,12 @@ import {
     calculatePositionCostBasis,
     calculateRealizedPnl,
     getAllocationPercent,
-    getConvertedValue,
     getPnL,
     getPnLPercent,
     getPositionCurrentValue,
     getPositionInvestedValue,
     getTotalValue,
+    toVisualMoney,
     toVisualValue,
 } from "../../core/finance";
 import { formatCurrency } from "../../utils/formatters";
@@ -397,14 +397,15 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         return Array.from(currencies);
     }, [walletTransactions]);
 
-    const cashCurrencies = useMemo(() => {
+    const forexCurrencies = useMemo(() => {
         const currencies = new Set<Currency>();
         cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
         transactionCurrencies.forEach((currency) => currencies.add(currency));
+        positionAssets.forEach((asset) => currencies.add(asset.tradingCurrency));
         return Array.from(currencies);
-    }, [cashBuckets, transactionCurrencies]);
+    }, [cashBuckets, positionAssets, transactionCurrencies]);
     const forexRates = useForexLivePrices(
-        cashCurrencies,
+        forexCurrencies,
         settings.visualCurrency
     );
 
@@ -414,7 +415,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     );
 
     const { getForexRate } = useForexHistoricalRates(
-        transactionCurrencies,
+        forexCurrencies,
         transactionDates,
         settings.visualCurrency
     );
@@ -510,14 +511,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const cashConvertedTotal = useMemo(() => {
         return getTotalValue(
-            cashBuckets.map((bucket) => {
-                if (bucket.currency === settings.visualCurrency) {
-                    return bucket.value;
-                }
-                const rate = forexRates[bucket.currency];
-                if (!rate) return bucket.value;
-                return getConvertedValue(bucket.value, rate);
-            })
+            cashBuckets.map((bucket) =>
+                toVisualMoney(bucket, settings.visualCurrency, forexRates)
+            )
         );
     }, [cashBuckets, forexRates, settings.visualCurrency]);
 

@@ -19,13 +19,13 @@ import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
 import {
     calculatePositionCostBasis,
-    getConvertedValue,
     calculateRealizedPnl,
     getPnL,
     getPnLPercent,
     getPositionCurrentValue,
     getPositionInvestedValue,
     getTotalValue,
+    toVisualMoney,
     toVisualValue,
 } from "../../core/finance";
 
@@ -107,7 +107,7 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
         return Array.from(currencies);
     }, [walletTx]);
 
-    const cashCurrencies = useMemo(() => {
+    const forexCurrencies = useMemo(() => {
         const currencies = new Set<string>();
         walletList.forEach((wallet) => {
             normalizeCashBuckets(wallet.cash).forEach((bucket) =>
@@ -115,11 +115,12 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
             );
         });
         transactionCurrencies.forEach((currency) => currencies.add(currency));
+        walletAssets.forEach((asset) => currencies.add(asset.tradingCurrency));
         return Array.from(currencies);
-    }, [transactionCurrencies, walletList]);
+    }, [transactionCurrencies, walletAssets, walletList]);
 
     const forexRates = useForexLivePrices(
-        cashCurrencies,
+        forexCurrencies,
         settings.visualCurrency
     );
 
@@ -129,7 +130,7 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
     );
 
     const { getForexRate } = useForexHistoricalRates(
-        cashCurrencies,
+        forexCurrencies,
         transactionDates,
         settings.visualCurrency
     );
@@ -192,14 +193,13 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
             const pnlPercent = getPnLPercent(current, invested);
 
             const cashTotal = getTotalValue(
-                normalizeCashBuckets(wallet.cash).map((bucket) => {
-                    if (bucket.currency === settings.visualCurrency) {
-                        return bucket.value;
-                    }
-                    const rate = forexRates[bucket.currency];
-                    if (!rate) return bucket.value;
-                    return getConvertedValue(bucket.value, rate);
-                })
+                normalizeCashBuckets(wallet.cash).map((bucket) =>
+                    toVisualMoney(
+                        bucket,
+                        settings.visualCurrency,
+                        forexRates
+                    )
+                )
             );
 
             const realizedPnl = calculateRealizedPnl(
