@@ -19,6 +19,7 @@ import { WalletTransactionsTable } from "../../components/WalletTransactionsTabl
 import { StooqAPIStockSelect } from "../../components/StooqAPIStockSelect";
 import { SyncStatusPills } from "../../components/SyncStatusPills";
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { Tooltip } from "../../ui/Tooltip";
 import { useWalletData } from "../../hooks/useWalletData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
@@ -965,11 +966,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         settings.visualCurrency
                                     )}
                                 </span>
-                                <Info
-                                    size={14}
-                                    className="text-app-muted"
-                                    title="Unrealized: current unrealized profit and loss of your assets converted to visualization currency at current forex rate."
-                                />
+                                <Tooltip content="Unrealized PnL based on latest prices and FX, converted to your visualization currency.">
+                                    <Info
+                                        size={14}
+                                        className="text-app-muted"
+                                    />
+                                </Tooltip>
                             </div>
                             <div
                                 className={`flex items-center gap-2 ${
@@ -990,11 +992,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         settings.visualCurrency
                                     )}
                                 </span>
-                                <Info
-                                    size={14}
-                                    className="text-app-muted"
-                                    title="Realized: realized profit and loss of your transactions converted to visualization currency at the forex rate of the date of the transaction. the posterior forex fluctuations belong to cash bucket, so this value may not correspond to current reality because of currency depreciation/appreciation."
-                                />
+                                <Tooltip content="Realized PnL from completed trades, converted using FX rates on the trade dates. Later FX moves show up in cash, so this can differ from today's reality.">
+                                    <Info
+                                        size={14}
+                                        className="text-app-muted"
+                                    />
+                                </Tooltip>
                             </div>
                         </div>
                     </Card>
@@ -1714,11 +1717,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             <div className="col-span-2 space-y-1">
                                 <label className="flex items-center gap-1 text-xs font-medium text-app-muted">
                                     Stooq ticker
-                                    <Info
-                                        size={12}
-                                        className="text-app-muted"
-                                        title="For real-time market pricing, put here the stooq ticker (stooq.com)"
-                                    />
+                                    <Tooltip content="Stooq ticker for live pricing (stooq.com). Example: AAPL.US">
+                                        <Info
+                                            size={12}
+                                            className="text-app-muted"
+                                        />
+                                    </Tooltip>
                                 </label>
                                 <StooqAPIStockSelect
                                     searchValue={tradeStooqSearch}
