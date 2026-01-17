@@ -994,7 +994,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         settings.visualCurrency
                                     )}
                                 </span>
-                                <Tooltip content="Realized PnL from completed trades, converted using FX rates on the trade dates. Later FX moves show up in cash, so this can differ from today's reality.">
+                                <Tooltip content="Realized PnL from completed trades using FIFO lot matching, converted using FX rates on the trade dates. Later FX moves show up in cash, so this can differ from today's reality.">
                                     <Info
                                         size={14}
                                         className="text-app-muted"
