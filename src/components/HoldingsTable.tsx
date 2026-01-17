@@ -8,9 +8,13 @@ export interface HoldingRow {
     ticker: string;
     units?: number;
     costAverage: number;
+    costCurrency?: string;
     currentPrice: number;
+    currentPriceCurrency?: string;
     value: number;
+    valueCurrency?: string;
     pnl: number;
+    pnlCurrency?: string;
     pnlPercent?: number;
     allocation?: number;
     currency?: string;
@@ -65,6 +69,15 @@ export const HoldingsTable = React.memo(
                                     : holding.pnl < 0
                                     ? "text-app-danger"
                                     : "text-app-muted";
+                            const costCurrency =
+                                holding.costCurrency ?? holding.currency;
+                            const currentPriceCurrency =
+                                holding.currentPriceCurrency ??
+                                holding.currency;
+                            const valueCurrency =
+                                holding.valueCurrency ?? holding.currency;
+                            const pnlCurrency =
+                                holding.pnlCurrency ?? holding.currency;
 
                             return (
                                 <tr
@@ -83,19 +96,19 @@ export const HoldingsTable = React.memo(
                                     <td className="px-4 py-3 text-right text-app-muted">
                                         {formatCurrency(
                                             holding.costAverage,
-                                            holding.currency
+                                            costCurrency
                                         )}
                                     </td>
                                     <td className="px-4 py-3 text-right text-app-muted">
                                         {formatCurrency(
                                             holding.currentPrice,
-                                            holding.currency
+                                            currentPriceCurrency
                                         )}
                                     </td>
                                     <td className="px-4 py-3 text-right text-app-foreground font-medium">
                                         {formatCurrency(
                                             holding.value,
-                                            holding.currency
+                                            valueCurrency
                                         )}
                                     </td>
                                     <td
@@ -104,7 +117,7 @@ export const HoldingsTable = React.memo(
                                         {holding.pnl > 0 ? "+" : ""}
                                         {formatCurrency(
                                             holding.pnl,
-                                            holding.currency
+                                            pnlCurrency
                                         )}
                                         {holding.pnlPercent !== undefined && (
                                             <span className="ml-1 text-xs text-app-muted">

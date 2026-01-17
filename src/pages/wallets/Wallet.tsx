@@ -37,7 +37,6 @@ import {
     WalletTx,
 } from "../../core/schema-types";
 import {
-    calculatePositionCostBasis,
     calculateRealizedPnl,
     getAllocationPercent,
     getPnL,
@@ -421,12 +420,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     );
 
     const { holdings, totals } = useMemo(() => {
-        const costBasisByAsset = calculatePositionCostBasis(
-            walletTransactions,
-            settings.visualCurrency,
-            forexRates,
-            getForexRate
-        );
         const rows = positionEntries.map(([assetId, position]) => {
             const asset = assets[assetId];
             const costAverage = position.avgCost.value;
@@ -444,24 +437,14 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 settings.visualCurrency,
                 forexRates
             );
-            const investedValueVisual =
-                costBasisByAsset.get(assetId)?.costBasisVisual ??
-                toVisualValue(
-                    getPositionInvestedValue(position.amount, costAverage),
-                    tradingCurrency,
-                    settings.visualCurrency,
-                    forexRates
-                );
-            const pnl = getPnL(valueVisual, investedValueVisual);
-            const pnlPercent = getPnLPercent(valueVisual, investedValueVisual);
-            const costAverageVisual =
-                position.amount > 0 ? investedValueVisual / position.amount : 0;
-            const currentPriceVisual = toVisualValue(
-                currentPrice,
+            const investedValueVisual = toVisualValue(
+                getPositionInvestedValue(position.amount, costAverage),
                 tradingCurrency,
                 settings.visualCurrency,
                 forexRates
             );
+            const pnl = getPnL(valueVisual, investedValueVisual);
+            const pnlPercent = getPnLPercent(valueVisual, investedValueVisual);
 
             return {
                 row: {
@@ -469,10 +452,14 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     asset: asset?.name ?? assetId,
                     ticker: asset?.ticker ?? assetId,
                     units: position.amount,
-                    costAverage: costAverageVisual,
-                    currentPrice: currentPriceVisual,
+                    costAverage,
+                    costCurrency: position.avgCost.currency ?? tradingCurrency,
+                    currentPrice,
+                    currentPriceCurrency: tradingCurrency,
                     value: valueVisual,
+                    valueCurrency: settings.visualCurrency,
                     pnl,
+                    pnlCurrency: settings.visualCurrency,
                     pnlPercent: Number(pnlPercent.toFixed(2)),
                     currency: settings.visualCurrency,
                 },
@@ -502,7 +489,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     }, [
         assets,
         forexRates,
-        getForexRate,
         livePricesByAsset,
         positionEntries,
         settings.visualCurrency,
