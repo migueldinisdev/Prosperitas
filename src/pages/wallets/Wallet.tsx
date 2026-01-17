@@ -38,6 +38,7 @@ import {
 } from "../../core/schema-types";
 import {
     calculatePositionCostBasis,
+    calculatePositionCostBasisFx,
     calculateRealizedPnl,
     getAllocationPercent,
     getPnL,
@@ -113,10 +114,7 @@ const WalletAllocationSection = React.memo(
             </Card>
 
             <Card title="Holdings" className="lg:col-span-2">
-                <HoldingsTable
-                    holdings={holdings}
-                    onEditAsset={onEditAsset}
-                />
+                <HoldingsTable holdings={holdings} onEditAsset={onEditAsset} />
             </Card>
         </div>
     )
@@ -172,8 +170,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [editAssetTicker, setEditAssetTicker] = useState("");
     const [editAssetName, setEditAssetName] = useState("");
     const [editAssetStooq, setEditAssetStooq] = useState("");
-    const [editAssetCurrency, setEditAssetCurrency] =
-        useState<Currency>("USD");
+    const [editAssetCurrency, setEditAssetCurrency] = useState<Currency>("USD");
     const [editAssetDecimals, setEditAssetDecimals] = useState("2");
     const [fxFromAmount, setFxFromAmount] = useState("");
     const [fxFromCurrency, setFxFromCurrency] = useState<Currency>(
@@ -187,9 +184,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [fxFeeCurrency, setFxFeeCurrency] = useState<Currency>(
         settings.balanceCurrency
     );
-    const [fxDate, setFxDate] = useState(
-        new Date().toISOString().slice(0, 10)
-    );
+    const [fxDate, setFxDate] = useState(new Date().toISOString().slice(0, 10));
     const [showFxOperationFees, setShowFxOperationFees] = useState(false);
 
     const [tradeType, setTradeType] = useState<"buy" | "sell">("buy");
@@ -401,7 +396,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         const currencies = new Set<Currency>();
         cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
         transactionCurrencies.forEach((currency) => currencies.add(currency));
-        positionAssets.forEach((asset) => currencies.add(asset.tradingCurrency));
+        positionAssets.forEach((asset) =>
+            currencies.add(asset.tradingCurrency)
+        );
         return Array.from(currencies);
     }, [cashBuckets, positionAssets, transactionCurrencies]);
     const forexRates = useForexLivePrices(
@@ -425,6 +422,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             walletTransactions,
             settings.visualCurrency,
             forexRates
+        );
+        const costBasisFxByAsset = calculatePositionCostBasisFx(
+            walletTransactions,
+            settings.visualCurrency,
+            forexRates,
+            getForexRate
         );
         const rows = positionEntries.map(([assetId, position]) => {
             const asset = assets[assetId];
@@ -453,6 +456,31 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 );
             const pnl = getPnL(valueVisual, investedValueVisual);
             const pnlPercent = getPnLPercent(valueVisual, investedValueVisual);
+            const fxEntryData = costBasisFxByAsset.get(assetId);
+            const baseCurrency = settings.visualCurrency;
+            const quoteCurrency = tradingCurrency ?? baseCurrency;
+            const entryFx =
+                quoteCurrency === baseCurrency
+                    ? 1
+                    : fxEntryData &&
+                      !fxEntryData.hasMissingFx &&
+                      fxEntryData.costBasisQuote > 0
+                    ? fxEntryData.costBasisBase / fxEntryData.costBasisQuote
+                    : null;
+            const currentFx =
+                quoteCurrency === baseCurrency
+                    ? 1
+                    : forexRates[quoteCurrency] ?? null;
+            const assetPnlBase =
+                entryFx === null || currentFx === null
+                    ? null
+                    : position.amount *
+                      (currentPrice - costAverage) *
+                      currentFx;
+            const fxPnlBase =
+                entryFx === null || currentFx === null
+                    ? null
+                    : position.amount * costAverage * (currentFx - entryFx);
 
             return {
                 row: {
@@ -469,6 +497,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     pnl,
                     pnlCurrency: settings.visualCurrency,
                     pnlPercent: Number(pnlPercent.toFixed(2)),
+                    assetPnlBase,
+                    fxPnlBase,
+                    entryFx,
+                    currentFx,
+                    baseCurrency,
+                    quoteCurrency,
                     currency: settings.visualCurrency,
                 },
                 investedValue: investedValueVisual,
@@ -642,9 +676,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         const nextDecimals = Number(editAssetDecimals);
         if (Number.isNaN(nextDecimals) || nextDecimals < 0) return;
         const stooqValue =
-            editAssetType === "stock"
-                ? editAssetStooq.trim() || null
-                : null;
+            editAssetType === "stock" ? editAssetStooq.trim() || null : null;
         dispatch(
             updateAsset({
                 id: editAssetId,
@@ -909,13 +941,17 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     <ArrowDownLeft size={18} />
                                 )}
                                 <span className="text-lg font-bold">
-                                    Unrealized{" "}
-                                    {unrealizedIsPositive ? "+" : ""}
+                                    Unrealized {unrealizedIsPositive ? "+" : ""}
                                     {formatCurrency(
                                         totals.pnl,
                                         settings.visualCurrency
                                     )}
                                 </span>
+                                <Info
+                                    size={14}
+                                    className="text-app-muted"
+                                    title="Unrealized: current unrealized profit and loss of your assets converted to visualization currency at current forex rate."
+                                />
                             </div>
                             <div
                                 className={`flex items-center gap-2 ${
@@ -930,13 +966,17 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     <ArrowDownLeft size={18} />
                                 )}
                                 <span className="text-lg font-bold">
-                                    Realized{" "}
-                                    {realizedIsPositive ? "+" : ""}
+                                    Realized {realizedIsPositive ? "+" : ""}
                                     {formatCurrency(
                                         realizedPnl,
                                         settings.visualCurrency
                                     )}
                                 </span>
+                                <Info
+                                    size={14}
+                                    className="text-app-muted"
+                                    title="Realized: realized profit and loss of your transactions converted to visualization currency at the forex rate of the date of the transaction. the posterior forex fluctuations belong to cash bucket, so this value may not correspond to current reality because of currency depreciation/appreciation."
+                                />
                             </div>
                         </div>
                     </Card>
@@ -955,6 +995,18 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                             bucket.value,
                                             bucket.currency
                                         )}
+                                        <span className="text-sm text-app-muted ml-2">
+                                            (~
+                                            {formatCurrency(
+                                                toVisualMoney(
+                                                    bucket,
+                                                    settings.visualCurrency,
+                                                    forexRates
+                                                ),
+                                                settings.visualCurrency
+                                            )}
+                                            )
+                                        </span>
                                     </p>
                                 ))
                             ) : (
@@ -1055,7 +1107,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <input
                             type="date"
                             value={cashDate}
-                            onChange={(event) => setCashDate(event.target.value)}
+                            onChange={(event) =>
+                                setCashDate(event.target.value)
+                            }
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>
@@ -1115,7 +1169,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <input
                             type="date"
                             value={cashDate}
-                            onChange={(event) => setCashDate(event.target.value)}
+                            onChange={(event) =>
+                                setCashDate(event.target.value)
+                            }
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>

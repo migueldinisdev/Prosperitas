@@ -207,6 +207,93 @@ export const calculatePositionCostBasis = (
     return positions;
 };
 
+export const calculatePositionCostBasisFx = (
+    transactions: WalletTx[],
+    visualCurrency: string,
+    forexRates: Record<string, number>,
+    getForexRate?: ForexRateGetter
+) => {
+    const positions = new Map<
+        string,
+        {
+            amount: number;
+            costBasisQuote: number;
+            costBasisBase: number;
+            hasMissingFx: boolean;
+        }
+    >();
+    const sorted = [...transactions].sort((a, b) => {
+        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
+    sorted.forEach((tx) => {
+        if (tx.type !== "buy" && tx.type !== "sell") return;
+        const current = positions.get(tx.assetId) ?? {
+            amount: 0,
+            costBasisQuote: 0,
+            costBasisBase: 0,
+            hasMissingFx: false,
+        };
+        if (tx.type === "buy") {
+            const costQuote = tx.price.value * tx.quantity;
+            const rate = resolveForexRate(
+                tx.price.currency,
+                visualCurrency,
+                forexRates,
+                tx.date,
+                getForexRate
+            );
+            const hasMissingFx =
+                current.hasMissingFx ||
+                (rate === null && tx.price.currency !== visualCurrency);
+            positions.set(tx.assetId, {
+                amount: current.amount + tx.quantity,
+                costBasisQuote: current.costBasisQuote + costQuote,
+                costBasisBase:
+                    current.costBasisBase +
+                    (rate === null ? 0 : costQuote * rate),
+                hasMissingFx,
+            });
+            return;
+        }
+
+        if (current.amount <= 0) {
+            positions.set(tx.assetId, {
+                amount: 0,
+                costBasisQuote: 0,
+                costBasisBase: 0,
+                hasMissingFx: current.hasMissingFx,
+            });
+            return;
+        }
+
+        const quantity = Math.min(tx.quantity, current.amount);
+        const avgCostQuote = current.costBasisQuote / current.amount;
+        const avgCostBase = current.costBasisBase / current.amount;
+        const costBasisSoldQuote = avgCostQuote * quantity;
+        const costBasisSoldBase = avgCostBase * quantity;
+        const remainingAmount = current.amount - quantity;
+        const remainingCostQuote = Math.max(
+            current.costBasisQuote - costBasisSoldQuote,
+            0
+        );
+        const remainingCostBase = Math.max(
+            current.costBasisBase - costBasisSoldBase,
+            0
+        );
+        positions.set(tx.assetId, {
+            amount: remainingAmount,
+            costBasisQuote: remainingCostQuote,
+            costBasisBase: remainingCostBase,
+            hasMissingFx: current.hasMissingFx,
+        });
+    });
+
+    return positions;
+};
+
 export const calculateRealizedPnl = (
     transactions: WalletTx[],
     visualCurrency: string,
