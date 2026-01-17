@@ -151,6 +151,18 @@ export const HoldingsTable = React.memo(
                                     holding.entryFx !== undefined ||
                                     holding.assetPnlBase !== undefined ||
                                     holding.fxPnlBase !== undefined;
+                                const quoteCurrency =
+                                    holding.quoteCurrency ??
+                                    holding.currentPriceCurrency ??
+                                    holding.currency;
+                                const baseCurrency =
+                                    holding.baseCurrency ?? pnlCurrency;
+                                const isSameCurrency =
+                                    baseCurrency && quoteCurrency
+                                        ? baseCurrency === quoteCurrency
+                                        : false;
+                                const canOpenModal =
+                                    hasModalDetails && !isSameCurrency;
 
                                 return (
                                     <tr
@@ -191,13 +203,13 @@ export const HoldingsTable = React.memo(
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    if (!hasModalDetails) {
+                                                    if (!canOpenModal) {
                                                         return;
                                                     }
                                                     setActiveHolding(holding);
                                                 }}
                                                 className={
-                                                    hasModalDetails
+                                                    canOpenModal
                                                         ? "inline-flex items-center gap-1 hover:text-app-foreground transition-colors"
                                                         : "inline-flex items-center gap-1"
                                                 }
@@ -253,7 +265,7 @@ export const HoldingsTable = React.memo(
                 <Modal
                     isOpen={Boolean(activeHolding && pnlModal)}
                     onClose={() => setActiveHolding(null)}
-                    title="Retorno"
+                    title="Return"
                 >
                     {activeHolding && pnlModal && (
                         <div className="space-y-4 text-sm">
@@ -261,13 +273,21 @@ export const HoldingsTable = React.memo(
                                 <p className="text-xs uppercase tracking-wider text-app-muted">
                                     Total
                                 </p>
-                                <p className="text-2xl font-semibold text-app-success">
+                                <p
+                                    className={`text-2xl font-semibold ${
+                                        pnlModal.totalPnL < 0
+                                            ? "text-app-danger"
+                                            : pnlModal.totalPnL > 0
+                                            ? "text-app-success"
+                                            : "text-app-muted"
+                                    }`}
+                                >
                                     {formatCurrency(
                                         pnlModal.totalPnL,
                                         activeHolding.pnlCurrency
                                     )}
                                     {pnlModal.pnlPercent !== undefined && (
-                                        <span className="ml-2 text-base text-app-success">
+                                        <span className="ml-2 text-base">
                                             ({pnlModal.pnlPercent}%)
                                         </span>
                                     )}
@@ -284,13 +304,21 @@ export const HoldingsTable = React.memo(
                                         <span className="text-app-foreground">
                                             Asset appreciation
                                         </span>
-                                        <span className="text-app-success font-semibold">
+                                        <span
+                                            className={`font-semibold ${
+                                                pnlModal.assetPnlBase < 0
+                                                    ? "text-app-danger"
+                                                    : pnlModal.assetPnlBase > 0
+                                                    ? "text-app-success"
+                                                    : "text-app-muted"
+                                            }`}
+                                        >
                                             {formatCurrency(
                                                 pnlModal.assetPnlBase,
                                                 activeHolding.pnlCurrency
                                             )}
                                             {pnlModal.assetPercent !== null && (
-                                                <span className="ml-2 text-sm text-app-success">
+                                                <span className="ml-2 text-sm">
                                                     (
                                                     {pnlModal.assetPercent.toFixed(
                                                         2
@@ -305,13 +333,21 @@ export const HoldingsTable = React.memo(
                                             <span className="text-app-foreground">
                                                 FX impact
                                             </span>
-                                            <span className="text-app-success font-semibold">
+                                            <span
+                                                className={`font-semibold ${
+                                                    pnlModal.fxPnlBase < 0
+                                                        ? "text-app-danger"
+                                                        : pnlModal.fxPnlBase > 0
+                                                        ? "text-app-success"
+                                                        : "text-app-muted"
+                                                }`}
+                                            >
                                                 {formatCurrency(
                                                     pnlModal.fxPnlBase,
                                                     activeHolding.pnlCurrency
                                                 )}
                                                 {pnlModal.fxPercent !== null && (
-                                                    <span className="ml-2 text-sm text-app-success">
+                                                    <span className="ml-2 text-sm">
                                                         (
                                                         {pnlModal.fxPercent.toFixed(
                                                             2
@@ -352,7 +388,7 @@ export const HoldingsTable = React.memo(
                                                           4
                                                       )}{" "}
                                                 {pnlModal.baseCurrency
-                                                    ? `${pnlModal.baseCurrency}/${pnlModal.quoteCurrency}`
+                                                    ? `${pnlModal.quoteCurrency}/${pnlModal.baseCurrency}`
                                                     : ""}
                                             </span>
                                         </div>
@@ -365,7 +401,7 @@ export const HoldingsTable = React.memo(
                                                           4
                                                       )}{" "}
                                                 {pnlModal.baseCurrency
-                                                    ? `${pnlModal.baseCurrency}/${pnlModal.quoteCurrency}`
+                                                    ? `${pnlModal.quoteCurrency}/${pnlModal.baseCurrency}`
                                                     : ""}
                                             </span>
                                         </div>
