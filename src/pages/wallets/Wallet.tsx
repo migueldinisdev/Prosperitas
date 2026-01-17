@@ -38,6 +38,7 @@ import {
 } from "../../core/schema-types";
 import {
     calculatePositionCostBasis,
+    calculatePositionCostBasisFx,
     calculateRealizedPnl,
     getAllocationPercent,
     getPnL,
@@ -427,6 +428,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             forexRates,
             getForexRate
         );
+        const costBasisFxByAsset = calculatePositionCostBasisFx(
+            walletTransactions,
+            settings.visualCurrency,
+            forexRates,
+            getForexRate
+        );
         const rows = positionEntries.map(([assetId, position]) => {
             const asset = assets[assetId];
             const costAverage = position.avgCost.value;
@@ -454,6 +461,31 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 );
             const pnl = getPnL(valueVisual, investedValueVisual);
             const pnlPercent = getPnLPercent(valueVisual, investedValueVisual);
+            const fxEntryData = costBasisFxByAsset.get(assetId);
+            const baseCurrency = settings.visualCurrency;
+            const quoteCurrency = tradingCurrency ?? baseCurrency;
+            const entryFx =
+                quoteCurrency === baseCurrency
+                    ? 1
+                    : fxEntryData &&
+                      !fxEntryData.hasMissingFx &&
+                      fxEntryData.costBasisQuote > 0
+                    ? fxEntryData.costBasisBase / fxEntryData.costBasisQuote
+                    : null;
+            const currentFx =
+                quoteCurrency === baseCurrency
+                    ? 1
+                    : forexRates[quoteCurrency] ?? null;
+            const assetPnlBase =
+                entryFx === null || currentFx === null
+                    ? null
+                    : position.amount *
+                      (currentPrice - costAverage) *
+                      currentFx;
+            const fxPnlBase =
+                entryFx === null || currentFx === null
+                    ? null
+                    : position.amount * costAverage * (currentFx - entryFx);
 
             return {
                 row: {
@@ -470,6 +502,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     pnl,
                     pnlCurrency: settings.visualCurrency,
                     pnlPercent: Number(pnlPercent.toFixed(2)),
+                    assetPnlBase,
+                    fxPnlBase,
+                    entryFx,
+                    currentFx,
+                    baseCurrency,
+                    quoteCurrency,
                     currency: settings.visualCurrency,
                 },
                 investedValue: investedValueVisual,
