@@ -434,9 +434,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         );
         const rows = positionEntries.map(([assetId, position]) => {
             const asset = assets[assetId];
-            const costAverage = position.avgCost.value;
-            const currentPrice =
-                livePricesByAsset[assetId] ?? position.avgCost.value;
+            const fxEntryData = costBasisFxByAsset.get(assetId);
+            const costAverage =
+                position.amount > 0 && fxEntryData
+                    ? fxEntryData.costBasisQuote / position.amount
+                    : position.avgCost.value;
+            const currentPrice = livePricesByAsset[assetId] ?? costAverage;
             const value = getPositionCurrentValue(
                 position.amount,
                 currentPrice
@@ -459,7 +462,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 );
             const pnl = getPnL(valueVisual, investedValueVisual);
             const pnlPercent = getPnLPercent(valueVisual, investedValueVisual);
-            const fxEntryData = costBasisFxByAsset.get(assetId);
             const baseCurrency = settings.visualCurrency;
             const quoteCurrency = tradingCurrency ?? baseCurrency;
             const entryFx =
@@ -1025,7 +1027,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         settings.visualCurrency
                                     )}
                                 </span>
-                                <Tooltip content="Realized PnL from completed trades, converted using FX rates on the trade dates. Later FX moves show up in cash, so this can differ from today's reality.">
+                                <Tooltip content="Realized PnL from completed trades using FIFO lot matching, converted using FX rates on the trade dates. Later FX moves show up in cash, so this can differ from today's reality.">
                                     <Info
                                         size={14}
                                         className="text-app-muted"
