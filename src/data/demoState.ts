@@ -291,6 +291,16 @@ export const createDemoState = (): PersistedState => {
             createdAt: "2024-11-10T12:00:00.000Z",
         },
         {
+            id: "w1_tx_6",
+            walletId: "wallet_crypto",
+            type: "buy",
+            date: "2025-04-12",
+            assetId: "asset_btc",
+            quantity: 0.05,
+            price: { value: 103000, currency: "EUR" },
+            createdAt: "2025-04-12T12:00:00.000Z",
+        },
+        {
             id: "w2_tx_0",
             walletId: "wallet_stocks",
             type: "deposit",
@@ -434,6 +444,16 @@ export const createDemoState = (): PersistedState => {
             amount: { value: 2000, currency: "EUR" },
             createdAt: "2025-04-01T12:00:00.000Z",
         },
+        {
+            id: "w2_tx_15",
+            walletId: "wallet_stocks",
+            type: "buy",
+            date: "2025-04-10",
+            assetId: "asset_vuaa",
+            quantity: 5,
+            price: { value: 102, currency: "EUR" },
+            createdAt: "2025-04-10T12:00:00.000Z",
+        },
     ];
 
     return {
@@ -466,16 +486,16 @@ export const createDemoState = (): PersistedState => {
                 name: "Bitcoin",
                 assetType: "crypto",
                 decimals: 8,
-                amount: 0,
-                avgCost: { value: 0, currency: "EUR" },
-                txIds: ["w1_tx_1", "w1_tx_2", "w1_tx_4", "w1_tx_5"],
+                amount: 0.05,
+                avgCost: { value: 103000, currency: "EUR" },
+                txIds: ["w1_tx_1", "w1_tx_2", "w1_tx_4", "w1_tx_5", "w1_tx_6"],
                 createdAt: timestamp,
                 updatedAt: timestamp,
             },
             asset_googl: {
                 id: "asset_googl",
                 ticker: "GOOGL",
-                stooqTicker: null,
+                stooqTicker: "GOOGL.US",
                 tradingCurrency: "USD",
                 name: "Alphabet Inc.",
                 assetType: "stock",
@@ -489,7 +509,7 @@ export const createDemoState = (): PersistedState => {
             asset_aapl: {
                 id: "asset_aapl",
                 ticker: "AAPL",
-                stooqTicker: null,
+                stooqTicker: "AAPL.US",
                 tradingCurrency: "USD",
                 name: "Apple Inc.",
                 assetType: "stock",
@@ -503,14 +523,14 @@ export const createDemoState = (): PersistedState => {
             asset_vuaa: {
                 id: "asset_vuaa",
                 ticker: "VUAA",
-                stooqTicker: null,
+                stooqTicker: "VUAA.DE",
                 tradingCurrency: "EUR",
                 name: "Vanguard S&P 500 UCITS ETF",
                 assetType: "etf",
                 decimals: 2,
-                amount: 25,
-                avgCost: { value: 93.5, currency: "EUR" },
-                txIds: ["w2_tx_11", "w2_tx_12", "w2_tx_13"],
+                amount: 30,
+                avgCost: { value: 94.92, currency: "EUR" },
+                txIds: ["w2_tx_11", "w2_tx_12", "w2_tx_13", "w2_tx_15"],
                 createdAt: timestamp,
                 updatedAt: timestamp,
             },
@@ -520,7 +540,7 @@ export const createDemoState = (): PersistedState => {
                 id: "wallet_crypto",
                 name: "Wallet 1 — Crypto",
                 description: "EUR crypto trading account",
-                cash: [{ value: 41500, currency: "EUR" }],
+                cash: [{ value: 36350, currency: "EUR" }],
                 txIds: [
                     "w1_tx_0",
                     "w1_tx_1",
@@ -528,6 +548,7 @@ export const createDemoState = (): PersistedState => {
                     "w1_tx_3",
                     "w1_tx_4",
                     "w1_tx_5",
+                    "w1_tx_6",
                 ],
             },
             wallet_stocks: {
@@ -535,7 +556,7 @@ export const createDemoState = (): PersistedState => {
                 name: "Wallet 2 — Stocks",
                 description: "EUR + USD brokerage account",
                 cash: [
-                    { value: 5538.7, currency: "EUR" },
+                    { value: 5028.7, currency: "EUR" },
                     { value: 9350, currency: "USD" },
                 ],
                 txIds: [
@@ -554,14 +575,15 @@ export const createDemoState = (): PersistedState => {
                     "w2_tx_12",
                     "w2_tx_13",
                     "w2_tx_14",
+                    "w2_tx_15",
                 ],
             },
         },
         walletPositions: {
             wallet_crypto: {
                 asset_btc: {
-                    amount: 0,
-                    avgCost: { value: 0, currency: "EUR" },
+                    amount: 0.05,
+                    avgCost: { value: 103000, currency: "EUR" },
                 },
             },
             wallet_stocks: {
@@ -574,8 +596,8 @@ export const createDemoState = (): PersistedState => {
                     avgCost: { value: 185, currency: "USD" },
                 },
                 asset_vuaa: {
-                    amount: 25,
-                    avgCost: { value: 93.5, currency: "EUR" },
+                    amount: 30,
+                    avgCost: { value: 94.92, currency: "EUR" },
                 },
             },
         },
@@ -597,6 +619,39 @@ export const createDemoState = (): PersistedState => {
                 description: "Stocks & ETFs",
             },
         },
-        livePrices: {},
+        livePrices: {
+            "crypto:BTCEUR": {
+                key: "crypto:BTCEUR",
+                type: "crypto",
+                ticker: "BTCEUR",
+                value: 108000,
+                updatedAt: timestamp,
+                source: "demo",
+            },
+            "stock:GOOGL.US": {
+                key: "stock:GOOGL.US",
+                type: "stock",
+                ticker: "GOOGL.US",
+                value: 315,
+                updatedAt: timestamp,
+                source: "demo",
+            },
+            "stock:AAPL.US": {
+                key: "stock:AAPL.US",
+                type: "stock",
+                ticker: "AAPL.US",
+                value: 210,
+                updatedAt: timestamp,
+                source: "demo",
+            },
+            "stock:VUAA.DE": {
+                key: "stock:VUAA.DE",
+                type: "stock",
+                ticker: "VUAA.DE",
+                value: 110,
+                updatedAt: timestamp,
+                source: "demo",
+            },
+        },
     };
 };
