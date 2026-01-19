@@ -6,10 +6,7 @@ const normalizeCryptoSymbol = (pair: string) => {
     if (normalized.length < 6) {
         throw new TickerNotFoundError(pair, "crypto", "Invalid crypto pair.");
     }
-    const base = normalized.slice(0, normalized.length - 3);
-    const quote = normalized.slice(-3);
-    const mappedQuote = quote === "USD" ? "USDT" : quote;
-    return `${base}${mappedQuote}`;
+    return normalized;
 };
 
 export const fetchCryptoLive = async (pair: string) => {
