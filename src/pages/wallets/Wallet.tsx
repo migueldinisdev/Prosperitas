@@ -783,7 +783,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             tradeAssetId ||
             Object.values(assets).find(
                 (existing) =>
-                    existing.ticker.toLowerCase() === tradeTicker.toLowerCase()
+                    existing.ticker.toLowerCase() === tradeTicker.toLowerCase() &&
+                    existing.tradingCurrency === tradeCurrency
             )?.id;
 
         if (fxEnabled && Number(tradeFxRate) <= 0) return;
