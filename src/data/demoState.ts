@@ -483,6 +483,7 @@ export const createDemoState = (): PersistedState => {
                 ticker: "BTC",
                 stooqTicker: null,
                 tradingCurrency: "EUR",
+                cryptoQuoteAlias: "EUR",
                 name: "Bitcoin",
                 assetType: "crypto",
                 decimals: 8,

@@ -172,6 +172,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [editAssetName, setEditAssetName] = useState("");
     const [editAssetStooq, setEditAssetStooq] = useState("");
     const [editAssetCurrency, setEditAssetCurrency] = useState<Currency>("USD");
+    const [editAssetQuoteAlias, setEditAssetQuoteAlias] = useState("USDT");
     const [editAssetDecimals, setEditAssetDecimals] = useState("2");
     const [editAssetPieId, setEditAssetPieId] = useState("");
     const [fxFromAmount, setFxFromAmount] = useState("");
@@ -675,6 +676,14 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         setEditAssetName(asset.name);
         setEditAssetStooq(asset.stooqTicker ?? "");
         setEditAssetCurrency(asset.tradingCurrency);
+        setEditAssetQuoteAlias(
+            asset.assetType === "crypto"
+                ? asset.cryptoQuoteAlias ??
+                      (asset.tradingCurrency === "USD"
+                          ? "USDT"
+                          : asset.tradingCurrency)
+                : ""
+        );
         setEditAssetDecimals(asset.decimals.toString());
         setEditAssetPieId(currentPieId);
         setEditAssetOpen(true);
@@ -694,6 +703,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     ticker: editAssetTicker.trim().toUpperCase(),
                     name: editAssetName.trim() || editAssetTicker.trim(),
                     stooqTicker: stooqValue,
+                    cryptoQuoteAlias:
+                        editAssetType === "crypto"
+                            ? editAssetQuoteAlias.trim().toUpperCase() || null
+                            : null,
                     decimals: nextDecimals,
                     updatedAt: new Date().toISOString(),
                 },
@@ -790,6 +803,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     tradingCurrency: tradeCurrency,
                     name: tradeName || tradeTicker.toUpperCase(),
                     assetType: tradeAssetType,
+                    cryptoQuoteAlias:
+                        tradeAssetType === "crypto"
+                            ? tradeCurrency === "USD"
+                                ? "USDT"
+                                : tradeCurrency
+                            : null,
                     decimals: tradeAssetType === "crypto" ? 8 : 2,
                     amount: 0,
                     avgCost: { value: 0, currency: tradeCurrency },
@@ -1585,6 +1604,22 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             </select>
                         </div>
                     </div>
+                    {editAssetType === "crypto" && (
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Crypto Quote Alias
+                            </label>
+                            <input
+                                type="text"
+                                value={editAssetQuoteAlias}
+                                onChange={(event) =>
+                                    setEditAssetQuoteAlias(event.target.value)
+                                }
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                                placeholder="USDT"
+                            />
+                        </div>
+                    )}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="col-span-2">
                             <label className="block text-xs font-medium text-app-muted mb-1">

@@ -84,6 +84,7 @@ export interface Asset {
     ticker: string;
     stooqTicker?: string | null;
     tradingCurrency: Currency;
+    cryptoQuoteAlias?: string | null;
     name: string;
     assetType: AssetType;
     decimals: number;

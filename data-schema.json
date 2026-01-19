@@ -67,6 +67,7 @@
       "stooqTicker": null,
       "exchange": null,
       "tradingCurrency": "USD",
+      "cryptoQuoteAlias": "USDT",
       "name": "Bitcoin",
       "assetType": "crypto",
       "decimals": 8,
