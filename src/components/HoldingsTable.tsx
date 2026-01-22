@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Pencil } from "lucide-react";
 import { formatCurrency } from "../utils/formatters";
 import { Modal } from "../ui/Modal";
+import { Tooltip } from "../ui/Tooltip";
 
 export interface HoldingRow {
     assetId?: string;
@@ -163,6 +164,14 @@ export const HoldingsTable = React.memo(
                                         : false;
                                 const canOpenModal =
                                     hasModalDetails && !isSameCurrency;
+                                const hasUnits =
+                                    typeof holding.units === "number";
+                                const unitsDisplay = hasUnits
+                                    ? holding.units?.toLocaleString()
+                                    : "-";
+                                const unitsFull = hasUnits
+                                    ? String(holding.units)
+                                    : "";
 
                                 return (
                                     <tr
@@ -176,7 +185,16 @@ export const HoldingsTable = React.memo(
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-right text-app-muted">
-                                            {holding.units?.toLocaleString() ?? "-"}
+                                            {hasUnits ? (
+                                                <Tooltip
+                                                    content={unitsFull}
+                                                    className="justify-end w-full"
+                                                >
+                                                    <span>{unitsDisplay}</span>
+                                                </Tooltip>
+                                            ) : (
+                                                "-"
+                                            )}
                                         </td>
                                         <td className="px-4 py-3 text-right text-app-muted">
                                             {formatCurrency(
