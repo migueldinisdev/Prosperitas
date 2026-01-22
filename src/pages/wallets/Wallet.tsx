@@ -52,7 +52,7 @@ import {
 } from "../../core/finance";
 import { formatCurrency } from "../../utils/formatters";
 
-const currencyOptions: Currency[] = ["EUR", "USD"];
+const currencyOptions: Currency[] = ["EUR", "USD", "GBP"];
 
 interface Props {
     onMenuClick: () => void;

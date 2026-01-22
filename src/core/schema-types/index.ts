@@ -15,7 +15,7 @@
 // ! Changing types here requires a migration plan for persisted data.
 
 
-export type Currency = 'EUR' | 'USD';
+export type Currency = 'EUR' | 'USD' | 'GBP';
 
 export interface Money {
     value: number;

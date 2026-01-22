@@ -27,7 +27,7 @@ const formatMoney = (money?: Money) =>
 const formatType = (type: WalletTx["type"]) =>
     type.charAt(0).toUpperCase() + type.slice(1);
 
-const currencyOptions: Currency[] = ["EUR", "USD"];
+const currencyOptions: Currency[] = ["EUR", "USD", "GBP"];
 
 export const WalletTransactionsTable = React.memo(
     ({ transactions, assets }: WalletTransactionsTableProps) => {
