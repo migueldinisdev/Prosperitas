@@ -1,4 +1,4 @@
-import { Money, WalletTx } from "../schema-types";
+import { BuyWalletTx, Money, SellWalletTx, WalletTx } from "../schema-types";
 
 export const getPositionCurrentValue = (units: number, currentPrice: number) =>
     units * currentPrice;
@@ -304,6 +304,27 @@ export const calculateRealizedPnl = (
     forexRates: Record<string, number>,
     getForexRate?: ForexRateGetter
 ) => {
+    const toVisualValueForTx = (
+        tx: BuyWalletTx | SellWalletTx,
+        amount: number
+    ) =>
+        tx.fxPair && tx.fxRate
+            ? toVisualValueUsingTxFx(
+                  amount,
+                  tx.price.currency,
+                  visualCurrency,
+                  forexRates,
+                  tx.fxPair,
+                  tx.fxRate
+              )
+            : toVisualValue(
+                  amount,
+                  tx.price.currency,
+                  visualCurrency,
+                  forexRates,
+                  tx.date,
+                  getForexRate
+              );
     const lotsByAsset = new Map<
         string,
         Array<{ quantity: number; costBasisVisual: number }>
@@ -319,28 +340,14 @@ export const calculateRealizedPnl = (
     return sorted.reduce((total, tx) => {
         switch (tx.type) {
             case "buy": {
-                const costVisual = toVisualValue(
-                    tx.price.value * tx.quantity,
-                    tx.price.currency,
-                    visualCurrency,
-                    forexRates,
-                    tx.date,
-                    getForexRate
+                const costVisual = toVisualValueForTx(
+                    tx,
+                    tx.price.value * tx.quantity
                 );
-                const feesVisual = tx.fees
-                    ? toVisualValue(
-                          tx.fees.value,
-                          tx.fees.currency,
-                          visualCurrency,
-                          forexRates,
-                          tx.date,
-                          getForexRate
-                      )
-                    : 0;
                 const lots = lotsByAsset.get(tx.assetId) ?? [];
                 lots.push({
                     quantity: tx.quantity,
-                    costBasisVisual: costVisual + feesVisual,
+                    costBasisVisual: costVisual,
                 });
                 lotsByAsset.set(tx.assetId, lots);
                 return total;
@@ -352,24 +359,10 @@ export const calculateRealizedPnl = (
                     0
                 );
                 const quantity = Math.min(tx.quantity, availableQuantity);
-                const proceedsVisual = toVisualValue(
-                    tx.price.value * quantity,
-                    tx.price.currency,
-                    visualCurrency,
-                    forexRates,
-                    tx.date,
-                    getForexRate
+                const proceedsVisual = toVisualValueForTx(
+                    tx,
+                    tx.price.value * quantity
                 );
-                const fees = tx.fees
-                    ? toVisualValue(
-                          tx.fees.value,
-                          tx.fees.currency,
-                          visualCurrency,
-                          forexRates,
-                          tx.date,
-                          getForexRate
-                      )
-                    : 0;
                 let remainingQuantity = quantity;
                 let costBasisConsumed = 0;
                 while (remainingQuantity > 0 && lots.length > 0) {
@@ -389,20 +382,7 @@ export const calculateRealizedPnl = (
                 }
                 lotsByAsset.set(tx.assetId, lots);
                 const realized = proceedsVisual - costBasisConsumed;
-                return total + realized - fees;
-            }
-            case "dividend": {
-                return (
-                    total +
-                    toVisualValue(
-                        tx.amount.value,
-                        tx.amount.currency,
-                        visualCurrency,
-                        forexRates,
-                        tx.date,
-                        getForexRate
-                    )
-                );
+                return total + realized;
             }
             default:
                 return total;
