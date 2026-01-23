@@ -37,6 +37,25 @@ type LedgerResult = {
 };
 
 const roundCash = (value: number) => Math.round(value * 100) / 100;
+const roundToDecimals = (value: number, decimals: number) => {
+    const safeDecimals = Math.max(0, decimals);
+    const factor = 10 ** safeDecimals;
+    return Math.round(value * factor) / factor;
+};
+const getDecimalPlaces = (value: number) => {
+    if (!Number.isFinite(value)) return 0;
+    const raw = value.toString().toLowerCase();
+    if (raw.includes("e")) {
+        const [base, exponent] = raw.split("e");
+        const exp = Number(exponent);
+        const baseDecimals = (base.split(".")[1] ?? "").length;
+        return Math.max(0, baseDecimals - exp);
+    }
+    const decimals = raw.split(".")[1];
+    return decimals ? decimals.length : 0;
+};
+const getMaxDecimalPlaces = (...values: number[]) =>
+    values.reduce((max, value) => Math.max(max, getDecimalPlaces(value)), 0);
 
 const formatValue = (value: number) =>
     Number.isInteger(value) ? value.toString() : value.toFixed(2);
@@ -153,7 +172,8 @@ const replayWalletLedger = (
             totalCost: 0,
             currency,
         };
-        const nextQty = current.qty + qtyDelta;
+        const precision = getMaxDecimalPlaces(current.qty, qtyDelta);
+        const nextQty = roundToDecimals(current.qty + qtyDelta, precision);
         const nextTotalCost = current.totalCost + totalCostDelta;
         positionsByAsset[assetId] = {
             qty: nextQty,
@@ -361,6 +381,7 @@ const updateAssetAggregates = (
         let totalAmount = 0;
         let totalCost = 0;
         let avgCurrency: string | null = null;
+        let maxDecimals = 0;
 
         walletIds.forEach((walletId) => {
             const positions =
@@ -370,12 +391,17 @@ const updateAssetAggregates = (
             const position = positions[assetId];
             if (!position) return;
             totalAmount += position.amount;
+            maxDecimals = Math.max(
+                maxDecimals,
+                getDecimalPlaces(position.amount)
+            );
             totalCost += position.amount * position.avgCost.value;
             if (!avgCurrency) {
                 avgCurrency = position.avgCost.currency;
             }
         });
 
+        totalAmount = roundToDecimals(totalAmount, maxDecimals);
         if (totalAmount <= 0) {
             const pies = state.pies;
             Object.values(pies).forEach((pie) => {

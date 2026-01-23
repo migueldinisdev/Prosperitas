@@ -39,12 +39,12 @@ export const HomeSummarySection: React.FC = () => {
     const positions = useMemo(
         () =>
             Object.entries(walletPositions).flatMap(([, positionsByAsset]) =>
-                Object.entries(positionsByAsset)
-                    .filter(([, position]) => position.amount > 0)
-                    .map(([assetId, position]) => ({
+                Object.entries(positionsByAsset).map(
+                    ([assetId, position]) => ({
                         assetId,
                         position,
-                    }))
+                    })
+                )
             ),
         [walletPositions]
     );

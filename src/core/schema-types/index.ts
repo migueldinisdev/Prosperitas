@@ -87,7 +87,6 @@ export interface Asset {
     cryptoQuoteAlias?: string | null;
     name: string;
     assetType: AssetType;
-    decimals: number;
     amount: number;
     avgCost: Money;
     txIds: string[];

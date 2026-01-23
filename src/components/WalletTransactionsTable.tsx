@@ -28,6 +28,19 @@ const formatType = (type: WalletTx["type"]) =>
     type.charAt(0).toUpperCase() + type.slice(1);
 
 const currencyOptions: Currency[] = ["EUR", "USD", "GBP"];
+const getInputDecimals = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed.includes(".")) return 0;
+    return trimmed.split(".")[1].length;
+};
+const roundToInputPrecision = (value: string) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return parsed;
+    const decimals = getInputDecimals(value);
+    if (decimals <= 0) return parsed;
+    const factor = 10 ** decimals;
+    return Math.round(parsed * factor) / factor;
+};
 
 export const WalletTransactionsTable = React.memo(
     ({ transactions, assets }: WalletTransactionsTableProps) => {
@@ -175,9 +188,9 @@ export const WalletTransactionsTable = React.memo(
                         ...base,
                         type: editTx.type,
                         assetId: editAssetId,
-                        quantity: Number(editQuantity),
+                        quantity: roundToInputPrecision(editQuantity),
                         price: {
-                            value: Number(editPrice),
+                            value: roundToInputPrecision(editPrice),
                             currency: editPriceCurrency,
                         },
                         fxPair: editFxPair.trim() || undefined,
@@ -185,7 +198,7 @@ export const WalletTransactionsTable = React.memo(
                         fees:
                             Number(editFees) > 0
                                 ? {
-                                      value: Number(editFees),
+                                      value: roundToInputPrecision(editFees),
                                       currency: editFeesCurrency,
                                   }
                                 : undefined,

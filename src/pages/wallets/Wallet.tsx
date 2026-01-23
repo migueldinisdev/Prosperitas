@@ -59,6 +59,19 @@ interface Props {
 }
 
 const roundToTwo = (value: number) => Math.round(value * 100) / 100;
+const getInputDecimals = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed.includes(".")) return 0;
+    return trimmed.split(".")[1].length;
+};
+const roundToInputPrecision = (value: string) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return parsed;
+    const decimals = getInputDecimals(value);
+    if (decimals <= 0) return parsed;
+    const factor = 10 ** decimals;
+    return Math.round(parsed * factor) / factor;
+};
 const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
 
 interface WalletAllocationSectionProps {
@@ -173,7 +186,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [editAssetStooq, setEditAssetStooq] = useState("");
     const [editAssetCurrency, setEditAssetCurrency] = useState<Currency>("USD");
     const [editAssetQuoteAlias, setEditAssetQuoteAlias] = useState("USDT");
-    const [editAssetDecimals, setEditAssetDecimals] = useState("2");
     const [editAssetPieId, setEditAssetPieId] = useState("");
     const [fxFromAmount, setFxFromAmount] = useState("");
     const [fxFromCurrency, setFxFromCurrency] = useState<Currency>(
@@ -219,8 +231,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [showFxFee, setShowFxFee] = useState(false);
 
     const walletName = wallet?.name ?? "Wallet";
-    const tradeQuantityValue = Number(tradeQuantity);
-    const tradePriceValue = Number(tradePrice);
+    const tradeQuantityValue = roundToInputPrecision(tradeQuantity);
+    const tradePriceValue = roundToInputPrecision(tradePrice);
     const tradeTotal = tradeQuantityValue * tradePriceValue;
     const fxFromAmountValue = Number(fxFromAmount);
     const fxRateValue = Number(fxRate);
@@ -335,10 +347,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     }, [tradeAssetType]);
 
     const positionEntries = useMemo(
-        () =>
-            Object.entries(walletPositions ?? {}).filter(
-                ([, position]) => position.amount > 0
-            ),
+        () => Object.entries(walletPositions ?? {}),
         [walletPositions]
     );
 
@@ -610,21 +619,35 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         return 0;
     };
 
-    const tradeFeesValue = showTradeFees ? Number(tradeFees) : 0;
-    const tradeFxFeeValue = showFxFee ? Number(tradeFxFee) : 0;
-    const fxFeesValue = showFxOperationFees ? Number(fxFees) : 0;
+    const tradeFeesValue = showTradeFees ? roundToInputPrecision(tradeFees) : 0;
+    const tradeFxFeeValue = showFxFee ? roundToInputPrecision(tradeFxFee) : 0;
+    const fxFeesValue = showFxOperationFees ? roundToInputPrecision(fxFees) : 0;
 
     const hasSufficientAsset =
         tradeType === "sell"
             ? (walletPositions?.[tradeAssetId]?.amount ?? 0) >=
               tradeQuantityValue
             : true;
+    const remainingAssetAfterSell =
+        tradeType === "sell"
+            ? (walletPositions?.[tradeAssetId]?.amount ?? 0) -
+              tradeQuantityValue
+            : 0;
     const insufficientFundsMessage =
         hasTradeBasics &&
         hasFxDetails &&
         tradeType === "sell" &&
         !hasSufficientAsset
             ? "Insufficient assets to sell."
+            : "";
+    const lowRemainingMessage =
+        hasTradeBasics &&
+        hasFxDetails &&
+        tradeType === "sell" &&
+        hasSufficientAsset &&
+        remainingAssetAfterSell > 0 &&
+        remainingAssetAfterSell < 0.01
+            ? "Warning: this sale leaves less than 0.01 units."
             : "";
 
     const handleAddCash = (type: "deposit" | "withdraw") => {
@@ -684,15 +707,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                           : asset.tradingCurrency)
                 : ""
         );
-        setEditAssetDecimals(asset.decimals.toString());
         setEditAssetPieId(currentPieId);
         setEditAssetOpen(true);
     };
 
     const handleEditAssetSave = () => {
         if (!editAssetId) return;
-        const nextDecimals = Number(editAssetDecimals);
-        if (Number.isNaN(nextDecimals) || nextDecimals < 0) return;
         const stooqValue =
             editAssetType === "stock" ? editAssetStooq.trim() || null : null;
         dispatch(
@@ -707,7 +727,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         editAssetType === "crypto"
                             ? editAssetQuoteAlias.trim().toUpperCase() || null
                             : null,
-                    decimals: nextDecimals,
                     updatedAt: new Date().toISOString(),
                 },
             })
@@ -810,7 +829,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 ? "USDT"
                                 : tradeCurrency
                             : null,
-                    decimals: tradeAssetType === "crypto" ? 8 : 2,
                     amount: 0,
                     avgCost: { value: 0, currency: tradeCurrency },
                     txIds: [],
@@ -1642,44 +1660,26 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             </select>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-xs font-medium text-app-muted mb-1">
-                                Stooq Ticker
-                            </label>
-                            <input
-                                type="text"
-                                value={editAssetStooq}
-                                onChange={(event) =>
-                                    setEditAssetStooq(event.target.value)
-                                }
-                                disabled={editAssetType !== "stock"}
-                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-app-muted mb-1">
-                                Decimals
-                            </label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={editAssetDecimals}
-                                onChange={(event) =>
-                                    setEditAssetDecimals(event.target.value)
-                                }
-                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
-                            />
-                        </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Stooq Ticker
+                        </label>
+                        <input
+                            type="text"
+                            value={editAssetStooq}
+                            onChange={(event) =>
+                                setEditAssetStooq(event.target.value)
+                            }
+                            disabled={editAssetType !== "stock"}
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
+                        />
                     </div>
                     <Button
                         className="w-full"
                         onClick={handleEditAssetSave}
                         disabled={
                             !editAssetTicker.trim() ||
-                            !editAssetName.trim() ||
-                            Number.isNaN(Number(editAssetDecimals)) ||
-                            Number(editAssetDecimals) < 0
+                            !editAssetName.trim()
                         }
                     >
                         Update Asset
@@ -2097,6 +2097,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     </p>
                                 ) : (
                                     <>
+                                        {lowRemainingMessage && (
+                                            <p className="text-app-warning">
+                                                {lowRemainingMessage}
+                                            </p>
+                                        )}
                                         {tradeType === "buy" ? (
                                             <p>
                                                 Purchased{" "}

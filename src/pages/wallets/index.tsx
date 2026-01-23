@@ -71,9 +71,7 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
         const assetIds = new Set<string>();
         Object.values(walletPositions).forEach((positions) => {
             Object.entries(positions).forEach(([assetId, position]) => {
-                if (position.amount > 0) {
-                    assetIds.add(assetId);
-                }
+                assetIds.add(assetId);
             });
         });
         return Array.from(assetIds)
@@ -147,7 +145,6 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
                 forexRates
             );
             const positionRows = Object.entries(positions)
-                .filter(([, position]) => position.amount > 0)
                 .map(([assetId, position]) => {
                     const asset = assets[assetId];
                     const costAverage = position.avgCost.value;
