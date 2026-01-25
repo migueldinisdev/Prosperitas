@@ -45,11 +45,13 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     // Form state
     const [formName, setFormName] = useState("");
+    const [formDescription, setFormDescription] = useState("");
     const [formColor, setFormColor] = useState("#10b981");
     const [formType, setFormType] = useState<Category["type"]>("expense");
 
     const resetForm = () => {
         setFormName("");
+        setFormDescription("");
         setFormColor("#10b981");
         setFormType("expense");
         setIsAdding(false);
@@ -68,6 +70,7 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
         const newCategory: Category = {
             id: generateUniqueId("cat_"),
             name: formName,
+            description: formDescription.trim(),
             color: formColor,
             type: formType,
         };
@@ -79,6 +82,7 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const handleEdit = (category: Category) => {
         setEditingId(category.id);
         setFormName(category.name);
+        setFormDescription(category.description);
         setFormColor(category.color);
         setFormType(category.type);
         setIsAdding(false);
@@ -92,6 +96,7 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 id: editingId,
                 changes: {
                     name: formName,
+                    description: formDescription.trim(),
                     color: formColor,
                     type: formType,
                 },
@@ -144,6 +149,10 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                             <p className="text-xs text-app-muted capitalize">
                                                 {category.type}
                                             </p>
+                                            <p className="text-xs text-app-muted">
+                                                {category.description ||
+                                                    "No description"}
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="flex gap-1">
@@ -185,6 +194,21 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                 onChange={(e) => setFormName(e.target.value)}
                                 placeholder="Category name"
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground text-sm focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium text-app-muted mb-1">
+                                Description
+                            </label>
+                            <textarea
+                                value={formDescription}
+                                onChange={(e) =>
+                                    setFormDescription(e.target.value)
+                                }
+                                placeholder="Short description (optional)"
+                                rows={2}
+                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground text-sm focus:outline-none focus:ring-1 focus:ring-app-primary resize-none"
                             />
                         </div>
 

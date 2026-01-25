@@ -23,13 +23,15 @@
       "id": "cat_0",
       "name": "Salary",
       "type": "income",
-      "color": "#2ECC71"
+      "color": "#2ECC71",
+      "description": "Monthly salary deposits."
     },
     "cat_1": {
       "id": "cat_1",
       "name": "Food",
       "type": "expense",
-      "color": "#E74C3C"
+      "color": "#E74C3C",
+      "description": "Meals, groceries, and snacks."
     }
   },
   "balance": {

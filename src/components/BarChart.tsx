@@ -17,6 +17,7 @@ interface BarChartProps {
     height?: number;
     tickFormatter?: (value: number) => string;
     isLoading?: boolean;
+    tooltipContent?: React.ReactElement | ((props: any) => React.ReactNode);
 }
 
 export const BarChart = React.memo(
@@ -27,6 +28,7 @@ export const BarChart = React.memo(
         height = 300,
         tickFormatter,
         isLoading,
+        tooltipContent,
     }: BarChartProps) => {
         console.log("BarChart re-rendered");
         const resolvedLoading = isLoading ?? (!data || data.length === 0);
@@ -72,6 +74,7 @@ export const BarChart = React.memo(
                                 fill: "rgb(var(--color-app-border))",
                                 opacity: 0.4,
                             }}
+                            content={tooltipContent}
                             contentStyle={{
                                 backgroundColor: "rgb(var(--color-app-card))",
                                 borderColor: "rgb(var(--color-app-border))",
