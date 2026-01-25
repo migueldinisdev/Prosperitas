@@ -5,6 +5,14 @@ import { useAppSelector } from "../store/hooks";
 import { selectLivePrices } from "../store/selectors";
 
 const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
+const LIVE_PRICE_MAX_AGE_MS = 60 * 60 * 1000;
+
+const isLivePriceFresh = (updatedAt?: string) => {
+    if (!updatedAt) return false;
+    const updatedAtMs = Date.parse(updatedAt);
+    if (Number.isNaN(updatedAtMs)) return false;
+    return Date.now() - updatedAtMs < LIVE_PRICE_MAX_AGE_MS;
+};
 
 const getAssetPriceRequest = (asset: Asset) => {
     if (asset.assetType === "cash") return null;
@@ -49,7 +57,8 @@ export const useAssetLivePrices = (assets: Asset[]) => {
     useEffect(() => {
         const requestsToFetch = priceRequests.filter(({ request }) => {
             const key = `${request.type}:${request.ticker}`;
-            return !livePrices[key];
+            const livePrice = livePrices[key];
+            return !livePrice || !isLivePriceFresh(livePrice.updatedAt);
         });
 
         if (!requestsToFetch.length) {
