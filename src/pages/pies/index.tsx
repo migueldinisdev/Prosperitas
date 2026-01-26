@@ -15,14 +15,13 @@ import { addPie } from "../../store/slices/piesSlice";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import {
     calculatePositionCostBasis,
-    calculateRealizedPnl,
     getPnL,
     getPositionCurrentValue,
     getPositionInvestedValue,
+    getTotalValue,
     toVisualValue,
 } from "../../core/finance";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
-import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
 import { getWalletTxCurrencies } from "../../utils/netWorthHistory";
 
 interface Props {
@@ -79,22 +78,6 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
         settings.visualCurrency
     );
 
-    const pieTransactions = useMemo(
-        () => Object.values(walletTx).filter((tx) => tx.pieId),
-        [walletTx]
-    );
-
-    const transactionDates = useMemo(
-        () => pieTransactions.map((tx) => tx.date),
-        [pieTransactions]
-    );
-
-    const { getForexRate } = useForexHistoricalRates(
-        transactionCurrencies,
-        transactionDates,
-        settings.visualCurrency
-    );
-
     const handleCreatePie = () => {
         const id = `pie_${Date.now()}`;
         const name = pieNameTrimmed || "New Pie";
@@ -132,9 +115,13 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                         const pieAssets = pie.assetIds
                             .map((assetId) => assets[assetId])
                             .filter(Boolean);
-                        const pieTransactionsForCard = pieTransactions.filter(
-                            (tx) => tx.pieId === pie.id
-                        );
+                        const pieAssetIds = new Set(pie.assetIds);
+                        const pieTransactionsForCard = Object.values(
+                            walletTx
+                        ).filter((tx) => {
+                            if (!("assetId" in tx) || !tx.assetId) return false;
+                            return pieAssetIds.has(tx.assetId);
+                        });
                         const costBasisByAsset = calculatePositionCostBasis(
                             pieTransactionsForCard,
                             settings.visualCurrency,
@@ -148,7 +135,7 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                                 asset.amount,
                                 currentPrice
                             );
-                            const currentValueVisual = toVisualValue(
+                            const valueVisual = toVisualValue(
                                 currentValue,
                                 asset.tradingCurrency,
                                 settings.visualCurrency,
@@ -165,28 +152,23 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                                     settings.visualCurrency,
                                     forexRates
                                 );
+                            const pnl = getPnL(
+                                valueVisual,
+                                investedValueVisual
+                            );
                             return {
-                                currentValue: currentValueVisual,
+                                currentValue: valueVisual,
                                 investedValue: investedValueVisual,
+                                pnl,
                             };
                         });
-                        const totalValue = holdingSummaries.reduce(
-                            (total, summary) => total + summary.currentValue,
-                            0
+                        const totalValue = getTotalValue(
+                            holdingSummaries.map(
+                                (summary) => summary.currentValue
+                            )
                         );
-                        const totalInvested = holdingSummaries.reduce(
-                            (total, summary) => total + summary.investedValue,
-                            0
-                        );
-                        const unrealizedPnl = getPnL(
-                            totalValue,
-                            totalInvested
-                        );
-                        const realizedPnl = calculateRealizedPnl(
-                            pieTransactionsForCard,
-                            settings.visualCurrency,
-                            forexRates,
-                            getForexRate
+                        const unrealizedPnl = getTotalValue(
+                            holdingSummaries.map((summary) => summary.pnl)
                         );
                         return (
                             <PieCard
@@ -197,7 +179,6 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                                 risk={pie.risk}
                                 totalValue={totalValue}
                                 unrealizedPnl={unrealizedPnl}
-                                realizedPnl={realizedPnl}
                                 assetCount={pieAssets.length}
                                 currency={settings.visualCurrency}
                             />

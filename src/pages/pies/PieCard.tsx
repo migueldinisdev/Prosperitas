@@ -10,7 +10,6 @@ interface PieCardProps {
     risk?: number;
     totalValue: number;
     unrealizedPnl: number;
-    realizedPnl: number;
     assetCount: number;
     currency: string;
 }
@@ -22,13 +21,11 @@ export const PieCard: React.FC<PieCardProps> = ({
     risk,
     totalValue,
     unrealizedPnl,
-    realizedPnl,
     assetCount,
     currency,
 }) => {
     const riskValue = risk ?? 0;
     const unrealizedIsPositive = unrealizedPnl >= 0;
-    const realizedIsPositive = realizedPnl >= 0;
 
     return (
         <Link to={`/pies/${pieId}`}>
@@ -75,16 +72,6 @@ export const PieCard: React.FC<PieCardProps> = ({
                         >
                             Unrealized {unrealizedIsPositive ? "+" : ""}
                             {formatCurrency(unrealizedPnl, currency)}
-                        </p>
-                        <p
-                            className={
-                                realizedIsPositive
-                                    ? "text-app-success"
-                                    : "text-app-danger"
-                            }
-                        >
-                            Realized {realizedIsPositive ? "+" : ""}
-                            {formatCurrency(realizedPnl, currency)}
                         </p>
                     </div>
                     <div className="flex justify-between text-sm text-app-muted">
