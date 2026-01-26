@@ -17,14 +17,12 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { usePieData } from "../../hooks/usePieData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
-import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
 import { useAppSelector } from "../../store/hooks";
 import { selectSettings, selectWalletTxState } from "../../store/selectors";
 import { formatCurrency } from "../../utils/formatters";
 import {
     calculatePositionCostBasis,
     getAllocationPercent,
-    calculateRealizedPnl,
     getPnL,
     getPnLPercent,
     getPositionCurrentValue,
@@ -68,17 +66,6 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
             return pieAssetIds.has(tx.assetId);
         });
     }, [pieAssetIds, walletTx]);
-
-    const transactionDates = useMemo(
-        () => pieTransactions.map((tx) => tx.date),
-        [pieTransactions]
-    );
-
-    const { getForexRate } = useForexHistoricalRates(
-        transactionCurrencies,
-        transactionDates,
-        settings.visualCurrency
-    );
 
     const { holdings, totals } = useMemo(() => {
         const costBasisByAsset = calculatePositionCostBasis(
@@ -158,23 +145,11 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
     }, [
         assets,
         forexRates,
-        getForexRate,
         livePricesByAsset,
         pieTransactions,
         settings.visualCurrency,
     ]);
-    const realizedPnl = useMemo(
-        () =>
-            calculateRealizedPnl(
-                Object.values(walletTx).filter((tx) => tx.pieId === id),
-                settings.visualCurrency,
-                forexRates,
-                getForexRate
-            ),
-        [forexRates, getForexRate, id, settings.visualCurrency, walletTx]
-    );
     const unrealizedIsPositive = totals.pnl >= 0;
-    const realizedIsPositive = realizedPnl >= 0;
 
     const allocation = useMemo(() => {
         const colors = [
@@ -285,26 +260,6 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     Unrealized {unrealizedIsPositive ? "+" : ""}
                                     {formatCurrency(
                                         totals.pnl,
-                                        settings.visualCurrency
-                                    )}
-                                </span>
-                            </div>
-                            <div
-                                className={`flex items-center gap-2 ${
-                                    realizedIsPositive
-                                        ? "text-app-success"
-                                        : "text-app-danger"
-                                }`}
-                            >
-                                {realizedIsPositive ? (
-                                    <ArrowUpRight size={18} />
-                                ) : (
-                                    <ArrowDownLeft size={18} />
-                                )}
-                                <span className="text-lg font-bold">
-                                    Realized {realizedIsPositive ? "+" : ""}
-                                    {formatCurrency(
-                                        realizedPnl,
                                         settings.visualCurrency
                                     )}
                                 </span>

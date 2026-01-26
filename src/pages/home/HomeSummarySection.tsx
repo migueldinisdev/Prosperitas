@@ -36,6 +36,8 @@ export const HomeSummarySection: React.FC = () => {
     const settings = useAppSelector(selectSettings);
     const walletTx = useAppSelector(selectWalletTxState);
 
+    const walletList = useMemo(() => Object.values(wallets), [wallets]);
+
     const positions = useMemo(
         () =>
             Object.entries(walletPositions).flatMap(([, positionsByAsset]) =>
@@ -182,7 +184,71 @@ export const HomeSummarySection: React.FC = () => {
         walletTransactions,
     ]);
 
-    const pnlIsPositive = totals.pnl >= 0;
+    const totalUnrealizedPnl = useMemo(() => {
+        return walletList.reduce((total, wallet) => {
+            const positions = walletPositions[wallet.id] ?? {};
+            const walletTransactions = walletTransactions.filter(
+                (tx) => tx.walletId === wallet.id
+            );
+            const costBasisByAsset = calculatePositionCostBasis(
+                walletTransactions,
+                settings.visualCurrency,
+                forexRates
+            );
+            const positionRows = Object.entries(positions).map(
+                ([assetId, position]) => {
+                    const asset = assets[assetId];
+                    const costAverage = position.avgCost.value;
+                    const currentPrice =
+                        livePricesByAsset[assetId] ?? costAverage;
+                    const currentValue = getPositionCurrentValue(
+                        position.amount,
+                        currentPrice
+                    );
+                    const tradingCurrency =
+                        asset?.tradingCurrency ?? position.avgCost.currency;
+                    const currentValueVisual = toVisualValue(
+                        currentValue,
+                        tradingCurrency,
+                        settings.visualCurrency,
+                        forexRates
+                    );
+                    const investedValueVisual =
+                        costBasisByAsset.get(assetId)?.costBasisVisual ??
+                        toVisualValue(
+                            getPositionInvestedValue(
+                                position.amount,
+                                costAverage
+                            ),
+                            tradingCurrency,
+                            settings.visualCurrency,
+                            forexRates
+                        );
+                    return {
+                        currentValue: currentValueVisual,
+                        investedValue: investedValueVisual,
+                    };
+                }
+            );
+            const invested = getTotalValue(
+                positionRows.map((row) => row.investedValue)
+            );
+            const current = getTotalValue(
+                positionRows.map((row) => row.currentValue)
+            );
+            return total + getPnL(current, invested);
+        }, 0);
+    }, [
+        assets,
+        forexRates,
+        livePricesByAsset,
+        settings.visualCurrency,
+        walletList,
+        walletPositions,
+        walletTransactions,
+    ]);
+
+    const pnlIsPositive = totalUnrealizedPnl >= 0;
 
     return (
         <div className="space-y-6">
@@ -244,7 +310,7 @@ export const HomeSummarySection: React.FC = () => {
                             >
                                 {pnlIsPositive ? "+" : ""}
                                 {formatCurrency(
-                                    totals.pnl,
+                                    totalUnrealizedPnl,
                                     settings.visualCurrency
                                 )}
                             </p>

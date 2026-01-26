@@ -163,14 +163,21 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         const rangeStart = getRangeStart(range, chartEndDate, earliestDate);
 
         const tickDays = TICK_DAYS_BY_RATE[tickRate];
-        const tickDates = buildTickDates(
-            rangeStart,
-            chartEndDate,
-            tickDays
-        );
-        tickDates.push(toDateKey(today));
+        const tickDates = buildTickDates(rangeStart, chartEndDate, tickDays);
+        const endDateKey = toDateKey(chartEndDate);
+        tickDates.push(endDateKey);
+        const transactionDates = sortedTransactions
+            .map((tx) => tx.date)
+            .filter((date) => {
+                const parsed = parseDate(date);
+                return parsed >= rangeStart && parsed <= chartEndDate;
+            });
+        const chartDateSet = new Set<string>([
+            ...tickDates,
+            ...transactionDates,
+        ]);
         return {
-            chartDates: Array.from(new Set(tickDates)).sort((a, b) =>
+            chartDates: Array.from(chartDateSet).sort((a, b) =>
                 a.localeCompare(b)
             ),
             ticks: Array.from(new Set(tickDates)).sort((a, b) =>
