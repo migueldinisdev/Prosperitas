@@ -187,11 +187,11 @@ export const HomeSummarySection: React.FC = () => {
     const totalUnrealizedPnl = useMemo(() => {
         return walletList.reduce((total, wallet) => {
             const positions = walletPositions[wallet.id] ?? {};
-            const walletTransactions = walletTransactions.filter(
+            const walletTransactionsForWallet = walletTransactions.filter(
                 (tx) => tx.walletId === wallet.id
             );
             const costBasisByAsset = calculatePositionCostBasis(
-                walletTransactions,
+                walletTransactionsForWallet,
                 settings.visualCurrency,
                 forexRates
             );
