@@ -82,7 +82,7 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const handleEdit = (category: Category) => {
         setEditingId(category.id);
         setFormName(category.name);
-        setFormDescription(category.description);
+        setFormDescription(category.description ?? "");
         setFormColor(category.color);
         setFormType(category.type);
         setIsAdding(false);
@@ -96,7 +96,7 @@ export const ManageCategoriesModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 id: editingId,
                 changes: {
                     name: formName,
-                    description: formDescription.trim(),
+                    description: (formDescription ?? "").trim(),
                     color: formColor,
                     type: formType,
                 },
