@@ -51,6 +51,7 @@ export interface Category {
     name: string;
     type: CategoryType;
     color: string;
+    description: string;
 }
 
 export interface BalanceTransaction {
