@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
     ArrowDownLeft,
     ArrowLeft,
     ArrowUpRight,
+    Pencil,
     PieChart as PieIcon,
     Menu,
 } from "lucide-react";
@@ -17,8 +18,10 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { usePieData } from "../../hooks/usePieData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
-import { useAppSelector } from "../../store/hooks";
-import { selectSettings, selectWalletTxState } from "../../store/selectors";
+import { Modal } from "../../ui/Modal";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { updatePie } from "../../store/slices/piesSlice";
+import { selectPies, selectSettings, selectWalletTxState } from "../../store/selectors";
 import { formatCurrency } from "../../utils/formatters";
 import {
     calculatePositionCostBasis,
@@ -39,8 +42,52 @@ interface Props {
 export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
     const { id } = useParams();
     const { pie, assets } = usePieData(id);
+    const dispatch = useAppDispatch();
     const settings = useAppSelector(selectSettings);
     const walletTx = useAppSelector(selectWalletTxState);
+    const pies = useAppSelector(selectPies);
+
+    const [isEditOpen, setEditOpen] = useState(false);
+    const [editName, setEditName] = useState("");
+    const [editDescription, setEditDescription] = useState("");
+    const [editRisk, setEditRisk] = useState("");
+
+    useEffect(() => {
+        if (!pie) return;
+        setEditName(pie.name ?? "");
+        setEditDescription(pie.description ?? "");
+        setEditRisk(pie.risk ? String(pie.risk) : "");
+    }, [pie]);
+
+    const existingNamesLower = useMemo(
+        () =>
+            new Set(
+                Object.values(pies).map((entry) => entry.name.trim().toLowerCase())
+            ),
+        [pies]
+    );
+    const editNameTrimmed = editName.trim();
+    const currentNameLower = pie?.name?.trim().toLowerCase() ?? "";
+    const isDuplicateName =
+        editNameTrimmed.length > 0 &&
+        existingNamesLower.has(editNameTrimmed.toLowerCase()) &&
+        editNameTrimmed.toLowerCase() !== currentNameLower;
+
+    const handleEditSave = () => {
+        if (!pie || !editNameTrimmed || isDuplicateName) return;
+        const riskValue = editRisk ? Number(editRisk) : undefined;
+        dispatch(
+            updatePie({
+                id: pie.id,
+                changes: {
+                    name: editNameTrimmed,
+                    description: editDescription.trim() || undefined,
+                    risk: Number.isFinite(riskValue) ? riskValue : undefined,
+                },
+            })
+        );
+        setEditOpen(false);
+    };
 
     const livePricesByAsset = useAssetLivePrices(assets);
     const transactionCurrencies = useMemo(() => {
@@ -291,12 +338,24 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                 </div>
 
                 <Card className="p-4">
-                    <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                        Description
-                    </p>
-                    <p className="text-sm text-app-foreground mt-1">
-                        {description}
-                    </p>
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                                Description
+                            </p>
+                            <p className="text-sm text-app-foreground mt-1">
+                                {description}
+                            </p>
+                        </div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setEditOpen(true)}
+                            icon={<Pencil size={16} />}
+                        >
+                            Edit Pie
+                        </Button>
+                    </div>
                 </Card>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -343,6 +402,64 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                     )}
                 </Card>
             </main>
+
+            <Modal
+                isOpen={isEditOpen}
+                onClose={() => setEditOpen(false)}
+                title="Edit Pie"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Pie Name
+                        </label>
+                        <input
+                            type="text"
+                            value={editName}
+                            onChange={(event) => setEditName(event.target.value)}
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                        {isDuplicateName && (
+                            <p className="mt-2 text-sm text-app-warning">
+                                A pie with this name already exists.
+                            </p>
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Description
+                        </label>
+                        <input
+                            type="text"
+                            value={editDescription}
+                            onChange={(event) =>
+                                setEditDescription(event.target.value)
+                            }
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Risk (1-5)
+                        </label>
+                        <input
+                            type="number"
+                            min={1}
+                            max={5}
+                            value={editRisk}
+                            onChange={(event) => setEditRisk(event.target.value)}
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                    </div>
+                    <Button
+                        className="w-full"
+                        onClick={handleEditSave}
+                        disabled={!editNameTrimmed || isDuplicateName}
+                    >
+                        Save Changes
+                    </Button>
+                </div>
+            </Modal>
         </div>
     );
 };
