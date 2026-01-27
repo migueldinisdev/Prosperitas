@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { getPrice, PriceAssetType } from "../data/prices";
 import { Asset } from "../core/schema-types";
 import { useAppSelector } from "../store/hooks";
@@ -35,6 +35,7 @@ const getAssetPriceRequest = (asset: Asset) => {
 
 export const useAssetLivePrices = (assets: Asset[]) => {
     const livePrices = useAppSelector(selectLivePrices);
+    const inFlightRequests = useRef(new Set<string>());
 
     const priceRequests = useMemo(
         () =>
@@ -58,6 +59,9 @@ export const useAssetLivePrices = (assets: Asset[]) => {
         const requestsToFetch = priceRequests.filter(({ request }) => {
             const key = `${request.type}:${request.ticker}`;
             const livePrice = livePrices[key];
+            if (inFlightRequests.current.has(key)) {
+                return false;
+            }
             return !livePrice || !isLivePriceFresh(livePrice.updatedAt);
         });
 
@@ -66,11 +70,21 @@ export const useAssetLivePrices = (assets: Asset[]) => {
         }
 
         const fetchPrices = async () => {
+            requestsToFetch.forEach(({ request }) => {
+                inFlightRequests.current.add(
+                    `${request.type}:${request.ticker}`
+                );
+            });
             await Promise.all(
                 requestsToFetch.map(({ request }) =>
                     getPrice(request).catch(() => null)
                 )
             );
+            requestsToFetch.forEach(({ request }) => {
+                inFlightRequests.current.delete(
+                    `${request.type}:${request.ticker}`
+                );
+            });
         };
 
         fetchPrices();
