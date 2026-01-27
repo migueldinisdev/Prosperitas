@@ -206,17 +206,17 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         {
             label: "Total net worth",
             value: formatCurrency(totals.netWorth, settings.visualCurrency),
-            change: `${totals.pnlPercent.toFixed(2)}% vs cost`,
-            helper: "Holdings + cash",
+            change: "Holdings + cash",
+            helper: "Total portfolio value",
         },
         {
             label: "Total invested",
             value: formatCurrency(totals.invested, settings.visualCurrency),
-            change: `${totals.pnlPercent.toFixed(2)}% vs cost`,
+            change: "Cost basis",
             helper: `Across ${Object.keys(wallets).length} wallets`,
         },
         {
-            label: "Current value",
+            label: "Assets value",
             value: formatCurrency(totals.current, settings.visualCurrency),
             change: "Realtime valuation",
             helper: "Holdings only",
@@ -227,16 +227,11 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 totals.pnl,
                 settings.visualCurrency
             )}`,
-            change: `${totals.pnlPercent.toFixed(2)}% total`,
-            helper: "Unrealized vs cost average",
+            helper: "Unrealized gain/loss on assets",
         },
         {
             label: "Cash buffer",
             value: formatCurrency(totals.cash, settings.visualCurrency),
-            change: `${getAllocationPercent(
-                totals.cash,
-                totals.current + totals.cash
-            ).toFixed(2)}% of total`,
             helper: "Liquid reserves",
         },
     ];
@@ -394,9 +389,11 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                                 <span className="text-2xl font-semibold text-app-foreground">
                                     {stat.value}
                                 </span>
-                                <span className="text-xs text-app-success font-semibold">
-                                    {stat.change}
-                                </span>
+                                {stat.change && (
+                                    <span className="text-xs text-app-success font-semibold">
+                                        {stat.change}
+                                    </span>
+                                )}
                             </div>
                             <p className="text-xs text-app-muted mt-2">
                                 {stat.helper}
