@@ -1010,14 +1010,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         </h1>
                     </div>
                     <div className="flex items-center gap-3">
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setEditWalletOpen(true)}
-                            icon={<Pencil size={16} />}
-                        >
-                            Edit Wallet
-                        </Button>
                         <button
                             type="button"
                             onClick={onMenuClick}
@@ -1170,12 +1162,24 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 </div>
 
                 <Card className="p-4">
-                    <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                        Description
-                    </p>
-                    <p className="text-sm text-app-foreground mt-1">
-                        {walletDescription}
-                    </p>
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                                Description
+                            </p>
+                            <p className="text-sm text-app-foreground mt-1">
+                                {walletDescription}
+                            </p>
+                        </div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setEditWalletOpen(true)}
+                            icon={<Pencil size={16} />}
+                        >
+                            Edit Wallet
+                        </Button>
+                    </div>
                 </Card>
 
                 <WalletPerformanceSection
