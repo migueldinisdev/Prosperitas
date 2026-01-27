@@ -385,12 +385,20 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
     }, [holdingSummaries, pies]);
 
     const pieAllocationData = useMemo(() => {
+        const valueByAssetId = holdingSummaries.reduce<Map<string, number>>(
+            (map, summary) => {
+                map.set(
+                    summary.assetId,
+                    (map.get(summary.assetId) ?? 0) +
+                        summary.currentValueVisual
+                );
+                return map;
+            },
+            new Map()
+        );
         const pieTotals = Object.values(pies).map((pie) => {
             const pieValue = pie.assetIds.reduce((sum, assetId) => {
-                const holding = holdingSummaries.find(
-                    (summary) => summary.assetId === assetId
-                );
-                return sum + (holding?.currentValueVisual ?? 0);
+                return sum + (valueByAssetId.get(assetId) ?? 0);
             }, 0);
             return { id: pie.id, name: pie.name, value: pieValue };
         });
