@@ -12,6 +12,7 @@ import {
     DollarSign,
     Info,
     Menu,
+    Pencil,
     Wallet as WalletIcon,
 } from "lucide-react";
 import { HoldingRow, HoldingsTable } from "../../components/HoldingsTable";
@@ -29,7 +30,8 @@ import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { addWalletTransaction } from "../../store/thunks/walletThunks";
 import { addAsset, updateAsset } from "../../store/slices/assetsSlice";
 import { updatePie } from "../../store/slices/piesSlice";
-import { selectPies, selectSettings } from "../../store/selectors";
+import { updateWallet } from "../../store/slices/walletsSlice";
+import { selectPies, selectSettings, selectWallets } from "../../store/selectors";
 import {
     Asset,
     AssetType,
@@ -155,6 +157,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const dispatch = useAppDispatch();
     const settings = useAppSelector(selectSettings);
     const pies = useAppSelector(selectPies);
+    const wallets = useAppSelector(selectWallets);
 
     const { wallet, walletCash, walletTransactions, walletPositions, assets } =
         useWalletData(id);
@@ -165,6 +168,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [isTradeOpen, setTradeOpen] = useState(false);
     const [isFxOpen, setFxOpen] = useState(false);
     const [isEditAssetOpen, setEditAssetOpen] = useState(false);
+    const [isEditWalletOpen, setEditWalletOpen] = useState(false);
+
+    const [editWalletName, setEditWalletName] = useState("");
+    const [editWalletDescription, setEditWalletDescription] = useState("");
 
     const [cashAmount, setCashAmount] = useState("");
     const [cashCurrency, setCashCurrency] = useState<Currency>(
@@ -231,6 +238,22 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [showFxFee, setShowFxFee] = useState(false);
 
     const walletName = wallet?.name ?? "Wallet";
+    const walletDescription = wallet?.description || "No description added yet.";
+    const editWalletNameTrimmed = editWalletName.trim();
+    const existingWalletNamesLower = useMemo(
+        () =>
+            new Set(
+                Object.values(wallets).map((entry) =>
+                    entry.name.trim().toLowerCase()
+                )
+            ),
+        [wallets]
+    );
+    const currentWalletNameLower = wallet?.name?.trim().toLowerCase() ?? "";
+    const isDuplicateWalletName =
+        editWalletNameTrimmed.length > 0 &&
+        existingWalletNamesLower.has(editWalletNameTrimmed.toLowerCase()) &&
+        editWalletNameTrimmed.toLowerCase() !== currentWalletNameLower;
     const tradeQuantityValue = roundToInputPrecision(tradeQuantity);
     const tradePriceValue = roundToInputPrecision(tradePrice);
     const tradeTotal = tradeQuantityValue * tradePriceValue;
@@ -255,7 +278,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         tradeQuantityValue > 0 && tradePriceValue > 0 && hasAssetRequirement;
     const hasFxDetails = fxEnabled ? Number(tradeFxRate) > 0 : true;
     const showTradeSummary = hasTradeBasics && hasFxDetails;
-    const needsStooqWarning = tradeStooqTicker.trim().length === 0;
+    const needsStooqWarning =
+        (tradeAssetType === "stock" || tradeAssetType === "etf") &&
+        tradeStooqTicker.trim().length === 0;
     const fundingCurrency = fxEnabled ? tradeFundingCurrency : tradeCurrency;
     const tradeFundingAmountValue = Number(tradeFundingAmount);
     const roundedFundingAmountValue = roundToTwo(tradeFundingAmountValue);
@@ -281,6 +306,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             )?.id ?? ""
         );
     }, [pies, tradeAssetId]);
+
+    useEffect(() => {
+        if (!wallet) return;
+        setEditWalletName(wallet.name ?? "");
+        setEditWalletDescription(wallet.description ?? "");
+    }, [wallet]);
 
     useEffect(() => {
         if (selectedAsset) {
@@ -340,7 +371,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     }, [fxEnabled, tradeFxRate, tradeTotal, tradeType]);
 
     useEffect(() => {
-        if (tradeAssetType !== "stock") {
+        if (tradeAssetType !== "stock" && tradeAssetType !== "etf") {
             setTradeStooqSearch("");
             setTradeStooqTicker("");
         }
@@ -714,7 +745,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const handleEditAssetSave = () => {
         if (!editAssetId) return;
         const stooqValue =
-            editAssetType === "stock" ? editAssetStooq.trim() || null : null;
+            editAssetType === "stock" || editAssetType === "etf"
+                ? editAssetStooq.trim() || null
+                : null;
         dispatch(
             updateAsset({
                 id: editAssetId,
@@ -760,6 +793,20 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             }
         }
         setEditAssetOpen(false);
+    };
+
+    const handleWalletEditSave = () => {
+        if (!wallet || !editWalletNameTrimmed || isDuplicateWalletName) return;
+        dispatch(
+            updateWallet({
+                id: wallet.id,
+                changes: {
+                    name: editWalletNameTrimmed,
+                    description: editWalletDescription.trim() || undefined,
+                },
+            })
+        );
+        setEditWalletOpen(false);
     };
 
     const handleAddFxOperation = () => {
@@ -817,7 +864,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     id: assetId,
                     ticker: tradeTicker.toUpperCase(),
                     stooqTicker:
-                        tradeAssetType === "stock"
+                        tradeAssetType === "stock" ||
+                        tradeAssetType === "etf"
                             ? tradeStooqTicker || null
                             : null,
                     tradingCurrency: tradeCurrency,
@@ -1118,6 +1166,27 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     </Card>
                 </div>
 
+                <Card className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                                Description
+                            </p>
+                            <p className="text-sm text-app-foreground mt-1">
+                                {walletDescription}
+                            </p>
+                        </div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setEditWalletOpen(true)}
+                            icon={<Pencil size={16} />}
+                        >
+                            Edit Wallet
+                        </Button>
+                    </div>
+                </Card>
+
                 <WalletPerformanceSection
                     currency={settings.visualCurrency}
                     locale={settings.locale}
@@ -1175,6 +1244,53 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     assets={assets}
                 />
             </main>
+
+            <Modal
+                isOpen={isEditWalletOpen}
+                onClose={() => setEditWalletOpen(false)}
+                title="Edit Wallet"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Platform Name
+                        </label>
+                        <input
+                            type="text"
+                            value={editWalletName}
+                            onChange={(event) =>
+                                setEditWalletName(event.target.value)
+                            }
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                        {isDuplicateWalletName && (
+                            <p className="mt-2 text-sm text-app-warning">
+                                A wallet with this name already exists.
+                            </p>
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Description
+                        </label>
+                        <input
+                            type="text"
+                            value={editWalletDescription}
+                            onChange={(event) =>
+                                setEditWalletDescription(event.target.value)
+                            }
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                    </div>
+                    <Button
+                        className="w-full"
+                        onClick={handleWalletEditSave}
+                        disabled={!editWalletNameTrimmed || isDuplicateWalletName}
+                    >
+                        Save Changes
+                    </Button>
+                </div>
+            </Modal>
 
             <Modal
                 isOpen={isDepositOpen}
@@ -1670,7 +1786,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             onChange={(event) =>
                                 setEditAssetStooq(event.target.value)
                             }
-                            disabled={editAssetType !== "stock"}
+                            disabled={
+                                editAssetType !== "stock" &&
+                                editAssetType !== "etf"
+                            }
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                         />
                     </div>
@@ -1805,7 +1924,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                             />
                         </div>
-                        {tradeAssetType === "stock" && (
+                        {(tradeAssetType === "stock" ||
+                            tradeAssetType === "etf") && (
                             <div className="col-span-2 space-y-1">
                                 <label className="flex items-center gap-1 text-xs font-medium text-app-muted">
                                     Stooq ticker

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { getPrice } from "../data/prices";
 import { useAppSelector } from "../store/hooks";
 import { selectLivePrices } from "../store/selectors";
@@ -18,6 +18,7 @@ export const useForexLivePrices = (
     visualCurrency: string
 ) => {
     const livePrices = useAppSelector(selectLivePrices);
+    const inFlightRequests = useRef(new Set<string>());
 
     const forexRequests = useMemo(() => {
         const uniqueCurrencies = Array.from(new Set(currencies));
@@ -34,6 +35,9 @@ export const useForexLivePrices = (
         const requestsToFetch = forexRequests.filter(({ ticker }) => {
             const key = `forex:${ticker}`;
             const livePrice = livePrices[key];
+            if (inFlightRequests.current.has(key)) {
+                return false;
+            }
             return !livePrice || !isLivePriceFresh(livePrice.updatedAt);
         });
 
@@ -42,11 +46,17 @@ export const useForexLivePrices = (
         }
 
         const fetchPrices = async () => {
+            requestsToFetch.forEach(({ ticker }) => {
+                inFlightRequests.current.add(`forex:${ticker}`);
+            });
             await Promise.all(
                 requestsToFetch.map(({ ticker }) =>
                     getPrice({ type: "forex", ticker }).catch(() => null)
                 )
             );
+            requestsToFetch.forEach(({ ticker }) => {
+                inFlightRequests.current.delete(`forex:${ticker}`);
+            });
         };
 
         fetchPrices();
