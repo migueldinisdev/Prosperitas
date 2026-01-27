@@ -4,6 +4,8 @@ import { PieCard } from "./PieCard";
 import { Button } from "../../ui/Button";
 import { Modal } from "../../ui/Modal";
 import { AddPieCard } from "./AddPieCard";
+import { Card } from "../../ui/Card";
+import { PieChart } from "../../components/PieChart";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import {
     selectAssets,
@@ -15,6 +17,7 @@ import { addPie } from "../../store/slices/piesSlice";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import {
     calculatePositionCostBasis,
+    getAllocationPercent,
     getPnL,
     getPositionCurrentValue,
     getPositionInvestedValue,
@@ -23,6 +26,15 @@ import {
 } from "../../core/finance";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { getWalletTxCurrencies } from "../../utils/netWorthHistory";
+
+const piePalette = [
+    "#3b82f6",
+    "#f97316",
+    "#22c55e",
+    "#a855f7",
+    "#f43f5e",
+    "#14b8a6",
+];
 
 interface Props {
     onMenuClick: () => void;
@@ -78,6 +90,49 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
         settings.visualCurrency
     );
 
+    const pieAllocationData = useMemo(() => {
+        const pieTotals = pieList.map((pie) => {
+            const pieValue = pie.assetIds.reduce((sum, assetId) => {
+                const asset = assets[assetId];
+                if (!asset) return sum;
+                const currentPrice =
+                    livePricesByAsset[assetId] ?? asset.avgCost.value;
+                const currentValue = getPositionCurrentValue(
+                    asset.amount,
+                    currentPrice
+                );
+                const valueVisual = toVisualValue(
+                    currentValue,
+                    asset.tradingCurrency,
+                    settings.visualCurrency,
+                    forexRates
+                );
+                return sum + valueVisual;
+            }, 0);
+            return { id: pie.id, name: pie.name, value: pieValue };
+        });
+
+        const totalValue = getTotalValue(
+            pieTotals.map((pie) => pie.value)
+        );
+
+        return pieTotals
+            .map((pie, index) => ({
+                name: pie.name,
+                value: Number(
+                    getAllocationPercent(pie.value, totalValue).toFixed(2)
+                ),
+                color: piePalette[index % piePalette.length],
+            }))
+            .filter((entry) => entry.value > 0);
+    }, [
+        assets,
+        forexRates,
+        livePricesByAsset,
+        pieList,
+        settings.visualCurrency,
+    ]);
+
     const handleCreatePie = () => {
         const id = `pie_${Date.now()}`;
         const name = pieNameTrimmed || "New Pie";
@@ -109,7 +164,30 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                 onMenuClick={onMenuClick}
             />
 
-            <main className="p-6 max-w-7xl mx-auto">
+            <main className="p-6 max-w-7xl mx-auto space-y-6">
+                <Card title="Allocation by Pie">
+                    <PieChart data={pieAllocationData} height={320} />
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                        {pieAllocationData.map((slice) => (
+                            <div
+                                key={slice.name}
+                                className="flex items-center gap-2 text-sm"
+                            >
+                                <div
+                                    className="w-3 h-3 rounded-full"
+                                    style={{ backgroundColor: slice.color }}
+                                ></div>
+                                <span className="text-app-foreground">
+                                    {slice.name}
+                                </span>
+                                <span className="text-app-muted ml-auto">
+                                    {slice.value}%
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {pieList.map((pie) => {
                         const pieAssets = pie.assetIds

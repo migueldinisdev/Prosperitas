@@ -255,7 +255,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         tradeQuantityValue > 0 && tradePriceValue > 0 && hasAssetRequirement;
     const hasFxDetails = fxEnabled ? Number(tradeFxRate) > 0 : true;
     const showTradeSummary = hasTradeBasics && hasFxDetails;
-    const needsStooqWarning = tradeStooqTicker.trim().length === 0;
+    const needsStooqWarning =
+        (tradeAssetType === "stock" || tradeAssetType === "etf") &&
+        tradeStooqTicker.trim().length === 0;
     const fundingCurrency = fxEnabled ? tradeFundingCurrency : tradeCurrency;
     const tradeFundingAmountValue = Number(tradeFundingAmount);
     const roundedFundingAmountValue = roundToTwo(tradeFundingAmountValue);
@@ -340,7 +342,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     }, [fxEnabled, tradeFxRate, tradeTotal, tradeType]);
 
     useEffect(() => {
-        if (tradeAssetType !== "stock") {
+        if (tradeAssetType !== "stock" && tradeAssetType !== "etf") {
             setTradeStooqSearch("");
             setTradeStooqTicker("");
         }
@@ -714,7 +716,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const handleEditAssetSave = () => {
         if (!editAssetId) return;
         const stooqValue =
-            editAssetType === "stock" ? editAssetStooq.trim() || null : null;
+            editAssetType === "stock" || editAssetType === "etf"
+                ? editAssetStooq.trim() || null
+                : null;
         dispatch(
             updateAsset({
                 id: editAssetId,
@@ -817,7 +821,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     id: assetId,
                     ticker: tradeTicker.toUpperCase(),
                     stooqTicker:
-                        tradeAssetType === "stock"
+                        tradeAssetType === "stock" ||
+                        tradeAssetType === "etf"
                             ? tradeStooqTicker || null
                             : null,
                     tradingCurrency: tradeCurrency,
@@ -1670,7 +1675,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             onChange={(event) =>
                                 setEditAssetStooq(event.target.value)
                             }
-                            disabled={editAssetType !== "stock"}
+                            disabled={
+                                editAssetType !== "stock" &&
+                                editAssetType !== "etf"
+                            }
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                         />
                     </div>
@@ -1805,7 +1813,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                             />
                         </div>
-                        {tradeAssetType === "stock" && (
+                        {(tradeAssetType === "stock" ||
+                            tradeAssetType === "etf") && (
                             <div className="col-span-2 space-y-1">
                                 <label className="flex items-center gap-1 text-xs font-medium text-app-muted">
                                     Stooq ticker

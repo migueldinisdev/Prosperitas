@@ -40,6 +40,14 @@ const assetTypeColors: Record<string, string> = {
 };
 
 const currencyPalette = ["#0ea5e9", "#22c55e", "#6366f1", "#f43f5e", "#14b8a6"];
+const piePalette = [
+    "#3b82f6",
+    "#f97316",
+    "#22c55e",
+    "#a855f7",
+    "#f43f5e",
+    "#14b8a6",
+];
 
 interface Props {
     onMenuClick: () => void;
@@ -255,9 +263,6 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
     ];
 
     const assetTypeData = useMemo(() => {
-        const totalValue = getTotalValue(
-            holdingSummaries.map((summary) => summary.currentValueVisual)
-        );
         const totalsByType = holdingSummaries.reduce<Record<string, number>>(
             (acc, summary) => {
                 acc[summary.assetType] =
@@ -266,6 +271,24 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             },
             {}
         );
+
+        const cashTotal = cashBuckets.reduce((sum, bucket) => {
+            return (
+                sum +
+                toVisualValue(
+                    bucket.value,
+                    bucket.currency,
+                    settings.visualCurrency,
+                    forexRates
+                )
+            );
+        }, 0);
+
+        if (cashTotal > 0) {
+            totalsByType.cash = (totalsByType.cash ?? 0) + cashTotal;
+        }
+
+        const totalValue = getTotalValue(Object.values(totalsByType));
 
         return Object.entries(totalsByType)
             .map(([type, value]) => ({
@@ -276,7 +299,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 color: assetTypeColors[type] ?? "#94a3b8",
             }))
             .filter((entry) => entry.value > 0);
-    }, [holdingSummaries]);
+    }, [cashBuckets, forexRates, holdingSummaries, settings.visualCurrency]);
 
     const currencyData = useMemo(() => {
         const totalsByCurrency = new Map<string, number>();
@@ -361,6 +384,32 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         ].filter((entry) => entry.value > 0);
     }, [holdingSummaries, pies]);
 
+    const pieAllocationData = useMemo(() => {
+        const pieTotals = Object.values(pies).map((pie) => {
+            const pieValue = pie.assetIds.reduce((sum, assetId) => {
+                const holding = holdingSummaries.find(
+                    (summary) => summary.assetId === assetId
+                );
+                return sum + (holding?.currentValueVisual ?? 0);
+            }, 0);
+            return { id: pie.id, name: pie.name, value: pieValue };
+        });
+
+        const totalValue = getTotalValue(
+            pieTotals.map((pie) => pie.value)
+        );
+
+        return pieTotals
+            .map((pie, index) => ({
+                name: pie.name,
+                value: Number(
+                    getAllocationPercent(pie.value, totalValue).toFixed(2)
+                ),
+                color: piePalette[index % piePalette.length],
+            }))
+            .filter((entry) => entry.value > 0);
+    }, [holdingSummaries, pies]);
+
     const topHoldings = useMemo(() => {
         const totalValue = getTotalValue(
             holdingSummaries.map((summary) => summary.currentValueVisual)
@@ -405,7 +454,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                     ))}
                 </section>
 
-                <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card title="Allocation by Asset Class">
                         <PieChart data={assetTypeData} height={300} />
                         <div className="mt-4 grid grid-cols-2 gap-2">
@@ -433,6 +482,29 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                         <PieChart data={currencyData} height={300} />
                         <div className="mt-4 grid grid-cols-2 gap-2">
                             {currencyData.map((d) => (
+                                <div
+                                    key={d.name}
+                                    className="flex items-center gap-2 text-sm"
+                                >
+                                    <div
+                                        className="w-3 h-3 rounded-full"
+                                        style={{ backgroundColor: d.color }}
+                                    ></div>
+                                    <span className="text-app-foreground">
+                                        {d.name}
+                                    </span>
+                                    <span className="text-app-muted ml-auto">
+                                        {d.value}%
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+
+                    <Card title="Allocation by Pie">
+                        <PieChart data={pieAllocationData} height={300} />
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                            {pieAllocationData.map((d) => (
                                 <div
                                     key={d.name}
                                     className="flex items-center gap-2 text-sm"
