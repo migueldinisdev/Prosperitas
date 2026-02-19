@@ -132,6 +132,7 @@ export interface WalletTxBase {
 export interface DepositWalletTx extends WalletTxBase {
     type: "deposit";
     amount: Money;
+    fees?: Money;
 }
 
 export interface WithdrawWalletTx extends WalletTxBase {

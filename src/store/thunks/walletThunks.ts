@@ -109,6 +109,15 @@ const validateTransactionInput = (tx: WalletTx) => {
             }
             return null;
         case "deposit":
+            if (tx.amount.value <= 0 || hasInvalidMoney(tx.amount)) {
+                return "Amount must be greater than 0.";
+            }
+            if (tx.fees) {
+                if (tx.fees.value < 0 || hasInvalidMoney(tx.fees)) {
+                    return "Fees must be zero or greater with a valid currency.";
+                }
+            }
+            return null;
         case "withdraw":
             if (tx.amount.value <= 0 || hasInvalidMoney(tx.amount)) {
                 return "Amount must be greater than 0.";
@@ -201,6 +210,14 @@ const replayWalletLedger = (
                     tx.amount.currency,
                     tx.amount.value
                 );
+                if (violation) break;
+                if (tx.fees) {
+                    violation = applyCashDelta(
+                        tx,
+                        tx.fees.currency,
+                        -tx.fees.value
+                    );
+                }
                 break;
             case "withdraw":
                 violation = applyCashDelta(

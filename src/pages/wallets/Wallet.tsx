@@ -180,6 +180,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [cashDate, setCashDate] = useState(
         new Date().toISOString().slice(0, 10)
     );
+    const [cashFees, setCashFees] = useState("");
+    const [cashFeeCurrency, setCashFeeCurrency] = useState<Currency>(
+        settings.balanceCurrency
+    );
 
     const [dividendAmount, setDividendAmount] = useState("");
     const [dividendCurrency, setDividendCurrency] = useState<Currency>(
@@ -691,11 +695,20 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 type,
                 date: cashDate || new Date().toISOString().slice(0, 10),
                 amount: { value: Number(cashAmount), currency: cashCurrency },
+                fees:
+                    type === "deposit" && Number(cashFees) > 0
+                        ? {
+                              value: Number(cashFees),
+                              currency: cashFeeCurrency,
+                          }
+                        : undefined,
                 createdAt: new Date().toISOString(),
             })
         );
         setCashAmount("");
         setCashDate(new Date().toISOString().slice(0, 10));
+        setCashFees("");
+        setCashFeeCurrency(settings.balanceCurrency);
     };
 
     const handleAddDividend = () => {
@@ -1331,6 +1344,36 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             value={cashCurrency}
                             onChange={(event) =>
                                 setCashCurrency(event.target.value as Currency)
+                            }
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        >
+                            {currencyOptions.map((currency) => (
+                                <option key={currency} value={currency}>
+                                    {currency}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Fees (optional)
+                        </label>
+                        <input
+                            type="number"
+                            value={cashFees}
+                            onChange={handleNonNegativeChange(setCashFees)}
+                            min="0"
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
+                            Fee Currency
+                        </label>
+                        <select
+                            value={cashFeeCurrency}
+                            onChange={(event) =>
+                                setCashFeeCurrency(event.target.value as Currency)
                             }
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         >
