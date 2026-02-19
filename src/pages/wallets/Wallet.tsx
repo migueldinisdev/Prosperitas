@@ -75,6 +75,13 @@ const roundToInputPrecision = (value: string) => {
     return Math.round(parsed * factor) / factor;
 };
 const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
+const invertRate = (value: string) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+        return "";
+    }
+    return (1 / parsed).toString();
+};
 
 interface WalletAllocationSectionProps {
     pieData: { name: string; value: number; color: string }[];
@@ -842,6 +849,23 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         setFxDate(new Date().toISOString().slice(0, 10));
     };
 
+    const handleInvertFxOperation = () => {
+        const nextFromCurrency = fxToCurrency;
+        const nextToCurrency = fxFromCurrency;
+        setFxFromCurrency(nextFromCurrency);
+        setFxToCurrency(nextToCurrency);
+        setFxRate(invertRate(fxRate));
+    };
+
+    const handleInvertTradeFx = () => {
+        if (!canEditTradeCurrency) return;
+        const nextFundingCurrency = tradeCurrency;
+        const nextTradeCurrency = tradeFundingCurrency;
+        setTradeFundingCurrency(nextFundingCurrency);
+        setTradeCurrency(nextTradeCurrency);
+        setTradeFxRate(invertRate(tradeFxRate));
+    };
+
     const handleAddTrade = () => {
         if (!id) return;
         const isExistingAsset = Boolean(tradeAssetId);
@@ -1552,9 +1576,19 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-app-muted mb-1">
-                                FX Rate ({fxPairLabel})
-                            </label>
+                            <div className="mb-1 flex items-center justify-between gap-2">
+                                <label className="block text-xs font-medium text-app-muted">
+                                    FX Rate ({fxPairLabel})
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={handleInvertFxOperation}
+                                    className="inline-flex items-center gap-1 rounded-md border border-app-border px-2 py-1 text-[11px] font-medium text-app-muted transition-colors hover:bg-app-surface"
+                                >
+                                    <ArrowLeftRight size={12} />
+                                    Invert
+                                </button>
+                            </div>
                             <input
                                 type="number"
                                 value={fxRate}
@@ -2031,9 +2065,20 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-app-muted mb-1">
-                                    FX Rate
-                                </label>
+                                <div className="mb-1 flex items-center justify-between gap-2">
+                                    <label className="block text-xs font-medium text-app-muted">
+                                        FX Rate
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={handleInvertTradeFx}
+                                        disabled={!canEditTradeCurrency}
+                                        className="inline-flex items-center gap-1 rounded-md border border-app-border px-2 py-1 text-[11px] font-medium text-app-muted transition-colors hover:bg-app-surface disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <ArrowLeftRight size={12} />
+                                        Invert
+                                    </button>
+                                </div>
                                 <input
                                     type="number"
                                     value={tradeFxRate}
