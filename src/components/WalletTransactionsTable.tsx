@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import {
     WalletTx,
@@ -40,6 +40,17 @@ const roundToInputPrecision = (value: string) => {
     if (decimals <= 0) return parsed;
     const factor = 10 ** decimals;
     return Math.round(parsed * factor) / factor;
+};
+
+const calculateForexToAmount = (fromAmount: string, fxRate: string) => {
+    const from = Number(fromAmount);
+    const rate = Number(fxRate);
+    if (!Number.isFinite(from) || !Number.isFinite(rate) || from <= 0 || rate <= 0) {
+        return "";
+    }
+    const decimals = Math.max(getInputDecimals(fromAmount), getInputDecimals(fxRate));
+    const precision = Math.max(decimals, 2);
+    return (from * rate).toFixed(precision);
 };
 
 export const WalletTransactionsTable = React.memo(
@@ -99,6 +110,11 @@ export const WalletTransactionsTable = React.memo(
                 ),
             [assets]
         );
+
+        useEffect(() => {
+            if (editTx?.type !== "forex") return;
+            setEditToAmount(calculateForexToAmount(editFromAmount, editFxRate));
+        }, [editFromAmount, editFxRate, editTx?.type]);
 
         const handleEditOpen = (tx: WalletTx) => {
             setEditTx(tx);
@@ -763,13 +779,9 @@ export const WalletTransactionsTable = React.memo(
                                             <input
                                                 type="number"
                                                 value={editToAmount}
-                                                onChange={(event) =>
-                                                    setEditToAmount(
-                                                        event.target.value
-                                                    )
-                                                }
+                                                readOnly
                                                 min="0"
-                                                className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                                                className="w-full bg-app-bg border border-app-border rounded-lg px-3 py-2 text-app-muted"
                                             />
                                         </div>
                                         <div>
