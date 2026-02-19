@@ -15,6 +15,7 @@ import {
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
+import { normalizeDecimalSeparator } from "../utils/numberInput";
 
 interface WalletTransactionsTableProps {
     transactions: WalletTx[];
@@ -29,12 +30,12 @@ const formatType = (type: WalletTx["type"]) =>
 
 const currencyOptions: Currency[] = ["EUR", "USD", "GBP"];
 const getInputDecimals = (value: string) => {
-    const trimmed = value.trim();
+    const trimmed = normalizeDecimalSeparator(value).trim();
     if (!trimmed.includes(".")) return 0;
     return trimmed.split(".")[1].length;
 };
 const roundToInputPrecision = (value: string) => {
-    const parsed = Number(value);
+    const parsed = Number(normalizeDecimalSeparator(value));
     if (!Number.isFinite(parsed)) return parsed;
     const decimals = getInputDecimals(value);
     if (decimals <= 0) return parsed;
@@ -86,6 +87,11 @@ export const WalletTransactionsTable = React.memo(
             setTransactionsPerPage(Number(event.target.value));
             setCurrentPage(1); // Reset to first page when changing items per page
         };
+        const handleDecimalInputChange =
+            (setter: React.Dispatch<React.SetStateAction<string>>) =>
+            (event: React.ChangeEvent<HTMLInputElement>) => {
+                setter(normalizeDecimalSeparator(event.target.value));
+            };
 
         const paginatedTransactions = useMemo(() => {
             const start = (currentPage - 1) * transactionsPerPage;
@@ -486,8 +492,8 @@ export const WalletTransactionsTable = React.memo(
                                             type="number"
                                             value={editAmount}
                                             onChange={(event) =>
-                                                setEditAmount(
-                                                    event.target.value
+                                                handleDecimalInputChange(setEditAmount)(
+                                                    event
                                                 )
                                             }
                                             min="0"
@@ -581,8 +587,8 @@ export const WalletTransactionsTable = React.memo(
                                                 type="number"
                                                 value={editQuantity}
                                                 onChange={(event) =>
-                                                    setEditQuantity(
-                                                        event.target.value
+                                                    handleDecimalInputChange(setEditQuantity)(
+                                                        event
                                                     )
                                                 }
                                                 min="0"
@@ -597,8 +603,8 @@ export const WalletTransactionsTable = React.memo(
                                                 type="number"
                                                 value={editPrice}
                                                 onChange={(event) =>
-                                                    setEditPrice(
-                                                        event.target.value
+                                                    handleDecimalInputChange(setEditPrice)(
+                                                        event
                                                     )
                                                 }
                                                 min="0"
@@ -658,8 +664,8 @@ export const WalletTransactionsTable = React.memo(
                                                 type="number"
                                                 value={editFxRate}
                                                 onChange={(event) =>
-                                                    setEditFxRate(
-                                                        event.target.value
+                                                    handleDecimalInputChange(setEditFxRate)(
+                                                        event
                                                     )
                                                 }
                                                 min="0"
@@ -674,8 +680,8 @@ export const WalletTransactionsTable = React.memo(
                                                 type="number"
                                                 value={editFees}
                                                 onChange={(event) =>
-                                                    setEditFees(
-                                                        event.target.value
+                                                    handleDecimalInputChange(setEditFees)(
+                                                        event
                                                     )
                                                 }
                                                 min="0"
@@ -720,8 +726,8 @@ export const WalletTransactionsTable = React.memo(
                                                 type="number"
                                                 value={editFromAmount}
                                                 onChange={(event) =>
-                                                    setEditFromAmount(
-                                                        event.target.value
+                                                    handleDecimalInputChange(setEditFromAmount)(
+                                                        event
                                                     )
                                                 }
                                                 min="0"
@@ -764,8 +770,8 @@ export const WalletTransactionsTable = React.memo(
                                                 type="number"
                                                 value={editToAmount}
                                                 onChange={(event) =>
-                                                    setEditToAmount(
-                                                        event.target.value
+                                                    handleDecimalInputChange(setEditToAmount)(
+                                                        event
                                                     )
                                                 }
                                                 min="0"
@@ -808,8 +814,8 @@ export const WalletTransactionsTable = React.memo(
                                                 type="number"
                                                 value={editFxRate}
                                                 onChange={(event) =>
-                                                    setEditFxRate(
-                                                        event.target.value
+                                                    handleDecimalInputChange(setEditFxRate)(
+                                                        event
                                                     )
                                                 }
                                                 min="0"
@@ -824,8 +830,8 @@ export const WalletTransactionsTable = React.memo(
                                                 type="number"
                                                 value={editFees}
                                                 onChange={(event) =>
-                                                    setEditFees(
-                                                        event.target.value
+                                                    handleDecimalInputChange(setEditFees)(
+                                                        event
                                                     )
                                                 }
                                                 min="0"
