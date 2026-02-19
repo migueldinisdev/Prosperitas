@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
-    ArrowDownLeft,
     ArrowLeft,
-    ArrowUpRight,
     Pencil,
     PieChart as PieIcon,
     Menu,
@@ -196,8 +194,6 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
         pieTransactions,
         settings.visualCurrency,
     ]);
-    const unrealizedIsPositive = totals.pnl >= 0;
-
     const allocation = useMemo(() => {
         const colors = [
             "#6366f1",
@@ -255,62 +251,23 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
             </header>
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Current Value
+                            Open Positions
                         </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">
-                            {formatCurrency(
-                                totals.currentValue,
-                                settings.visualCurrency
-                            )}
-                        </p>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Assets
-                        </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">
-                            {assets.length}
-                        </p>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Invested
-                        </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">
-                            {formatCurrency(
-                                totals.invested,
-                                settings.visualCurrency
-                            )}
-                        </p>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            PnL
-                        </p>
-                        <div className="mt-2 space-y-2">
-                            <div
-                                className={`flex items-center gap-2 ${
-                                    unrealizedIsPositive
-                                        ? "text-app-success"
-                                        : "text-app-danger"
-                                }`}
-                            >
-                                {unrealizedIsPositive ? (
-                                    <ArrowUpRight size={18} />
-                                ) : (
-                                    <ArrowDownLeft size={18} />
-                                )}
-                                <span className="text-lg font-bold">
-                                    Unrealized {unrealizedIsPositive ? "+" : ""}
-                                    {formatCurrency(
-                                        totals.pnl,
-                                        settings.visualCurrency
-                                    )}
-                                </span>
-                            </div>
+                        <div className="mt-2 space-y-1 text-sm text-app-muted">
+                            <p>
+                                Assets Value {formatCurrency(totals.currentValue, settings.visualCurrency)}
+                            </p>
+                            <p>
+                                Cost Basis {formatCurrency(totals.invested, settings.visualCurrency)}
+                            </p>
+                            <p className={totals.pnl >= 0 ? "text-app-success font-semibold" : "text-app-danger font-semibold"}>
+                                Unrealized PnL {totals.pnl >= 0 ? "+" : ""}
+                                {formatCurrency(totals.pnl, settings.visualCurrency)}
+                            </p>
+                            <p>Assets {assets.length}</p>
                         </div>
                     </Card>
                     <Card className="p-4">
