@@ -3,7 +3,11 @@ import { ArrowUpRight, ArrowDownRight, Pencil, Trash2 } from "lucide-react";
 import { Card } from "../../ui/Card";
 import { useBalanceData } from "../../hooks/useBalanceData";
 import { formatCurrency } from "../../utils/formatters";
-import type { BalanceTransaction, CategoryType, Currency } from "../../core/schema-types";
+import type {
+    BalanceTransaction,
+    CategoryType,
+    Currency,
+} from "../../core/schema-types";
 import { useAppDispatch } from "../../store/hooks";
 import {
     addBalanceTransactionThunk,
@@ -58,21 +62,21 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                         new Date(a.transaction.createdAt).getTime()
                     );
                 }),
-        [monthData]
+        [monthData],
     );
     const editCategoryOptions = useMemo(
         () =>
             Object.values(categories).filter(
-                (category) => category.type === editType
+                (category) => category.type === editType,
             ),
-        [categories, editType]
+        [categories, editType],
     );
 
     useEffect(() => {
         if (
             editCategoryId &&
             !editCategoryOptions.some(
-                (category) => category.id === editCategoryId
+                (category) => category.id === editCategoryId,
             )
         ) {
             setEditCategoryId("");
@@ -127,13 +131,13 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                 removeBalanceTransactionThunk({
                     month: monthKey,
                     index: editIndex,
-                })
+                }),
             );
             dispatch(
                 addBalanceTransactionThunk({
                     month: monthFromDate,
                     transaction,
-                })
+                }),
             );
         } else {
             dispatch(
@@ -141,7 +145,7 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                     month: monthKey,
                     index: editIndex,
                     transaction,
-                })
+                }),
             );
         }
         setEditIndex(null);
@@ -207,7 +211,7 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                                 <p className="text-xs text-app-muted">
                                                     {categoryLabel} •{" "}
                                                     {formatTransactionDate(
-                                                        t.date
+                                                        t.date,
                                                     )}
                                                 </p>
                                             </div>
@@ -223,7 +227,7 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                                 {isIncome ? "+" : "-"}
                                                 {formatCurrency(
                                                     Math.abs(amountValue),
-                                                    t.amount.currency
+                                                    t.amount.currency,
                                                 )}
                                             </span>
                                             <button
@@ -264,7 +268,7 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                         removeBalanceTransactionThunk({
                             month: monthKey,
                             index: confirmIndex,
-                        })
+                        }),
                     );
                     setConfirmIndex(null);
                 }}
@@ -292,7 +296,7 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                                 >
                                     {entry}
                                 </button>
-                            )
+                            ),
                         )}
                     </div>
                     <div>
@@ -300,14 +304,16 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                             Amount
                         </label>
                         <input
-                            type="number"
+                            type="text"
                             inputMode="decimal"
-                            min="0"
-                            step="0.01"
                             value={editAmount}
-                            onChange={(event) =>
-                                setEditAmount(event.target.value)
-                            }
+                            onChange={(event) => {
+                                const value = event.target.value.replace(
+                                    /,/g,
+                                    ".",
+                                );
+                                setEditAmount(value);
+                            }}
                             placeholder="0.00"
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
@@ -325,10 +331,7 @@ export const MonthlyBalanceTransactionsList: React.FC<Props> = ({
                         >
                             <option value="">No category</option>
                             {editCategoryOptions.map((category) => (
-                                <option
-                                    key={category.id}
-                                    value={category.id}
-                                >
+                                <option key={category.id} value={category.id}>
                                     {category.name}
                                 </option>
                             ))}

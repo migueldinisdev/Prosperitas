@@ -31,7 +31,11 @@ import { addWalletTransaction } from "../../store/thunks/walletThunks";
 import { addAsset, updateAsset } from "../../store/slices/assetsSlice";
 import { updatePie } from "../../store/slices/piesSlice";
 import { updateWallet } from "../../store/slices/walletsSlice";
-import { selectPies, selectSettings, selectWallets } from "../../store/selectors";
+import {
+    selectPies,
+    selectSettings,
+    selectWallets,
+} from "../../store/selectors";
 import {
     Asset,
     AssetType,
@@ -115,7 +119,7 @@ const WalletPerformanceSection = React.memo(
                 </p>
             )}
         </Card>
-    )
+    ),
 );
 
 const WalletAllocationSection = React.memo(
@@ -135,7 +139,7 @@ const WalletAllocationSection = React.memo(
                 <HoldingsTable holdings={holdings} onEditAsset={onEditAsset} />
             </Card>
         </div>
-    )
+    ),
 );
 
 interface WalletTransactionsSectionProps {
@@ -151,7 +155,7 @@ const WalletTransactionsSection = React.memo(
                 assets={assets}
             />
         </Card>
-    )
+    ),
 );
 
 export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
@@ -177,15 +181,15 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const [cashAmount, setCashAmount] = useState("");
     const [cashCurrency, setCashCurrency] = useState<Currency>(
-        settings.balanceCurrency
+        settings.balanceCurrency,
     );
     const [cashDate, setCashDate] = useState(
-        new Date().toISOString().slice(0, 10)
+        new Date().toISOString().slice(0, 10),
     );
 
     const [dividendAmount, setDividendAmount] = useState("");
     const [dividendCurrency, setDividendCurrency] = useState<Currency>(
-        settings.balanceCurrency
+        settings.balanceCurrency,
     );
     const [dividendAssetId, setDividendAssetId] = useState<string>("");
     const [editAssetId, setEditAssetId] = useState<string | null>(null);
@@ -198,15 +202,15 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [editAssetPieId, setEditAssetPieId] = useState("");
     const [fxFromAmount, setFxFromAmount] = useState("");
     const [fxFromCurrency, setFxFromCurrency] = useState<Currency>(
-        settings.balanceCurrency
+        settings.balanceCurrency,
     );
     const [fxToCurrency, setFxToCurrency] = useState<Currency>(
-        settings.balanceCurrency === "EUR" ? "USD" : "EUR"
+        settings.balanceCurrency === "EUR" ? "USD" : "EUR",
     );
     const [fxRate, setFxRate] = useState("");
     const [fxFees, setFxFees] = useState("");
     const [fxFeeCurrency, setFxFeeCurrency] = useState<Currency>(
-        settings.balanceCurrency
+        settings.balanceCurrency,
     );
     const [fxDate, setFxDate] = useState(new Date().toISOString().slice(0, 10));
     const [showFxOperationFees, setShowFxOperationFees] = useState(false);
@@ -220,7 +224,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [tradeAssetType, setTradeAssetType] = useState<AssetType>("stock");
     const [tradeCurrency, setTradeCurrency] = useState<Currency>("USD");
     const [tradeFundingCurrency, setTradeFundingCurrency] = useState<Currency>(
-        settings.balanceCurrency
+        settings.balanceCurrency,
     );
     const [tradeFundingAmount, setTradeFundingAmount] = useState("");
     const [tradeQuantity, setTradeQuantity] = useState("");
@@ -233,23 +237,24 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [tradeFxRate, setTradeFxRate] = useState("");
     const [tradePieId, setTradePieId] = useState("");
     const [tradeDate, setTradeDate] = useState(
-        new Date().toISOString().slice(0, 10)
+        new Date().toISOString().slice(0, 10),
     );
 
     const [showTradeFees, setShowTradeFees] = useState(false);
     const [showFxFee, setShowFxFee] = useState(false);
 
     const walletName = wallet?.name ?? "Wallet";
-    const walletDescription = wallet?.description || "No description added yet.";
+    const walletDescription =
+        wallet?.description || "No description added yet.";
     const editWalletNameTrimmed = editWalletName.trim();
     const existingWalletNamesLower = useMemo(
         () =>
             new Set(
                 Object.values(wallets).map((entry) =>
-                    entry.name.trim().toLowerCase()
-                )
+                    entry.name.trim().toLowerCase(),
+                ),
             ),
-        [wallets]
+        [wallets],
     );
     const currentWalletNameLower = wallet?.name?.trim().toLowerCase() ?? "";
     const isDuplicateWalletName =
@@ -293,9 +298,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const existingAssets = useMemo(
         () =>
             Object.values(assets).sort((a, b) =>
-                a.ticker.localeCompare(b.ticker)
+                a.ticker.localeCompare(b.ticker),
             ),
-        [assets]
+        [assets],
     );
 
     const selectedAsset = tradeAssetId ? assets[tradeAssetId] : undefined;
@@ -304,7 +309,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         if (!tradeAssetId) return "";
         return (
             Object.values(pies).find((pie) =>
-                pie.assetIds.includes(tradeAssetId)
+                pie.assetIds.includes(tradeAssetId),
             )?.id ?? ""
         );
     }, [pies, tradeAssetId]);
@@ -356,7 +361,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     useEffect(() => {
         if (!fxEnabled) {
             setTradeFundingAmount(
-                tradeTotal > 0 ? formatFundingAmount(tradeTotal) : ""
+                tradeTotal > 0 ? formatFundingAmount(tradeTotal) : "",
             );
             return;
         }
@@ -368,7 +373,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         setTradeFundingAmount(
             tradeType === "sell"
                 ? formatFundingAmount(tradeTotal * rate)
-                : formatFundingAmount(tradeTotal / rate)
+                : formatFundingAmount(tradeTotal / rate),
         );
     }, [fxEnabled, tradeFxRate, tradeTotal, tradeType]);
 
@@ -381,7 +386,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const positionEntries = useMemo(
         () => Object.entries(walletPositions ?? {}),
-        [walletPositions]
+        [walletPositions],
     );
 
     const positionAssets = useMemo(
@@ -389,7 +394,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             positionEntries
                 .map(([assetId]) => assets[assetId])
                 .filter((asset): asset is Asset => Boolean(asset)),
-        [assets, positionEntries]
+        [assets, positionEntries],
     );
 
     const livePricesByAsset = useAssetLivePrices(positionAssets);
@@ -404,14 +409,14 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 ([currency, value]) => ({
                     currency: currency as Currency,
                     value: Number(value),
-                })
+                }),
             );
         }
         return [];
     }, [walletCash]);
     const hasNegativeCash = useMemo(
         () => cashBuckets.some((bucket) => bucket.value < 0),
-        [cashBuckets]
+        [cashBuckets],
     );
 
     const transactionCurrencies = useMemo(() => {
@@ -443,37 +448,37 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
         transactionCurrencies.forEach((currency) => currencies.add(currency));
         positionAssets.forEach((asset) =>
-            currencies.add(asset.tradingCurrency)
+            currencies.add(asset.tradingCurrency),
         );
         return Array.from(currencies);
     }, [cashBuckets, positionAssets, transactionCurrencies]);
     const forexRates = useForexLivePrices(
         forexCurrencies,
-        settings.visualCurrency
+        settings.visualCurrency,
     );
 
     const transactionDates = useMemo(
         () => walletTransactions.map((tx) => tx.date),
-        [walletTransactions]
+        [walletTransactions],
     );
 
     const { getForexRate } = useForexHistoricalRates(
         forexCurrencies,
         transactionDates,
-        settings.visualCurrency
+        settings.visualCurrency,
     );
 
     const { holdings, totals } = useMemo(() => {
         const costBasisByAsset = calculatePositionCostBasis(
             walletTransactions,
             settings.visualCurrency,
-            forexRates
+            forexRates,
         );
         const costBasisFxByAsset = calculatePositionCostBasisFx(
             walletTransactions,
             settings.visualCurrency,
             forexRates,
-            getForexRate
+            getForexRate,
         );
         const rows = positionEntries.map(([assetId, position]) => {
             const asset = assets[assetId];
@@ -485,7 +490,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             const currentPrice = livePricesByAsset[assetId] ?? costAverage;
             const value = getPositionCurrentValue(
                 position.amount,
-                currentPrice
+                currentPrice,
             );
             const tradingCurrency =
                 asset?.tradingCurrency ?? position.avgCost.currency;
@@ -493,7 +498,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 value,
                 tradingCurrency,
                 settings.visualCurrency,
-                forexRates
+                forexRates,
             );
             const investedValueVisual =
                 costBasisByAsset.get(assetId)?.costBasisVisual ??
@@ -501,7 +506,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     getPositionInvestedValue(position.amount, costAverage),
                     tradingCurrency,
                     settings.visualCurrency,
-                    forexRates
+                    forexRates,
                 );
             const pnl = getPnL(valueVisual, investedValueVisual);
             const pnlPercent = getPnLPercent(valueVisual, investedValueVisual);
@@ -511,14 +516,14 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 quoteCurrency === baseCurrency
                     ? 1
                     : fxEntryData &&
-                      !fxEntryData.hasMissingFx &&
-                      fxEntryData.costBasisQuote > 0
-                    ? fxEntryData.costBasisBase / fxEntryData.costBasisQuote
-                    : null;
+                        !fxEntryData.hasMissingFx &&
+                        fxEntryData.costBasisQuote > 0
+                      ? fxEntryData.costBasisBase / fxEntryData.costBasisQuote
+                      : null;
             const currentFx =
                 quoteCurrency === baseCurrency
                     ? 1
-                    : forexRates[quoteCurrency] ?? null;
+                    : (forexRates[quoteCurrency] ?? null);
             const assetPnlBase =
                 entryFx === null || currentFx === null
                     ? null
@@ -559,7 +564,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
         const totalValue = getTotalValue(rows.map((item) => item.row.value));
         const totalInvested = getTotalValue(
-            rows.map((item) => item.investedValue)
+            rows.map((item) => item.investedValue),
         );
         const totalPnL = getTotalValue(rows.map((item) => item.row.pnl));
 
@@ -567,7 +572,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             holdings: rows.map(({ row }) => ({
                 ...row,
                 allocation: Number(
-                    getAllocationPercent(row.value, totalValue).toFixed(2)
+                    getAllocationPercent(row.value, totalValue).toFixed(2),
                 ),
             })),
             totals: {
@@ -589,8 +594,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const cashConvertedTotal = useMemo(() => {
         return getTotalValue(
             cashBuckets.map((bucket) =>
-                toVisualMoney(bucket, settings.visualCurrency, forexRates)
-            )
+                toVisualMoney(bucket, settings.visualCurrency, forexRates),
+            ),
         );
     }, [cashBuckets, forexRates, settings.visualCurrency]);
 
@@ -601,9 +606,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 walletTransactions,
                 settings.visualCurrency,
                 forexRates,
-                getForexRate
+                getForexRate,
             ),
-        [forexRates, getForexRate, settings.visualCurrency, walletTransactions]
+        [forexRates, getForexRate, settings.visualCurrency, walletTransactions],
     );
     const unrealizedIsPositive = totals.pnl >= 0;
     const realizedIsPositive = realizedPnl >= 0;
@@ -615,7 +620,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 value: holding.value,
                 color: "#6366f1",
             })),
-        [holdings]
+        [holdings],
     );
 
     const sortedTransactions = useMemo(
@@ -629,7 +634,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     new Date(a.createdAt).getTime()
                 );
             }),
-        [walletTransactions]
+        [walletTransactions],
     );
 
     const handleNonNegativeChange =
@@ -694,7 +699,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 date: cashDate || new Date().toISOString().slice(0, 10),
                 amount: { value: Number(cashAmount), currency: cashCurrency },
                 createdAt: new Date().toISOString(),
-            })
+            }),
         );
         setCashAmount("");
         setCashDate(new Date().toISOString().slice(0, 10));
@@ -715,7 +720,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 },
                 assetId: dividendAssetId || undefined,
                 createdAt: new Date().toISOString(),
-            })
+            }),
         );
         setDividendAmount("");
     };
@@ -734,11 +739,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         setEditAssetCurrency(asset.tradingCurrency);
         setEditAssetQuoteAlias(
             asset.assetType === "crypto"
-                ? asset.cryptoQuoteAlias ??
+                ? (asset.cryptoQuoteAlias ??
                       (asset.tradingCurrency === "USD"
                           ? "USDT"
-                          : asset.tradingCurrency)
-                : ""
+                          : asset.tradingCurrency))
+                : "",
         );
         setEditAssetPieId(currentPieId);
         setEditAssetOpen(true);
@@ -764,7 +769,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             : null,
                     updatedAt: new Date().toISOString(),
                 },
-            })
+            }),
         );
         const nextPieId = editAssetPieId;
         Object.values(pies).forEach((pie) => {
@@ -775,10 +780,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     id: pie.id,
                     changes: {
                         assetIds: pie.assetIds.filter(
-                            (existingId) => existingId !== editAssetId
+                            (existingId) => existingId !== editAssetId,
                         ),
                     },
-                })
+                }),
             );
         });
         if (nextPieId) {
@@ -790,7 +795,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         changes: {
                             assetIds: [...targetPie.assetIds, editAssetId],
                         },
-                    })
+                    }),
                 );
             }
         }
@@ -806,7 +811,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     name: editWalletNameTrimmed,
                     description: editWalletDescription.trim() || undefined,
                 },
-            })
+            }),
         );
         setEditWalletOpen(false);
     };
@@ -835,7 +840,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         : undefined,
                 fxRate: fxRateValue,
                 createdAt: new Date().toISOString(),
-            })
+            }),
         );
         setFxFromAmount("");
         setFxRate("");
@@ -851,8 +856,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             tradeAssetId ||
             Object.values(assets).find(
                 (existing) =>
-                    existing.ticker.toLowerCase() === tradeTicker.toLowerCase() &&
-                    existing.tradingCurrency === tradeCurrency
+                    existing.ticker.toLowerCase() ===
+                        tradeTicker.toLowerCase() &&
+                    existing.tradingCurrency === tradeCurrency,
             )?.id;
 
         if (fxEnabled && Number(tradeFxRate) <= 0) return;
@@ -866,8 +872,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     id: assetId,
                     ticker: tradeTicker.toUpperCase(),
                     stooqTicker:
-                        tradeAssetType === "stock" ||
-                        tradeAssetType === "etf"
+                        tradeAssetType === "stock" || tradeAssetType === "etf"
                             ? tradeStooqTicker || null
                             : null,
                     tradingCurrency: tradeCurrency,
@@ -884,7 +889,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     txIds: [],
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
-                })
+                }),
             );
             if (tradePieId) {
                 const pie = pies[tradePieId];
@@ -895,7 +900,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             changes: {
                                 assetIds: [...pie.assetIds, assetId],
                             },
-                        })
+                        }),
                     );
                 }
             }
@@ -914,7 +919,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         avgCost: { value: 0, currency: tradeCurrency },
                         updatedAt: new Date().toISOString(),
                     },
-                })
+                }),
             );
         }
         if (!assetId || tradeQuantityValue <= 0 || tradePriceValue <= 0) return;
@@ -953,7 +958,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             : undefined,
                     fxRate: Number(tradeFxRate),
                     createdAt: new Date().toISOString(),
-                })
+                }),
             );
         };
 
@@ -982,7 +987,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     : tradePieId || undefined,
                 date: tradeDate,
                 createdAt: new Date().toISOString(),
-            })
+            }),
         );
 
         if (shouldForex && tradeType === "sell") {
@@ -1039,7 +1044,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <p className="text-2xl font-bold text-app-foreground mt-1">
                             {formatCurrency(
                                 walletValue,
-                                settings.visualCurrency
+                                settings.visualCurrency,
                             )}
                         </p>
                     </Card>
@@ -1050,7 +1055,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <p className="text-2xl font-bold text-app-foreground mt-1">
                             {formatCurrency(
                                 totals.currentValue,
-                                settings.visualCurrency
+                                settings.visualCurrency,
                             )}
                         </p>
                     </Card>
@@ -1061,7 +1066,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <p className="text-2xl font-bold text-app-foreground mt-1">
                             {formatCurrency(
                                 totals.invested,
-                                settings.visualCurrency
+                                settings.visualCurrency,
                             )}
                         </p>
                     </Card>
@@ -1086,7 +1091,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     Unrealized {unrealizedIsPositive ? "+" : ""}
                                     {formatCurrency(
                                         totals.pnl,
-                                        settings.visualCurrency
+                                        settings.visualCurrency,
                                     )}
                                 </span>
                                 <Tooltip content="Unrealized PnL based on latest prices and FX, converted to your visualization currency.">
@@ -1112,7 +1117,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     Realized {realizedIsPositive ? "+" : ""}
                                     {formatCurrency(
                                         realizedPnl,
-                                        settings.visualCurrency
+                                        settings.visualCurrency,
                                     )}
                                 </span>
                                 <Tooltip content="Realized PnL from completed trades using FIFO lot matching, converted using FX rates on the trade dates. Later FX moves show up in cash, so this can differ from today's reality.">
@@ -1137,7 +1142,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     >
                                         {formatCurrency(
                                             bucket.value,
-                                            bucket.currency
+                                            bucket.currency,
                                         )}
                                         <span className="text-sm text-app-muted ml-2">
                                             (~
@@ -1145,9 +1150,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                                 toVisualMoney(
                                                     bucket,
                                                     settings.visualCurrency,
-                                                    forexRates
+                                                    forexRates,
                                                 ),
-                                                settings.visualCurrency
+                                                settings.visualCurrency,
                                             )}
                                             )
                                         </span>
@@ -1287,7 +1292,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     <Button
                         className="w-full"
                         onClick={handleWalletEditSave}
-                        disabled={!editWalletNameTrimmed || isDuplicateWalletName}
+                        disabled={
+                            !editWalletNameTrimmed || isDuplicateWalletName
+                        }
                     >
                         Save Changes
                     </Button>
@@ -1305,10 +1312,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             Amount
                         </label>
                         <input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             value={cashAmount}
                             onChange={handleNonNegativeChange(setCashAmount)}
-                            min="0"
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>
@@ -1367,10 +1374,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             Amount
                         </label>
                         <input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             value={cashAmount}
                             onChange={handleNonNegativeChange(setCashAmount)}
-                            min="0"
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>
@@ -1430,12 +1437,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             Amount
                         </label>
                         <input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             value={dividendAmount}
                             onChange={handleNonNegativeChange(
-                                setDividendAmount
+                                setDividendAmount,
                             )}
-                            min="0"
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>
@@ -1447,7 +1454,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             value={dividendCurrency}
                             onChange={(event) =>
                                 setDividendCurrency(
-                                    event.target.value as Currency
+                                    event.target.value as Currency,
                                 )
                             }
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -1502,12 +1509,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 From Amount
                             </label>
                             <input
-                                type="number"
+                                type="text"
+                                inputMode="decimal"
                                 value={fxFromAmount}
                                 onChange={handleNonNegativeChange(
-                                    setFxFromAmount
+                                    setFxFromAmount,
                                 )}
-                                min="0"
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                             />
                         </div>
@@ -1519,7 +1526,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 value={fxFromCurrency}
                                 onChange={(event) =>
                                     setFxFromCurrency(
-                                        event.target.value as Currency
+                                        event.target.value as Currency,
                                     )
                                 }
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -1541,7 +1548,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 value={fxToCurrency}
                                 onChange={(event) =>
                                     setFxToCurrency(
-                                        event.target.value as Currency
+                                        event.target.value as Currency,
                                     )
                                 }
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -1558,10 +1565,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 FX Rate ({fxPairLabel})
                             </label>
                             <input
-                                type="number"
+                                type="text"
+                                inputMode="decimal"
                                 value={fxRate}
                                 onChange={handleNonNegativeChange(setFxRate)}
-                                min="0"
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                             />
                         </div>
@@ -1571,13 +1578,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             To Amount
                         </label>
                         <input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             value={
                                 fxFromAmountValue > 0 && fxRateValue > 0
                                     ? fxToAmountValue.toFixed(2)
                                     : ""
                             }
-                            min="0"
                             disabled
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                         />
@@ -1605,12 +1612,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         FX Fee
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="decimal"
                                         value={fxFees}
                                         onChange={handleNonNegativeChange(
-                                            setFxFees
+                                            setFxFees,
                                         )}
-                                        min="0"
                                         className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                     />
                                 </div>
@@ -1622,7 +1629,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         value={fxFeeCurrency}
                                         onChange={(event) =>
                                             setFxFeeCurrency(
-                                                event.target.value as Currency
+                                                event.target.value as Currency,
                                             )
                                         }
                                         className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -1711,7 +1718,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 value={editAssetType}
                                 onChange={(event) =>
                                     setEditAssetType(
-                                        event.target.value as AssetType
+                                        event.target.value as AssetType,
                                     )
                                 }
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -1799,8 +1806,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         className="w-full"
                         onClick={handleEditAssetSave}
                         disabled={
-                            !editAssetTicker.trim() ||
-                            !editAssetName.trim()
+                            !editAssetTicker.trim() || !editAssetName.trim()
                         }
                     >
                         Update Asset
@@ -1823,7 +1829,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 value={tradeType}
                                 onChange={(event) =>
                                     setTradeType(
-                                        event.target.value as "buy" | "sell"
+                                        event.target.value as "buy" | "sell",
                                     )
                                 }
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -1861,7 +1867,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 value={tradeAssetType}
                                 onChange={(event) =>
                                     setTradeAssetType(
-                                        event.target.value as AssetType
+                                        event.target.value as AssetType,
                                     )
                                 }
                                 disabled={Boolean(tradeAssetId)}
@@ -1883,7 +1889,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 value={tradeCurrency}
                                 onChange={(event) =>
                                     setTradeCurrency(
-                                        event.target.value as Currency
+                                        event.target.value as Currency,
                                     )
                                 }
                                 disabled={!canEditTradeCurrency}
@@ -1961,12 +1967,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 Quantity
                             </label>
                             <input
-                                type="number"
+                                type="text"
+                                inputMode="decimal"
                                 value={tradeQuantity}
                                 onChange={handleNonNegativeChange(
-                                    setTradeQuantity
+                                    setTradeQuantity,
                                 )}
-                                min="0"
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                             />
                         </div>
@@ -1975,12 +1981,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 Price (per unit)
                             </label>
                             <input
-                                type="number"
+                                type="text"
+                                inputMode="decimal"
                                 value={tradePrice}
                                 onChange={handleNonNegativeChange(
-                                    setTradePrice
+                                    setTradePrice,
                                 )}
-                                min="0"
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                             />
                         </div>
@@ -1994,7 +2000,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 value={tradeFundingCurrency}
                                 onChange={(event) =>
                                     setTradeFundingCurrency(
-                                        event.target.value as Currency
+                                        event.target.value as Currency,
                                     )
                                 }
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -2011,9 +2017,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 Funding Amount
                             </label>
                             <input
-                                type="number"
+                                type="text"
+                                inputMode="decimal"
                                 value={tradeFundingAmount}
-                                min="0"
                                 disabled
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                             />
@@ -2037,14 +2043,14 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     FX Rate
                                 </label>
                                 <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="decimal"
                                     value={tradeFxRate}
                                     onChange={(event) =>
                                         handleNonNegativeChange(setTradeFxRate)(
-                                            event
+                                            event,
                                         )
                                     }
-                                    min="0"
                                     className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                 />
                             </div>
@@ -2074,12 +2080,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                             FX Fee
                                         </label>
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="decimal"
                                             value={tradeFxFee}
                                             onChange={handleNonNegativeChange(
-                                                setTradeFxFee
+                                                setTradeFxFee,
                                             )}
-                                            min="0"
                                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                         />
                                     </div>
@@ -2092,7 +2098,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                             onChange={(event) =>
                                                 setTradeFxFeeCurrency(
                                                     event.target
-                                                        .value as Currency
+                                                        .value as Currency,
                                                 )
                                             }
                                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -2134,12 +2140,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         Transaction Fee
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="decimal"
                                         value={tradeFees}
                                         onChange={handleNonNegativeChange(
-                                            setTradeFees
+                                            setTradeFees,
                                         )}
-                                        min="0"
                                         className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                     />
                                 </div>
@@ -2151,7 +2157,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         value={tradeFeesCurrency}
                                         onChange={(event) =>
                                             setTradeFeesCurrency(
-                                                event.target.value as Currency
+                                                event.target.value as Currency,
                                             )
                                         }
                                         className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -2229,7 +2235,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                                 Purchased{" "}
                                                 <span className="text-app-foreground">
                                                     {tradeQuantityValue.toFixed(
-                                                        2
+                                                        2,
                                                     )}
                                                 </span>{" "}
                                                 units of{" "}
@@ -2246,7 +2252,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                                 per unit
                                                 {fxEnabled
                                                     ? `, using ${roundedFundingAmountValue.toFixed(
-                                                          2
+                                                          2,
                                                       )} ${tradeFundingCurrency} converted at an FX rate of ${
                                                           tradeFxRate || "-"
                                                       }`
@@ -2257,7 +2263,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                                 Sold{" "}
                                                 <span className="text-app-foreground">
                                                     {tradeQuantityValue.toFixed(
-                                                        2
+                                                        2,
                                                     )}
                                                 </span>{" "}
                                                 units of{" "}
@@ -2274,7 +2280,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                                 per unit
                                                 {fxEnabled
                                                     ? `, with proceeds converted to ${roundedFundingAmountValue.toFixed(
-                                                          2
+                                                          2,
                                                       )} ${tradeFundingCurrency} at an FX rate of ${
                                                           tradeFxRate || "-"
                                                       }`
@@ -2288,7 +2294,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                                 <span className="text-app-foreground">
                                                     {tradeFxFeeValue > 0
                                                         ? `${tradeFxFeeValue.toFixed(
-                                                              2
+                                                              2,
                                                           )} ${tradeFxFeeCurrency} FX fee`
                                                         : ""}
                                                     {tradeFxFeeValue > 0 &&
@@ -2297,7 +2303,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                                         : ""}
                                                     {tradeFeesValue > 0
                                                         ? `${tradeFeesValue.toFixed(
-                                                              2
+                                                              2,
                                                           )} ${tradeFeesCurrency} transaction fee`
                                                         : ""}
                                                     .

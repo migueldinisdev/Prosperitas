@@ -1,11 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import {
-    WalletTx,
-    AssetsState,
-    Money,
-    Currency,
-} from "../core/schema-types";
+import { WalletTx, AssetsState, Money, Currency } from "../core/schema-types";
 import { formatCurrency } from "../utils/formatters";
 import { useAppDispatch } from "../store/hooks";
 import {
@@ -28,8 +23,10 @@ const formatType = (type: WalletTx["type"]) =>
     type.charAt(0).toUpperCase() + type.slice(1);
 
 const currencyOptions: Currency[] = ["EUR", "USD", "GBP"];
+const normalizeDecimalInput = (value: string) =>
+    value.replace(/,/g, ".").trim();
 const getInputDecimals = (value: string) => {
-    const trimmed = value.trim();
+    const trimmed = normalizeDecimalInput(value);
     if (!trimmed.includes(".")) return 0;
     return trimmed.split(".")[1].length;
 };
@@ -43,12 +40,20 @@ const roundToInputPrecision = (value: string) => {
 };
 
 const calculateForexToAmount = (fromAmount: string, fxRate: string) => {
-    const from = Number(fromAmount);
-    const rate = Number(fxRate);
-    if (!Number.isFinite(from) || !Number.isFinite(rate) || from <= 0 || rate <= 0) {
+    const from = Number(normalizeDecimalInput(fromAmount));
+    const rate = Number(normalizeDecimalInput(fxRate));
+    if (
+        !Number.isFinite(from) ||
+        !Number.isFinite(rate) ||
+        from <= 0 ||
+        rate <= 0
+    ) {
         return "";
     }
-    const decimals = Math.max(getInputDecimals(fromAmount), getInputDecimals(fxRate));
+    const decimals = Math.max(
+        getInputDecimals(fromAmount),
+        getInputDecimals(fxRate),
+    );
     const precision = Math.max(decimals, 2);
     return (from * rate).toFixed(precision);
 };
@@ -84,7 +89,7 @@ export const WalletTransactionsTable = React.memo(
 
         const totalPages = useMemo(
             () => Math.ceil(transactions.length / transactionsPerPage),
-            [transactions.length, transactionsPerPage]
+            [transactions.length, transactionsPerPage],
         );
 
         const handlePageChange = (page: number) => {
@@ -92,7 +97,7 @@ export const WalletTransactionsTable = React.memo(
         };
 
         const handleTransactionsPerPageChange = (
-            event: React.ChangeEvent<HTMLSelectElement>
+            event: React.ChangeEvent<HTMLSelectElement>,
         ) => {
             setTransactionsPerPage(Number(event.target.value));
             setCurrentPage(1); // Reset to first page when changing items per page
@@ -106,9 +111,9 @@ export const WalletTransactionsTable = React.memo(
         const assetOptions = useMemo(
             () =>
                 Object.values(assets).sort((a, b) =>
-                    a.ticker.localeCompare(b.ticker)
+                    a.ticker.localeCompare(b.ticker),
                 ),
-            [assets]
+            [assets],
         );
 
         useEffect(() => {
@@ -182,7 +187,7 @@ export const WalletTransactionsTable = React.memo(
                             value: Number(editAmount),
                             currency: editCurrency,
                         },
-                    })
+                    }),
                 );
             }
             if (editTx.type === "dividend") {
@@ -195,7 +200,7 @@ export const WalletTransactionsTable = React.memo(
                             currency: editCurrency,
                         },
                         assetId: editAssetId || undefined,
-                    })
+                    }),
                 );
             }
             if (editTx.type === "buy" || editTx.type === "sell") {
@@ -218,7 +223,7 @@ export const WalletTransactionsTable = React.memo(
                                       currency: editFeesCurrency,
                                   }
                                 : undefined,
-                    })
+                    }),
                 );
             }
             if (editTx.type === "forex") {
@@ -242,7 +247,7 @@ export const WalletTransactionsTable = React.memo(
                                   }
                                 : undefined,
                         fxRate: editFxRate ? Number(editFxRate) : undefined,
-                    })
+                    }),
                 );
             }
             setEditTx(null);
@@ -308,7 +313,7 @@ export const WalletTransactionsTable = React.memo(
                     <div className="flex gap-2">
                         {Array.from(
                             { length: totalPages },
-                            (_, index) => index + 1
+                            (_, index) => index + 1,
                         ).map((page) => (
                             <button
                                 key={page}
@@ -382,7 +387,7 @@ export const WalletTransactionsTable = React.memo(
 
                             if (tx.type === "forex") {
                                 amount = `${formatMoney(
-                                    tx.from
+                                    tx.from,
                                 )} → ${formatMoney(tx.to)}`;
                                 fees = formatMoney(tx.fees);
                                 fx = tx.fxRate
@@ -395,7 +400,7 @@ export const WalletTransactionsTable = React.memo(
                                 price = formatMoney(tx.price);
                                 amount = formatCurrency(
                                     tx.price.value * tx.quantity,
-                                    tx.price.currency
+                                    tx.price.currency,
                                 );
                                 fees = tx.fees ? formatMoney(tx.fees) : "-";
                                 fx =
@@ -499,14 +504,17 @@ export const WalletTransactionsTable = React.memo(
                                             Amount
                                         </label>
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="decimal"
                                             value={editAmount}
-                                            onChange={(event) =>
-                                                setEditAmount(
-                                                    event.target.value
-                                                )
-                                            }
-                                            min="0"
+                                            onChange={(event) => {
+                                                const value =
+                                                    event.target.value.replace(
+                                                        /,/g,
+                                                        ".",
+                                                    );
+                                                setEditAmount(value);
+                                            }}
                                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                         />
                                     </div>
@@ -519,7 +527,7 @@ export const WalletTransactionsTable = React.memo(
                                             onChange={(event) =>
                                                 setEditCurrency(
                                                     event.target
-                                                        .value as Currency
+                                                        .value as Currency,
                                                 )
                                             }
                                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -544,9 +552,7 @@ export const WalletTransactionsTable = React.memo(
                                     <select
                                         value={editAssetId}
                                         onChange={(event) =>
-                                            setEditAssetId(
-                                                event.target.value
-                                            )
+                                            setEditAssetId(event.target.value)
                                         }
                                         className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                     >
@@ -573,7 +579,7 @@ export const WalletTransactionsTable = React.memo(
                                             value={editAssetId}
                                             onChange={(event) =>
                                                 setEditAssetId(
-                                                    event.target.value
+                                                    event.target.value,
                                                 )
                                             }
                                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -583,7 +589,8 @@ export const WalletTransactionsTable = React.memo(
                                                     key={asset.id}
                                                     value={asset.id}
                                                 >
-                                                    {asset.ticker} • {asset.name}
+                                                    {asset.ticker} •{" "}
+                                                    {asset.name}
                                                 </option>
                                             ))}
                                         </select>
@@ -594,14 +601,17 @@ export const WalletTransactionsTable = React.memo(
                                                 Quantity
                                             </label>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={editQuantity}
                                                 onChange={(event) =>
                                                     setEditQuantity(
-                                                        event.target.value
+                                                        event.target.value.replace(
+                                                            /,/g,
+                                                            ".",
+                                                        ),
                                                     )
                                                 }
-                                                min="0"
                                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                             />
                                         </div>
@@ -610,14 +620,17 @@ export const WalletTransactionsTable = React.memo(
                                                 Price
                                             </label>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={editPrice}
                                                 onChange={(event) =>
                                                     setEditPrice(
-                                                        event.target.value
+                                                        event.target.value.replace(
+                                                            /,/g,
+                                                            ".",
+                                                        ),
                                                     )
                                                 }
-                                                min="0"
                                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                             />
                                         </div>
@@ -632,7 +645,7 @@ export const WalletTransactionsTable = React.memo(
                                                 onChange={(event) =>
                                                     setEditPriceCurrency(
                                                         event.target
-                                                            .value as Currency
+                                                            .value as Currency,
                                                     )
                                                 }
                                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -645,7 +658,7 @@ export const WalletTransactionsTable = React.memo(
                                                         >
                                                             {currency}
                                                         </option>
-                                                    )
+                                                    ),
                                                 )}
                                             </select>
                                         </div>
@@ -658,7 +671,7 @@ export const WalletTransactionsTable = React.memo(
                                                 value={editFxPair}
                                                 onChange={(event) =>
                                                     setEditFxPair(
-                                                        event.target.value
+                                                        event.target.value,
                                                     )
                                                 }
                                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -671,14 +684,17 @@ export const WalletTransactionsTable = React.memo(
                                                 FX Rate (optional)
                                             </label>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={editFxRate}
                                                 onChange={(event) =>
                                                     setEditFxRate(
-                                                        event.target.value
+                                                        event.target.value.replace(
+                                                            /,/g,
+                                                            ".",
+                                                        ),
                                                     )
                                                 }
-                                                min="0"
                                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                             />
                                         </div>
@@ -687,14 +703,17 @@ export const WalletTransactionsTable = React.memo(
                                                 Fees (optional)
                                             </label>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={editFees}
                                                 onChange={(event) =>
                                                     setEditFees(
-                                                        event.target.value
+                                                        event.target.value.replace(
+                                                            /,/g,
+                                                            ".",
+                                                        ),
                                                     )
                                                 }
-                                                min="0"
                                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                             />
                                         </div>
@@ -708,7 +727,7 @@ export const WalletTransactionsTable = React.memo(
                                             onChange={(event) =>
                                                 setEditFeesCurrency(
                                                     event.target
-                                                        .value as Currency
+                                                        .value as Currency,
                                                 )
                                             }
                                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -733,14 +752,17 @@ export const WalletTransactionsTable = React.memo(
                                                 From Amount
                                             </label>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={editFromAmount}
                                                 onChange={(event) =>
                                                     setEditFromAmount(
-                                                        event.target.value
+                                                        event.target.value.replace(
+                                                            /,/g,
+                                                            ".",
+                                                        ),
                                                     )
                                                 }
-                                                min="0"
                                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                             />
                                         </div>
@@ -753,7 +775,7 @@ export const WalletTransactionsTable = React.memo(
                                                 onChange={(event) =>
                                                     setEditFromCurrency(
                                                         event.target
-                                                            .value as Currency
+                                                            .value as Currency,
                                                     )
                                                 }
                                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -766,7 +788,7 @@ export const WalletTransactionsTable = React.memo(
                                                         >
                                                             {currency}
                                                         </option>
-                                                    )
+                                                    ),
                                                 )}
                                             </select>
                                         </div>
@@ -777,10 +799,10 @@ export const WalletTransactionsTable = React.memo(
                                                 To Amount
                                             </label>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={editToAmount}
                                                 readOnly
-                                                min="0"
                                                 className="w-full bg-app-bg border border-app-border rounded-lg px-3 py-2 text-app-muted"
                                             />
                                         </div>
@@ -793,7 +815,7 @@ export const WalletTransactionsTable = React.memo(
                                                 onChange={(event) =>
                                                     setEditToCurrency(
                                                         event.target
-                                                            .value as Currency
+                                                            .value as Currency,
                                                     )
                                                 }
                                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -806,7 +828,7 @@ export const WalletTransactionsTable = React.memo(
                                                         >
                                                             {currency}
                                                         </option>
-                                                    )
+                                                    ),
                                                 )}
                                             </select>
                                         </div>
@@ -817,14 +839,17 @@ export const WalletTransactionsTable = React.memo(
                                                 FX Rate (optional)
                                             </label>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={editFxRate}
-                                                onChange={(event) =>
-                                                    setEditFxRate(
-                                                        event.target.value
-                                                    )
-                                                }
-                                                min="0"
+                                                onChange={(event) => {
+                                                    const value =
+                                                        event.target.value.replace(
+                                                            /,/g,
+                                                            ".",
+                                                        );
+                                                    setEditFxRate(value);
+                                                }}
                                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                             />
                                         </div>
@@ -833,14 +858,17 @@ export const WalletTransactionsTable = React.memo(
                                                 Fees (optional)
                                             </label>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={editFees}
-                                                onChange={(event) =>
-                                                    setEditFees(
-                                                        event.target.value
-                                                    )
-                                                }
-                                                min="0"
+                                                onChange={(event) => {
+                                                    const value =
+                                                        event.target.value.replace(
+                                                            /,/g,
+                                                            ".",
+                                                        );
+                                                    setEditFees(value);
+                                                }}
                                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                             />
                                         </div>
@@ -854,7 +882,7 @@ export const WalletTransactionsTable = React.memo(
                                             onChange={(event) =>
                                                 setEditFeesCurrency(
                                                     event.target
-                                                        .value as Currency
+                                                        .value as Currency,
                                                 )
                                             }
                                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
@@ -883,5 +911,5 @@ export const WalletTransactionsTable = React.memo(
                 </Modal>
             </div>
         );
-    }
+    },
 );
