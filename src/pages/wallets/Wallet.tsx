@@ -637,6 +637,34 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         [walletTransactions],
     );
 
+    const handleDecimalInput = (
+        event: React.CompositionEvent<HTMLInputElement> & {
+            data?: string | null;
+        },
+    ) => {
+        // Intercept comma before it's inserted (works on Chrome iOS)
+        if (event.data === ",") {
+            event.preventDefault();
+            const input = event.currentTarget as HTMLInputElement;
+            const start = input.selectionStart ?? 0;
+            const end = input.selectionEnd ?? 0;
+            const currentValue = input.value;
+            const newValue =
+                currentValue.slice(0, start) + "." + currentValue.slice(end);
+
+            // Update the input value
+            input.value = newValue;
+
+            // Set cursor position after the dot
+            const newCursorPos = start + 1;
+            input.setSelectionRange(newCursorPos, newCursorPos);
+
+            // Manually trigger the input event for React state update
+            const syntheticEvent = new Event("input", { bubbles: true });
+            input.dispatchEvent(syntheticEvent);
+        }
+    };
+
     const handleNonNegativeChange =
         (setter: React.Dispatch<React.SetStateAction<string>>) =>
         (event: React.FormEvent<HTMLInputElement>) => {
@@ -1316,6 +1344,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             inputMode="decimal"
                             value={cashAmount}
                             onInput={handleNonNegativeChange(setCashAmount)}
+                            onBeforeInput={handleDecimalInput}
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>
@@ -1378,6 +1407,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             inputMode="decimal"
                             value={cashAmount}
                             onInput={handleNonNegativeChange(setCashAmount)}
+                            onBeforeInput={handleDecimalInput}
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>
@@ -1441,6 +1471,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             inputMode="decimal"
                             value={dividendAmount}
                             onInput={handleNonNegativeChange(setDividendAmount)}
+                            onBeforeInput={handleDecimalInput}
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                     </div>
@@ -1513,6 +1544,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 onInput={handleNonNegativeChange(
                                     setFxFromAmount,
                                 )}
+                                onBeforeInput={handleDecimalInput}
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                             />
                         </div>
@@ -1567,6 +1599,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 inputMode="decimal"
                                 value={fxRate}
                                 onInput={handleNonNegativeChange(setFxRate)}
+                                onBeforeInput={handleDecimalInput}
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                             />
                         </div>
@@ -1616,6 +1649,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         onInput={handleNonNegativeChange(
                                             setFxFees,
                                         )}
+                                        onBeforeInput={handleDecimalInput}
                                         className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                     />
                                 </div>
@@ -1971,6 +2005,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 onInput={handleNonNegativeChange(
                                     setTradeQuantity,
                                 )}
+                                onBeforeInput={handleDecimalInput}
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                             />
                         </div>
@@ -1983,6 +2018,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 inputMode="decimal"
                                 value={tradePrice}
                                 onInput={handleNonNegativeChange(setTradePrice)}
+                                onBeforeInput={handleDecimalInput}
                                 className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                             />
                         </div>
@@ -2047,6 +2083,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                             event,
                                         )
                                     }
+                                    onBeforeInput={handleDecimalInput}
                                     className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                 />
                             </div>
@@ -2082,6 +2119,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                             onInput={handleNonNegativeChange(
                                                 setTradeFxFee,
                                             )}
+                                            onBeforeInput={handleDecimalInput}
                                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                         />
                                     </div>
@@ -2142,6 +2180,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         onInput={handleNonNegativeChange(
                                             setTradeFees,
                                         )}
+                                        onBeforeInput={handleDecimalInput}
                                         className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                                     />
                                 </div>
