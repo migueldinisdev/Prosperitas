@@ -61,13 +61,15 @@ interface Props {
 }
 
 const roundToTwo = (value: number) => Math.round(value * 100) / 100;
+const normalizeDecimalInput = (value: string) =>
+    value.replace(/,/g, ".").trim();
 const getInputDecimals = (value: string) => {
-    const trimmed = value.trim();
+    const trimmed = normalizeDecimalInput(value);
     if (!trimmed.includes(".")) return 0;
     return trimmed.split(".")[1].length;
 };
 const roundToInputPrecision = (value: string) => {
-    const parsed = Number(value);
+    const parsed = Number(normalizeDecimalInput(value));
     if (!Number.isFinite(parsed)) return parsed;
     const decimals = getInputDecimals(value);
     if (decimals <= 0) return parsed;
@@ -633,7 +635,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const handleNonNegativeChange =
         (setter: React.Dispatch<React.SetStateAction<string>>) =>
         (event: React.ChangeEvent<HTMLInputElement>) => {
-            const { value } = event.target;
+            const value = normalizeDecimalInput(event.target.value);
             if (value.startsWith("-")) return;
             setter(value);
         };
