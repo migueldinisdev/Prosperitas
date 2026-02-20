@@ -42,6 +42,7 @@ import {
 import {
     calculatePositionCostBasis,
     calculatePositionCostBasisFx,
+    calculateRealizedPnlBreakdown,
     calculateRealizedPnl,
     getAllocationPercent,
     getPnL,
@@ -169,6 +170,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [isFxOpen, setFxOpen] = useState(false);
     const [isEditAssetOpen, setEditAssetOpen] = useState(false);
     const [isEditWalletOpen, setEditWalletOpen] = useState(false);
+    const [isCashBreakdownOpen, setCashBreakdownOpen] = useState(false);
+    const [isPerformanceBreakdownOpen, setPerformanceBreakdownOpen] =
+        useState(false);
 
     const [editWalletName, setEditWalletName] = useState("");
     const [editWalletDescription, setEditWalletDescription] = useState("");
@@ -603,6 +607,22 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             ),
         [forexRates, getForexRate, settings.visualCurrency, walletTransactions]
     );
+    const realizedBreakdown = useMemo(
+        () =>
+            calculateRealizedPnlBreakdown(
+                walletTransactions,
+                settings.visualCurrency,
+                forexRates,
+                getForexRate
+            ),
+        [forexRates, getForexRate, settings.visualCurrency, walletTransactions]
+    );
+
+    const unrealizedPositive = Math.max(totals.pnl, 0);
+    const unrealizedNegative = Math.min(totals.pnl, 0);
+    const totalPnl = totals.pnl + realizedPnl;
+    const unrealizedPercent =
+        totals.invested > 0 ? (totals.pnl / totals.invested) * 100 : 0;
     const unrealizedIsPositive = totals.pnl >= 0;
     const realizedIsPositive = realizedPnl >= 0;
 
@@ -1029,8 +1049,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             </header>
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <Card className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card
+                        className="p-4 cursor-pointer hover:border-app-primary/50 transition-colors"
+                        onClick={() => setCashBreakdownOpen(true)}
+                    >
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
                             Wallet Value
                         </p>
@@ -1040,78 +1063,79 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 settings.visualCurrency
                             )}
                         </p>
+                        <div className="mt-2 space-y-1 text-sm text-app-muted">
+                            <p>
+                                Assets {formatCurrency(totals.currentValue, settings.visualCurrency)}
+                            </p>
+                            <p>
+                                Cash {formatCurrency(cashConvertedTotal, settings.visualCurrency)}
+                            </p>
+                        </div>
                     </Card>
+
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Current Value
-                        </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">
-                            {formatCurrency(
-                                totals.currentValue,
-                                settings.visualCurrency
-                            )}
-                        </p>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Invested
-                        </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">
-                            {formatCurrency(
-                                totals.invested,
-                                settings.visualCurrency
-                            )}
-                        </p>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            PnL
+                            Open Positions
                         </p>
                         <div className="mt-2 space-y-2">
-                            <div
-                                className={`flex items-center gap-2 ${
-                                    unrealizedIsPositive
-                                        ? "text-app-success"
-                                        : "text-app-danger"
-                                }`}
-                            >
-                                {unrealizedIsPositive ? (
-                                    <ArrowUpRight size={18} />
-                                ) : (
-                                    <ArrowDownLeft size={18} />
-                                )}
-                                <span className="text-lg font-bold">
-                                    Unrealized {unrealizedIsPositive ? "+" : ""}
-                                    {formatCurrency(
-                                        totals.pnl,
-                                        settings.visualCurrency
-                                    )}
+                            <p className="text-2xl font-bold text-app-foreground">
+                                {formatCurrency(totals.currentValue, settings.visualCurrency)}
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Unrealized
+                                <span
+                                    className={`ml-2 font-semibold ${
+                                        unrealizedIsPositive
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    {unrealizedIsPositive ? "+" : ""}
+                                    {formatCurrency(totals.pnl, settings.visualCurrency)}
                                 </span>
-                                <Tooltip content="Unrealized PnL based on latest prices and FX, converted to your visualization currency.">
-                                    <Info
-                                        size={14}
-                                        className="text-app-muted"
-                                    />
-                                </Tooltip>
-                            </div>
-                            <div
-                                className={`flex items-center gap-2 ${
-                                    realizedIsPositive
-                                        ? "text-app-success"
-                                        : "text-app-danger"
-                                }`}
-                            >
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Cost Basis
+                                <span className="ml-2 text-app-foreground font-semibold">
+                                    {formatCurrency(totals.invested, settings.visualCurrency)}
+                                </span>
+                            </p>
+                            <p className="text-xs text-app-muted">
+                                {unrealizedIsPositive ? "+" : ""}
+                                {unrealizedPercent.toFixed(1)}%
+                            </p>
+                        </div>
+                    </Card>
+
+                    <Card
+                        className="p-4 cursor-pointer hover:border-app-primary/50 transition-colors"
+                        onClick={() => setPerformanceBreakdownOpen(true)}
+                    >
+                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                            Performance
+                        </p>
+                        <div className="mt-2 space-y-2">
+                            <div className="flex items-center gap-2">
                                 {realizedIsPositive ? (
                                     <ArrowUpRight size={18} />
                                 ) : (
                                     <ArrowDownLeft size={18} />
                                 )}
-                                <span className="text-lg font-bold">
-                                    Realized {realizedIsPositive ? "+" : ""}
-                                    {formatCurrency(
-                                        realizedPnl,
-                                        settings.visualCurrency
-                                    )}
+                                <span className="text-sm text-app-muted">
+                                    Realized
+                                    <span
+                                        className={`ml-2 font-semibold ${
+                                            realizedIsPositive
+                                                ? "text-app-success"
+                                                : "text-app-danger"
+                                        }`}
+                                    >
+                                        {realizedIsPositive ? "+" : ""}
+                                        {formatCurrency(
+                                            realizedPnl,
+                                            settings.visualCurrency
+                                        )}
+                                    </span>
                                 </span>
                                 <Tooltip content="Realized PnL from completed trades using FIFO lot matching, converted using FX rates on the trade dates. Later FX moves show up in cash, so this can differ from today's reality.">
                                     <Info
@@ -1120,48 +1144,32 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     />
                                 </Tooltip>
                             </div>
-                        </div>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Cash Available
-                        </p>
-                        <div className="mt-1 space-y-1">
-                            {cashBuckets.length > 0 ? (
-                                cashBuckets.map((bucket) => (
-                                    <p
-                                        key={bucket.currency}
-                                        className="text-lg font-semibold text-app-foreground"
-                                    >
-                                        {formatCurrency(
-                                            bucket.value,
-                                            bucket.currency
-                                        )}
-                                        <span className="text-sm text-app-muted ml-2">
-                                            (~
-                                            {formatCurrency(
-                                                toVisualMoney(
-                                                    bucket,
-                                                    settings.visualCurrency,
-                                                    forexRates
-                                                ),
-                                                settings.visualCurrency
-                                            )}
-                                            )
-                                        </span>
-                                    </p>
-                                ))
-                            ) : (
-                                <p className="text-sm text-app-muted">-</p>
-                            )}
-                            {hasNegativeCash && (
-                                <p className="text-xs text-app-warning">
-                                    Cash is negative because there aren't
-                                    sufficient funds for the asset purchases.
-                                    Add the remaining deposits to ensure
-                                    consistency.
-                                </p>
-                            )}
+                            <p className="text-sm text-app-muted">
+                                Unrealized
+                                <span
+                                    className={`ml-2 font-semibold ${
+                                        unrealizedIsPositive
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    {unrealizedIsPositive ? "+" : ""}
+                                    {formatCurrency(totals.pnl, settings.visualCurrency)}
+                                </span>
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Total
+                                <span
+                                    className={`ml-2 font-semibold ${
+                                        totalPnl >= 0
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    {totalPnl >= 0 ? "+" : ""}
+                                    {formatCurrency(totalPnl, settings.visualCurrency)}
+                                </span>
+                            </p>
                         </div>
                     </Card>
                 </div>
@@ -1244,6 +1252,82 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     assets={assets}
                 />
             </main>
+
+            <Modal
+                isOpen={isCashBreakdownOpen}
+                onClose={() => setCashBreakdownOpen(false)}
+                title="Cash by Currency"
+            >
+                <div className="space-y-3">
+                    {cashBuckets.length > 0 ? (
+                        cashBuckets.map((bucket) => (
+                            <div
+                                key={bucket.currency}
+                                className="flex items-center justify-between rounded-lg border border-app-border px-3 py-2"
+                            >
+                                <span className="text-sm text-app-muted">
+                                    {bucket.currency}
+                                </span>
+                                <span className="text-sm font-semibold text-app-foreground">
+                                    {formatCurrency(bucket.value, bucket.currency)}
+                                    <span className="text-app-muted ml-2">
+                                        (~
+                                        {formatCurrency(
+                                            toVisualMoney(
+                                                bucket,
+                                                settings.visualCurrency,
+                                                forexRates
+                                            ),
+                                            settings.visualCurrency
+                                        )}
+                                        )
+                                    </span>
+                                </span>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-sm text-app-muted">No cash balances.</p>
+                    )}
+                    {hasNegativeCash && (
+                        <p className="text-xs text-app-warning">
+                            Cash is negative because there aren't sufficient funds for asset purchases.
+                        </p>
+                    )}
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={isPerformanceBreakdownOpen}
+                onClose={() => setPerformanceBreakdownOpen(false)}
+                title="Performance Breakdown"
+            >
+                <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-between rounded-lg border border-app-border px-3 py-2">
+                        <span className="text-app-muted">Realized positive</span>
+                        <span className="text-app-success font-semibold">
+                            {formatCurrency(realizedBreakdown.positive, settings.visualCurrency)}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-app-border px-3 py-2">
+                        <span className="text-app-muted">Realized negative</span>
+                        <span className="text-app-danger font-semibold">
+                            {formatCurrency(realizedBreakdown.negative, settings.visualCurrency)}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-app-border px-3 py-2">
+                        <span className="text-app-muted">Unrealized positive</span>
+                        <span className="text-app-success font-semibold">
+                            {formatCurrency(unrealizedPositive, settings.visualCurrency)}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-app-border px-3 py-2">
+                        <span className="text-app-muted">Unrealized negative</span>
+                        <span className="text-app-danger font-semibold">
+                            {formatCurrency(unrealizedNegative, settings.visualCurrency)}
+                        </span>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal
                 isOpen={isEditWalletOpen}

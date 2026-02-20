@@ -2,7 +2,6 @@ import React, { useMemo } from "react";
 import { PageHeader } from "../../components/PageHeader";
 import { Card } from "../../ui/Card";
 import { PieChart } from "../../components/PieChart";
-import { NetWorthSummaryCard } from "../../components/NetWorthSummaryCard";
 import {
     selectAssets,
     selectPies,
@@ -18,6 +17,7 @@ import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
 import {
     calculatePositionCostBasis,
+    calculateRealizedPnl,
     getAllocationPercent,
     getNetWorth,
     getPnL,
@@ -209,53 +209,20 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             netWorth: getNetWorth(totalCurrent, cashTotal),
         };
     }, [cashBuckets, holdingSummaries, forexRates, settings.visualCurrency]);
-
-    const summaryStats = [
-        {
-            label: "Total net worth",
-            value: formatCurrency(totals.netWorth, settings.visualCurrency),
-            change: "Holdings + cash",
-            helper: "Total portfolio value",
-        },
-        {
-            label: "Total invested",
-            value: formatCurrency(totals.invested, settings.visualCurrency),
-            change: "Cost basis",
-            helper: `Across ${Object.keys(wallets).length} wallets`,
-        },
-        {
-            label: "Assets value",
-            value: formatCurrency(totals.current, settings.visualCurrency),
-            change: "Realtime valuation",
-            helper: "Holdings only",
-        },
-        {
-            label: "Total PnL",
-            value: `${totals.pnl > 0 ? "+" : ""}${formatCurrency(
-                totals.pnl,
-                settings.visualCurrency
-            )}`,
-            helper: "Unrealized gain/loss on assets",
-        },
-        {
-            label: "Cash buffer",
-            value: formatCurrency(totals.cash, settings.visualCurrency),
-            helper: "Liquid reserves",
-        },
-    ];
-
-    const momentumStats = [
-        { label: "Best month", value: "April +4.1%" },
-        { label: "Worst month", value: "September -2.3%" },
-        {
-            label: "Avg monthly flow",
-            value: `+${formatCurrency(1120, settings.visualCurrency)}`,
-        },
-        {
-            label: "Fees paid YTD",
-            value: formatCurrency(320, settings.visualCurrency),
-        },
-    ];
+    const realizedPnl = useMemo(
+        () =>
+            calculateRealizedPnl(
+                walletTransactions,
+                settings.visualCurrency,
+                forexRates,
+                getForexRate
+            ),
+        [forexRates, getForexRate, settings.visualCurrency, walletTransactions]
+    );
+    const totalPnl = totals.pnl + realizedPnl;
+    const unrealizedIsPositive = totals.pnl >= 0;
+    const realizedIsPositive = realizedPnl >= 0;
+    const totalIsPositive = totalPnl >= 0;
 
     const assetTypeData = useMemo(() => {
         const totalsByType = holdingSummaries.reduce<Record<string, number>>(
@@ -436,27 +403,100 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             <PageHeader title="Statistics" onMenuClick={onMenuClick} />
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    {summaryStats.map((stat) => (
-                        <Card key={stat.label}>
-                            <p className="text-xs uppercase tracking-wider text-app-muted font-semibold">
-                                {stat.label}
+                <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="p-4">
+                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                            Total Net Worth
+                        </p>
+                        <p className="text-2xl font-bold text-app-foreground mt-1">
+                            {formatCurrency(totals.netWorth, settings.visualCurrency)}
+                        </p>
+                        <div className="mt-2 space-y-1 text-sm text-app-muted">
+                            <p>
+                                Assets {formatCurrency(totals.current, settings.visualCurrency)}
                             </p>
-                            <div className="flex items-end gap-2 mt-2">
-                                <span className="text-2xl font-semibold text-app-foreground">
-                                    {stat.value}
+                            <p>
+                                Cash {formatCurrency(totals.cash, settings.visualCurrency)}
+                            </p>
+                        </div>
+                    </Card>
+
+                    <Card className="p-4">
+                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                            Open Positions
+                        </p>
+                        <div className="mt-2 space-y-2">
+                            <p className="text-2xl font-bold text-app-foreground">
+                                {formatCurrency(totals.current, settings.visualCurrency)}
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Unrealized
+                                <span
+                                    className={`ml-2 font-semibold ${
+                                        unrealizedIsPositive
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    {unrealizedIsPositive ? "+" : ""}
+                                    {formatCurrency(totals.pnl, settings.visualCurrency)}
                                 </span>
-                                {stat.change && (
-                                    <span className="text-xs text-app-success font-semibold">
-                                        {stat.change}
-                                    </span>
-                                )}
-                            </div>
-                            <p className="text-xs text-app-muted mt-2">
-                                {stat.helper}
                             </p>
-                        </Card>
-                    ))}
+                            <p className="text-sm text-app-muted">
+                                Cost Basis
+                                <span className="ml-2 text-app-foreground font-semibold">
+                                    {formatCurrency(totals.invested, settings.visualCurrency)}
+                                </span>
+                            </p>
+                        </div>
+                    </Card>
+
+                    <Card className="p-4">
+                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                            Performance
+                        </p>
+                        <div className="mt-2 space-y-2">
+                            <p className="text-sm text-app-muted">
+                                Unrealized
+                                <span
+                                    className={`ml-2 font-semibold ${
+                                        unrealizedIsPositive
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    {unrealizedIsPositive ? "+" : ""}
+                                    {formatCurrency(totals.pnl, settings.visualCurrency)}
+                                </span>
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Realized
+                                <span
+                                    className={`ml-2 font-semibold ${
+                                        realizedIsPositive
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    {realizedIsPositive ? "+" : ""}
+                                    {formatCurrency(realizedPnl, settings.visualCurrency)}
+                                </span>
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Total
+                                <span
+                                    className={`ml-2 font-semibold ${
+                                        totalIsPositive
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    {totalIsPositive ? "+" : ""}
+                                    {formatCurrency(totalPnl, settings.visualCurrency)}
+                                </span>
+                            </p>
+                        </div>
+                    </Card>
                 </section>
 
                 <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -580,25 +620,8 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                     </Card>
 
                     <Card title="Momentum & Costs">
-                        <div className="space-y-3">
-                            {momentumStats.map((item) => (
-                                <div
-                                    key={item.label}
-                                    className="flex items-center justify-between text-sm"
-                                >
-                                    <span className="text-app-muted">
-                                        {item.label}
-                                    </span>
-                                    <span className="text-app-foreground font-semibold">
-                                        {item.value}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="mt-5 rounded-xl border border-app-border bg-app-bg/50 p-3 text-xs text-app-muted">
-                            Insight: Concentration risk is limited—top 5
-                            holdings represent 72% of the portfolio while
-                            cash-like assets cover 6 months of expenses.
+                        <div className="mt-1 rounded-xl border border-app-border bg-app-bg/50 p-3 text-sm text-app-muted">
+                            Keep this section for future trend/cost analytics.
                         </div>
                     </Card>
                 </section>
