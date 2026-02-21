@@ -121,6 +121,12 @@ export const WalletTransactionsTable = React.memo(
             if (tx.type === "deposit" || tx.type === "withdraw") {
                 setEditAmount(tx.amount.value.toString());
                 setEditCurrency(tx.amount.currency);
+                setEditFees(tx.type === "deposit" && tx.fees ? tx.fees.value.toString() : "");
+                setEditFeesCurrency(
+                    tx.type === "deposit"
+                        ? (tx.fees?.currency ?? tx.amount.currency)
+                        : tx.amount.currency
+                );
             }
             if (tx.type === "dividend") {
                 setEditAmount(tx.amount.value.toString());
@@ -166,6 +172,13 @@ export const WalletTransactionsTable = React.memo(
                             value: Number(editAmount),
                             currency: editCurrency,
                         },
+                        fees:
+                            editTx.type === "deposit" && Number(editFees) > 0
+                                ? {
+                                      value: roundToInputPrecision(editFees),
+                                      currency: editFeesCurrency,
+                                  }
+                                : undefined,
                     })
                 );
             }
@@ -358,6 +371,7 @@ export const WalletTransactionsTable = React.memo(
                                 tx.type === "withdraw"
                             ) {
                                 amount = formatMoney(tx.amount);
+                                fees = tx.type === "deposit" ? formatMoney(tx.fees) : "-";
                             }
 
                             if (tx.type === "dividend") {
@@ -519,6 +533,48 @@ export const WalletTransactionsTable = React.memo(
                                         </select>
                                     </div>
                                 </div>
+                            )}
+                            {editTx.type === "deposit" && (
+                                <>
+                                    <div>
+                                        <label className="block text-xs font-medium text-app-muted mb-1">
+                                            Fees (optional)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={editFees}
+                                            onChange={(event) =>
+                                                setEditFees(event.target.value)
+                                            }
+                                            min="0"
+                                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-app-muted mb-1">
+                                            Fees Currency
+                                        </label>
+                                        <select
+                                            value={editFeesCurrency}
+                                            onChange={(event) =>
+                                                setEditFeesCurrency(
+                                                    event.target
+                                                        .value as Currency
+                                                )
+                                            }
+                                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                                        >
+                                            {currencyOptions.map((currency) => (
+                                                <option
+                                                    key={currency}
+                                                    value={currency}
+                                                >
+                                                    {currency}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </>
                             )}
                             {editTx.type === "dividend" && (
                                 <div>
