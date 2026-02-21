@@ -54,7 +54,7 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
 
     const existingNamesLower = useMemo(
         () => new Set(Object.values(pies).map((pie) => pie.name.toLowerCase())),
-        [pies]
+        [pies],
     );
 
     const pieNameTrimmed = pieName.trim();
@@ -79,15 +79,13 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
     const transactionCurrencies = useMemo(() => {
         const pieTx = Object.values(walletTx).filter((tx) => tx.pieId);
         const currencies = new Set<string>(getWalletTxCurrencies(pieTx));
-        pieAssets.forEach((asset) =>
-            currencies.add(asset.tradingCurrency)
-        );
+        pieAssets.forEach((asset) => currencies.add(asset.tradingCurrency));
         return Array.from(currencies);
     }, [pieAssets, walletTx]);
 
     const forexRates = useForexLivePrices(
         transactionCurrencies,
-        settings.visualCurrency
+        settings.visualCurrency,
     );
 
     const pieAllocationData = useMemo(() => {
@@ -99,28 +97,26 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                     livePricesByAsset[assetId] ?? asset.avgCost.value;
                 const currentValue = getPositionCurrentValue(
                     asset.amount,
-                    currentPrice
+                    currentPrice,
                 );
                 const valueVisual = toVisualValue(
                     currentValue,
                     asset.tradingCurrency,
                     settings.visualCurrency,
-                    forexRates
+                    forexRates,
                 );
                 return sum + valueVisual;
             }, 0);
             return { id: pie.id, name: pie.name, value: pieValue };
         });
 
-        const totalValue = getTotalValue(
-            pieTotals.map((pie) => pie.value)
-        );
+        const totalValue = getTotalValue(pieTotals.map((pie) => pie.value));
 
         return pieTotals
             .map((pie, index) => ({
                 name: pie.name,
                 value: Number(
-                    getAllocationPercent(pie.value, totalValue).toFixed(2)
+                    getAllocationPercent(pie.value, totalValue).toFixed(2),
                 ),
                 color: piePalette[index % piePalette.length],
             }))
@@ -149,7 +145,7 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                         ? riskValue
                         : undefined,
                 assetIds: [],
-            })
+            }),
         );
         setPieName("");
         setPieDescription("");
@@ -159,10 +155,7 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
 
     return (
         <div className="pb-20">
-            <PageHeader
-                title="Pies"
-                onMenuClick={onMenuClick}
-            />
+            <PageHeader title="Pies" onMenuClick={onMenuClick} />
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
                 <Card title="Allocation by Pie">
@@ -195,7 +188,7 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                             .filter(Boolean);
                         const pieAssetIds = new Set(pie.assetIds);
                         const pieTransactionsForCard = Object.values(
-                            walletTx
+                            walletTx,
                         ).filter((tx) => {
                             if (!("assetId" in tx) || !tx.assetId) return false;
                             return pieAssetIds.has(tx.assetId);
@@ -203,7 +196,7 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                         const costBasisByAsset = calculatePositionCostBasis(
                             pieTransactionsForCard,
                             settings.visualCurrency,
-                            forexRates
+                            forexRates,
                         );
                         const holdingSummaries = pieAssets.map((asset) => {
                             const currentPrice =
@@ -211,28 +204,29 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                                 asset.avgCost.value;
                             const currentValue = getPositionCurrentValue(
                                 asset.amount,
-                                currentPrice
+                                currentPrice,
                             );
                             const valueVisual = toVisualValue(
                                 currentValue,
                                 asset.tradingCurrency,
                                 settings.visualCurrency,
-                                forexRates
+                                forexRates,
                             );
                             const investedValueVisual =
-                                costBasisByAsset.get(asset.id)?.costBasisVisual ??
+                                costBasisByAsset.get(asset.id)
+                                    ?.costBasisVisual ??
                                 toVisualValue(
                                     getPositionInvestedValue(
                                         asset.amount,
-                                        asset.avgCost.value
+                                        asset.avgCost.value,
                                     ),
                                     asset.tradingCurrency,
                                     settings.visualCurrency,
-                                    forexRates
+                                    forexRates,
                                 );
                             const pnl = getPnL(
                                 valueVisual,
-                                investedValueVisual
+                                investedValueVisual,
                             );
                             return {
                                 currentValue: valueVisual,
@@ -242,11 +236,11 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                         });
                         const totalValue = getTotalValue(
                             holdingSummaries.map(
-                                (summary) => summary.currentValue
-                            )
+                                (summary) => summary.currentValue,
+                            ),
                         );
                         const unrealizedPnl = getTotalValue(
-                            holdingSummaries.map((summary) => summary.pnl)
+                            holdingSummaries.map((summary) => summary.pnl),
                         );
                         return (
                             <PieCard
@@ -306,9 +300,8 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                             Risk (1-5)
                         </label>
                         <input
-                            type="number"
-                            min={1}
-                            max={5}
+                            type="text"
+                            inputMode="numeric"
                             value={pieRisk}
                             onChange={(event) => setPieRisk(event.target.value)}
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"

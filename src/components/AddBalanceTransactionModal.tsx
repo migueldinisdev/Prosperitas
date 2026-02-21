@@ -31,15 +31,15 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({
     const [description, setDescription] = useState("");
     const [categoryId, setCategoryId] = useState("");
     const [date, setDate] = useState(() =>
-        getMonthDateInputValue(effectiveMonth)
+        getMonthDateInputValue(effectiveMonth),
     );
 
     const categoryOptions = useMemo(
         () =>
             Object.values(categories).filter(
-                (category) => category.type === type
+                (category) => category.type === type,
             ),
-        [categories, type]
+        [categories, type],
     );
 
     useEffect(() => {
@@ -91,10 +91,12 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({
                         value: parsedAmount,
                         currency: balanceCurrency,
                     },
-                    description: description.trim() ? description.trim() : undefined,
+                    description: description.trim()
+                        ? description.trim()
+                        : undefined,
                     createdAt: new Date().toISOString(),
                 },
-            })
+            }),
         );
 
         setAmount("");
@@ -128,12 +130,13 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({
                         Amount
                     </label>
                     <input
-                        type="number"
+                        type="text"
                         inputMode="decimal"
-                        min="0"
-                        step="0.01"
                         value={amount}
-                        onChange={(event) => setAmount(event.target.value)}
+                        onChange={(event) => {
+                            const value = event.target.value.replace(/,/g, ".");
+                            setAmount(value);
+                        }}
                         placeholder="0.00"
                         className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                     />
@@ -183,7 +186,11 @@ export const AddBalanceTransactionModal: React.FC<Props> = ({
                 </div>
 
                 <div className="pt-2">
-                    <Button className="w-full" onClick={handleSave} disabled={isSaveDisabled}>
+                    <Button
+                        className="w-full"
+                        onClick={handleSave}
+                        disabled={isSaveDisabled}
+                    >
                         Save Transaction
                     </Button>
                 </div>
