@@ -441,6 +441,16 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                                     {unrealizedIsPositive ? "+" : ""}
                                     {formatCurrency(totals.pnl, settings.visualCurrency)}
                                 </span>
+                                <span
+                                    className={`ml-2 text-xs font-semibold ${
+                                        unrealizedIsPositive
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    ({unrealizedIsPositive ? "+" : ""}
+                                    {totals.pnlPercent.toFixed(1)}%)
+                                </span>
                             </p>
                             <p className="text-sm text-app-muted">
                                 Cost Basis

@@ -1093,16 +1093,22 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     {unrealizedIsPositive ? "+" : ""}
                                     {formatCurrency(totals.pnl, settings.visualCurrency)}
                                 </span>
+                                <span
+                                    className={`ml-2 text-xs font-semibold ${
+                                        unrealizedIsPositive
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    ({unrealizedIsPositive ? "+" : ""}
+                                    {unrealizedPercent.toFixed(1)}%)
+                                </span>
                             </p>
                             <p className="text-sm text-app-muted">
                                 Cost Basis
                                 <span className="ml-2 text-app-foreground font-semibold">
                                     {formatCurrency(totals.invested, settings.visualCurrency)}
                                 </span>
-                            </p>
-                            <p className="text-xs text-app-muted">
-                                {unrealizedIsPositive ? "+" : ""}
-                                {unrealizedPercent.toFixed(1)}%
                             </p>
                         </div>
                     </Card>
@@ -1116,11 +1122,6 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         </p>
                         <div className="mt-2 space-y-2">
                             <div className="flex items-center gap-2">
-                                {realizedIsPositive ? (
-                                    <ArrowUpRight size={18} />
-                                ) : (
-                                    <ArrowDownLeft size={18} />
-                                )}
                                 <span className="text-sm text-app-muted">
                                     Realized
                                     <span
