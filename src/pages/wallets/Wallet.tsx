@@ -82,6 +82,11 @@ const invertRate = (value: string) => {
     }
     return (1 / parsed).toString();
 };
+const invertPair = (pair: string) => {
+    const [base, quote] = pair.split("/");
+    if (!base || !quote) return pair;
+    return `${quote}/${base}`;
+};
 
 interface WalletAllocationSectionProps {
     pieData: { name: string; value: number; color: string }[];
@@ -236,6 +241,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [tradeFxFeeCurrency, setTradeFxFeeCurrency] =
         useState<Currency>("USD");
     const [tradeFxRate, setTradeFxRate] = useState("");
+    const [isTradeFxRateInverted, setTradeFxRateInverted] = useState(false);
     const [tradePieId, setTradePieId] = useState("");
     const [tradeDate, setTradeDate] = useState(
         new Date().toISOString().slice(0, 10)
@@ -283,7 +289,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             : Boolean(tradeName || tradeTicker);
     const hasTradeBasics =
         tradeQuantityValue > 0 && tradePriceValue > 0 && hasAssetRequirement;
-    const hasFxDetails = fxEnabled ? Number(tradeFxRate) > 0 : true;
+    const tradeFxRateValue = Number(tradeFxRate);
+    const normalizedTradeFxRate =
+        isTradeFxRateInverted && tradeFxRateValue > 0
+            ? 1 / tradeFxRateValue
+            : tradeFxRateValue;
+    const tradeFxPairDisplay = isTradeFxRateInverted ? invertPair(fxPair) : fxPair;
+    const hasFxDetails = fxEnabled ? normalizedTradeFxRate > 0 : true;
     const showTradeSummary = hasTradeBasics && hasFxDetails;
     const needsStooqWarning =
         (tradeAssetType === "stock" || tradeAssetType === "etf") &&
@@ -365,7 +377,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             );
             return;
         }
-        const rate = Number(tradeFxRate);
+        const rate = normalizedTradeFxRate;
         if (rate <= 0) {
             setTradeFundingAmount("");
             return;
@@ -375,7 +387,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 ? formatFundingAmount(tradeTotal * rate)
                 : formatFundingAmount(tradeTotal / rate)
         );
-    }, [fxEnabled, tradeFxRate, tradeTotal, tradeType]);
+    }, [fxEnabled, normalizedTradeFxRate, tradeTotal, tradeType]);
 
     useEffect(() => {
         if (tradeAssetType !== "stock" && tradeAssetType !== "etf") {
@@ -858,12 +870,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     };
 
     const handleInvertTradeFx = () => {
-        if (!canEditTradeCurrency) return;
-        const nextFundingCurrency = tradeCurrency;
-        const nextTradeCurrency = tradeFundingCurrency;
-        setTradeFundingCurrency(nextFundingCurrency);
-        setTradeCurrency(nextTradeCurrency);
         setTradeFxRate(invertRate(tradeFxRate));
+        setTradeFxRateInverted((current) => !current);
     };
 
     const handleAddTrade = () => {
@@ -877,7 +885,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     existing.tradingCurrency === tradeCurrency
             )?.id;
 
-        if (fxEnabled && Number(tradeFxRate) <= 0) return;
+        if (fxEnabled && normalizedTradeFxRate <= 0) return;
 
         let assetId = asset ?? "";
         if (tradeType === "sell" && !assetId) return;
@@ -943,7 +951,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
         if (tradeType === "sell" && !hasSufficientAsset) return;
 
-        const shouldForex = fxEnabled && Number(tradeFxRate) > 0;
+        const shouldForex = fxEnabled && normalizedTradeFxRate > 0;
         const dispatchForex = () => {
             const forexId = `tx_${Date.now()}_fx`;
             dispatch(
@@ -973,7 +981,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                   currency: tradeFxFeeCurrency,
                               }
                             : undefined,
-                    fxRate: Number(tradeFxRate),
+                    fxRate: normalizedTradeFxRate,
                     createdAt: new Date().toISOString(),
                 })
             );
@@ -994,7 +1002,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 price: { value: tradePriceValue, currency: tradeCurrency },
                 fxPair: fxEnabled ? fxPair : undefined,
                 fxRate:
-                    fxEnabled && tradeFxRate ? Number(tradeFxRate) : undefined,
+                    fxEnabled && normalizedTradeFxRate > 0
+                        ? normalizedTradeFxRate
+                        : undefined,
                 fees:
                     tradeFeesValue > 0
                         ? { value: tradeFeesValue, currency: tradeFeesCurrency }
@@ -1021,6 +1031,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         setTradeFxFee("");
         setTradeFundingAmount("");
         setTradeFxRate("");
+        setTradeFxRateInverted(false);
     };
 
     return (
@@ -2059,7 +2070,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 </label>
                                 <input
                                     type="text"
-                                    value={fxPair}
+                                    value={tradeFxPairDisplay}
                                     disabled
                                     className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                                 />
@@ -2072,8 +2083,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     <button
                                         type="button"
                                         onClick={handleInvertTradeFx}
-                                        disabled={!canEditTradeCurrency}
-                                        className="inline-flex items-center gap-1 rounded-md border border-app-border px-2 py-1 text-[11px] font-medium text-app-muted transition-colors hover:bg-app-surface disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="inline-flex items-center gap-1 rounded-md border border-app-border px-2 py-1 text-[11px] font-medium text-app-muted transition-colors hover:bg-app-surface"
                                     >
                                         <ArrowLeftRight size={12} />
                                         Invert
@@ -2291,7 +2301,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                                     ? `, using ${roundedFundingAmountValue.toFixed(
                                                           2
                                                       )} ${tradeFundingCurrency} converted at an FX rate of ${
-                                                          tradeFxRate || "-"
+                                                          (tradeFxRate || "-")
                                                       }`
                                                     : "."}
                                             </p>
@@ -2319,7 +2329,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                                     ? `, with proceeds converted to ${roundedFundingAmountValue.toFixed(
                                                           2
                                                       )} ${tradeFundingCurrency} at an FX rate of ${
-                                                          tradeFxRate || "-"
+                                                          (tradeFxRate || "-")
                                                       }`
                                                     : "."}
                                             </p>
