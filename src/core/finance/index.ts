@@ -389,3 +389,105 @@ export const calculateRealizedPnl = (
         }
     }, 0);
 };
+
+export const calculateRealizedPnlBreakdown = (
+    transactions: WalletTx[],
+    visualCurrency: string,
+    forexRates: Record<string, number>,
+    getForexRate?: ForexRateGetter
+) => {
+    const toVisualValueForTx = (
+        tx: BuyWalletTx | SellWalletTx,
+        amount: number
+    ) =>
+        tx.fxPair && tx.fxRate
+            ? toVisualValueUsingTxFx(
+                  amount,
+                  tx.price.currency,
+                  visualCurrency,
+                  forexRates,
+                  tx.fxPair,
+                  tx.fxRate
+              )
+            : toVisualValue(
+                  amount,
+                  tx.price.currency,
+                  visualCurrency,
+                  forexRates,
+                  tx.date,
+                  getForexRate
+              );
+    const lotsByAsset = new Map<
+        string,
+        Array<{ quantity: number; costBasisVisual: number }>
+    >();
+    const sorted = [...transactions].sort((a, b) => {
+        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return (
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+    });
+
+    return sorted.reduce(
+        (acc, tx) => {
+            switch (tx.type) {
+                case "buy": {
+                    const costVisual = toVisualValueForTx(
+                        tx,
+                        tx.price.value * tx.quantity
+                    );
+                    const lots = lotsByAsset.get(tx.assetId) ?? [];
+                    lots.push({
+                        quantity: tx.quantity,
+                        costBasisVisual: costVisual,
+                    });
+                    lotsByAsset.set(tx.assetId, lots);
+                    return acc;
+                }
+                case "sell": {
+                    const lots = lotsByAsset.get(tx.assetId) ?? [];
+                    const availableQuantity = lots.reduce(
+                        (sum, lot) => sum + lot.quantity,
+                        0
+                    );
+                    const quantity = Math.min(tx.quantity, availableQuantity);
+                    const proceedsVisual = toVisualValueForTx(
+                        tx,
+                        tx.price.value * quantity
+                    );
+                    let remainingQuantity = quantity;
+                    let costBasisConsumed = 0;
+
+                    while (remainingQuantity > 0 && lots.length > 0) {
+                        const lot = lots[0];
+                        const quantityToConsume = Math.min(
+                            remainingQuantity,
+                            lot.quantity
+                        );
+                        const costPerUnit = lot.costBasisVisual / lot.quantity;
+                        costBasisConsumed += costPerUnit * quantityToConsume;
+                        lot.quantity -= quantityToConsume;
+                        lot.costBasisVisual -= costPerUnit * quantityToConsume;
+                        remainingQuantity -= quantityToConsume;
+                        if (lot.quantity <= 0) {
+                            lots.shift();
+                        }
+                    }
+
+                    lotsByAsset.set(tx.assetId, lots);
+                    const realized = proceedsVisual - costBasisConsumed;
+                    if (realized >= 0) {
+                        acc.positive += realized;
+                    } else {
+                        acc.negative += realized;
+                    }
+                    return acc;
+                }
+                default:
+                    return acc;
+            }
+        },
+        { positive: 0, negative: 0 }
+    );
+};

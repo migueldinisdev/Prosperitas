@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
-    ArrowDownLeft,
     ArrowLeft,
-    ArrowUpRight,
     Pencil,
     PieChart as PieIcon,
     Menu,
@@ -196,8 +194,6 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
         pieTransactions,
         settings.visualCurrency,
     ]);
-    const unrealizedIsPositive = totals.pnl >= 0;
-
     const allocation = useMemo(() => {
         const colors = [
             "#6366f1",
@@ -255,108 +251,82 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
             </header>
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Current Value
-                        </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">
-                            {formatCurrency(
-                                totals.currentValue,
-                                settings.visualCurrency
-                            )}
-                        </p>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Assets
-                        </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">
-                            {assets.length}
-                        </p>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Invested
-                        </p>
-                        <p className="text-2xl font-bold text-app-foreground mt-1">
-                            {formatCurrency(
-                                totals.invested,
-                                settings.visualCurrency
-                            )}
-                        </p>
-                    </Card>
-                    <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            PnL
+                            Open Positions
                         </p>
                         <div className="mt-2 space-y-2">
-                            <div
-                                className={`flex items-center gap-2 ${
-                                    unrealizedIsPositive
-                                        ? "text-app-success"
-                                        : "text-app-danger"
-                                }`}
-                            >
-                                {unrealizedIsPositive ? (
-                                    <ArrowUpRight size={18} />
-                                ) : (
-                                    <ArrowDownLeft size={18} />
-                                )}
-                                <span className="text-lg font-bold">
-                                    Unrealized {unrealizedIsPositive ? "+" : ""}
-                                    {formatCurrency(
-                                        totals.pnl,
-                                        settings.visualCurrency
-                                    )}
+                            <p className="text-2xl font-bold text-app-foreground">
+                                {formatCurrency(totals.currentValue, settings.visualCurrency)}
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Unrealized
+                                <span
+                                    className={`ml-2 font-semibold ${
+                                        totals.pnl >= 0
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    {totals.pnl >= 0 ? "+" : ""}
+                                    {formatCurrency(totals.pnl, settings.visualCurrency)}
                                 </span>
-                            </div>
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Cost Basis
+                                <span className="ml-2 text-app-foreground font-semibold">
+                                    {formatCurrency(totals.invested, settings.visualCurrency)}
+                                </span>
+                            </p>
+                            <p>Assets {assets.length}</p>
                         </div>
                     </Card>
                     <Card className="p-4">
-                        <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                            Risk Score
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="text-lg font-semibold text-app-foreground">
-                                {pie?.risk ? `${pie.risk}/5` : "N/A"}
-                            </span>
-                            <div className="flex gap-1">
-                                {[1, 2, 3, 4, 5].map((level) => (
-                                    <div
-                                        key={level}
-                                        className={`w-1 h-3 rounded-full ${
-                                            level <= riskValue
-                                                ? "bg-app-primary"
-                                                : "bg-app-border"
-                                        }`}
-                                    />
-                                ))}
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                                        Risk Score
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-lg font-semibold text-app-foreground">
+                                            {pie?.risk ? `${pie.risk}/5` : "N/A"}
+                                        </span>
+                                        <div className="flex gap-1">
+                                            {[1, 2, 3, 4, 5].map((level) => (
+                                                <div
+                                                    key={level}
+                                                    className={`w-1 h-3 rounded-full ${
+                                                        level <= riskValue
+                                                            ? "bg-app-primary"
+                                                            : "bg-app-border"
+                                                    }`}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                                        Description
+                                    </p>
+                                    <p className="text-sm text-app-foreground mt-1">
+                                        {description}
+                                    </p>
+                                </div>
                             </div>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => setEditOpen(true)}
+                                icon={<Pencil size={16} />}
+                            >
+                                Edit Pie
+                            </Button>
                         </div>
                     </Card>
                 </div>
-
-                <Card className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
-                                Description
-                            </p>
-                            <p className="text-sm text-app-foreground mt-1">
-                                {description}
-                            </p>
-                        </div>
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setEditOpen(true)}
-                            icon={<Pencil size={16} />}
-                        >
-                            Edit Pie
-                        </Button>
-                    </div>
-                </Card>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card title="Performance History" className="lg:col-span-2">
@@ -443,13 +413,17 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                             Risk (1-5)
                         </label>
                         <input
-                            type="number"
+                            type="range"
                             min={1}
                             max={5}
+                            step={1}
                             value={editRisk}
                             onChange={(event) => setEditRisk(event.target.value)}
-                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                            className="w-full accent-app-primary"
                         />
+                        <p className="mt-2 text-sm text-app-muted">
+                            Current: {editRisk || "N/A"}
+                        </p>
                     </div>
                     <Button
                         className="w-full"
