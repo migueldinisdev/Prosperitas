@@ -116,21 +116,42 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
             })
             .sort((a, b) => a.month.localeCompare(b.month));
 
-        const last12 = byMonth.slice(-12);
+        const rateEligibleMonths = byMonth.filter((item) => item.income > 0);
+        const last12RateEligible = rateEligibleMonths.slice(-12);
         const average = (values: number[]) =>
             values.length > 0
                 ? values.reduce((sum, value) => sum + value, 0) / values.length
                 : 0;
 
         return {
-            avgSpendingRateEver: average(byMonth.map((item) => item.spendingRate)),
-            avgSavingsRateEver: average(byMonth.map((item) => item.savingsRate)),
-            avgSpendingRateLast12: average(last12.map((item) => item.spendingRate)),
-            avgSavingsRateLast12: average(last12.map((item) => item.savingsRate)),
+            avgSpendingRateEver: average(
+                rateEligibleMonths.map((item) => item.spendingRate)
+            ),
+            avgSavingsRateEver: average(
+                rateEligibleMonths.map((item) => item.savingsRate)
+            ),
+            avgSpendingRateLast12: average(
+                last12RateEligible.map((item) => item.spendingRate)
+            ),
+            avgSavingsRateLast12: average(
+                last12RateEligible.map((item) => item.savingsRate)
+            ),
             avgSpendingAbsoluteEver: average(byMonth.map((item) => item.expenses)),
             avgSavingsAbsoluteEver: average(byMonth.map((item) => item.netSavings)),
         };
     }, [balance]);
+
+    const getCardA11yProps = (kind: "spending" | "savings") => ({
+        role: "button" as const,
+        tabIndex: 0,
+        "aria-label": `Open ${kind} rate details`,
+        onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setOpenRateDetails(kind);
+            }
+        },
+    });
 
     const formatDeltaPercent = (delta: number) =>
         `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%`;
@@ -177,6 +198,7 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                         title="Savings Rate"
                         className="cursor-pointer hover:border-app-primary/50 transition-colors"
                         onClick={() => setOpenRateDetails("savings")}
+                        {...getCardA11yProps("savings")}
                     >
                         <div className="flex items-end gap-2 mb-2">
                             <span className="text-4xl font-bold text-app-foreground">
@@ -219,6 +241,7 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                         title="Spending Rate"
                         className="cursor-pointer hover:border-app-primary/50 transition-colors"
                         onClick={() => setOpenRateDetails("spending")}
+                        {...getCardA11yProps("spending")}
                     >
                         <div className="flex items-end gap-2 mb-2">
                             <span className="text-4xl font-bold text-app-foreground">
