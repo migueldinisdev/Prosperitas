@@ -40,7 +40,7 @@ export const LineChart = React.memo(
                 >
                     <ReLineChart
                         data={data}
-                        margin={{ top: 5, right: 0, left: -20, bottom: 0 }}
+                        margin={{ top: 5, right: 16, left: 12, bottom: 0 }}
                     >
                         <CartesianGrid
                             strokeDasharray="3 3"
@@ -60,6 +60,7 @@ export const LineChart = React.memo(
                             fontSize={12}
                             tickLine={false}
                             axisLine={false}
+                            width={90}
                             tickFormatter={(value) => `$${value}`}
                         />
                         <Tooltip

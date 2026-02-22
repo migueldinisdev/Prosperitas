@@ -37,8 +37,8 @@ const formatDateLabel = (date: string, locale?: string) => {
         return date;
     }
     return parsed.toLocaleDateString(locale ?? undefined, {
-        month: "short",
-        day: "numeric",
+        day: "2-digit",
+        month: "2-digit",
     });
 };
 

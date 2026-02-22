@@ -5,7 +5,6 @@ import {
     Pie,
     Cell,
     Tooltip,
-    Legend,
 } from "recharts";
 import { ChartContainer } from "./ChartContainer";
 
@@ -15,48 +14,71 @@ interface PieChartProps {
     isLoading?: boolean;
 }
 
-export const PieChart = React.memo(
-    ({ data, height = 300, isLoading }: PieChartProps) => {
+export const PieChart = React.memo(({ data, height = 300, isLoading }: PieChartProps) => {
     console.log("PieChart re-rendered");
     const resolvedLoading = isLoading ?? (!data || data.length === 0);
+
     return (
         <ChartContainer height={height} isLoading={resolvedLoading}>
-            <ResponsiveContainer
-                width="100%"
-                height="100%"
-                minWidth={1}
-                minHeight={1}
-                initialDimension={{ width: 1, height: 1 }}
-            >
-                <RePieChart>
-                    <Pie
-                        data={data}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={5}
-                        dataKey="value"
-                        stroke="none"
+            <div className="flex h-full min-h-0 flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+                <div className="min-h-0 min-w-0 flex-1">
+                    <ResponsiveContainer
+                        width="100%"
+                        height="100%"
+                        minWidth={1}
+                        minHeight={1}
+                        initialDimension={{ width: 1, height: 1 }}
                     >
+                        <RePieChart>
+                            <Pie
+                                data={data}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={90}
+                                paddingAngle={5}
+                                dataKey="value"
+                                stroke="none"
+                            >
+                                {data.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                            </Pie>
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: "rgb(var(--color-app-card))",
+                                    borderColor: "rgb(var(--color-app-border))",
+                                    borderRadius: "8px",
+                                    color: "rgb(var(--color-app-foreground))",
+                                }}
+                                itemStyle={{
+                                    color: "rgb(var(--color-app-foreground))",
+                                }}
+                            />
+                        </RePieChart>
+                    </ResponsiveContainer>
+                </div>
+
+                <div className="max-h-36 min-w-0 overflow-y-auto rounded-md border border-app-border/70 bg-app-bg/40 p-2 lg:max-h-full lg:w-56">
+                    <ul className="space-y-1.5">
                         {data.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
+                            <li
+                                key={`${entry.name}-${index}`}
+                                className="flex items-center gap-2 text-xs text-app-muted"
+                            >
+                                <span
+                                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                    style={{ backgroundColor: entry.color }}
+                                    aria-hidden="true"
+                                />
+                                <span className="min-w-0 flex-1 truncate text-app-foreground" title={entry.name}>
+                                    {entry.name}
+                                </span>
+                            </li>
                         ))}
-                    </Pie>
-                    <Tooltip
-                        contentStyle={{
-                            backgroundColor: "rgb(var(--color-app-card))",
-                            borderColor: "rgb(var(--color-app-border))",
-                            borderRadius: "8px",
-                            color: "rgb(var(--color-app-foreground))",
-                        }}
-                        itemStyle={{
-                            color: "rgb(var(--color-app-foreground))",
-                        }}
-                    />
-                    <Legend iconType="circle" />
-                </RePieChart>
-            </ResponsiveContainer>
+                    </ul>
+                </div>
+            </div>
         </ChartContainer>
     );
 });
