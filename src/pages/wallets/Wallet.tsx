@@ -282,7 +282,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             : Boolean(tradeName || tradeTicker);
     const hasTradeBasics =
         tradeQuantityValue > 0 && tradePriceValue > 0 && hasAssetRequirement;
-    const hasFxDetails = fxEnabled ? Number(tradeFxRate) > 0 : true;
+    const tradeFxRateValue = Number(tradeFxRate);
+    const hasValidTradeFxRate =
+        Number.isFinite(tradeFxRateValue) && tradeFxRateValue > 0;
+    const hasFxDetails = fxEnabled ? hasValidTradeFxRate : true;
     const showTradeSummary = hasTradeBasics && hasFxDetails;
     const needsStooqWarning =
         (tradeAssetType === "stock" || tradeAssetType === "etf") &&
@@ -365,7 +368,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             return;
         }
         const rate = Number(tradeFxRate);
-        if (rate <= 0) {
+        if (!Number.isFinite(rate) || rate <= 0) {
             setTradeFundingAmount("");
             return;
         }
@@ -660,6 +663,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             setter(value);
         };
 
+    const handleInvertTradeFxRate = () => {
+        if (!hasValidTradeFxRate) return;
+        const invertedRate = 1 / tradeFxRateValue;
+        if (!Number.isFinite(invertedRate) || invertedRate <= 0) return;
+        setTradeFxRate(invertedRate.toString());
+    };
+
     const getWalletCashValue = (currency: Currency) => {
         if (!walletCash) return 0;
         if (Array.isArray(walletCash)) {
@@ -875,7 +885,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     existing.tradingCurrency === tradeCurrency
             )?.id;
 
-        if (fxEnabled && Number(tradeFxRate) <= 0) return;
+        if (fxEnabled && !hasValidTradeFxRate) return;
 
         let assetId = asset ?? "";
         if (tradeType === "sell" && !assetId) return;
@@ -941,7 +951,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
         if (tradeType === "sell" && !hasSufficientAsset) return;
 
-        const shouldForex = fxEnabled && Number(tradeFxRate) > 0;
+        const shouldForex = fxEnabled && hasValidTradeFxRate;
         const dispatchForex = () => {
             const forexId = `tx_${Date.now()}_fx`;
             dispatch(
@@ -971,7 +981,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                   currency: tradeFxFeeCurrency,
                               }
                             : undefined,
-                    fxRate: Number(tradeFxRate),
+                    fxRate: tradeFxRateValue,
                     createdAt: new Date().toISOString(),
                 })
             );
@@ -991,8 +1001,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 quantity: tradeQuantityValue,
                 price: { value: tradePriceValue, currency: tradeCurrency },
                 fxPair: fxEnabled ? fxPair : undefined,
-                fxRate:
-                    fxEnabled && tradeFxRate ? Number(tradeFxRate) : undefined,
+                fxRate: fxEnabled && hasValidTradeFxRate ? tradeFxRateValue : undefined,
                 fees:
                     tradeFeesValue > 0
                         ? { value: tradeFeesValue, currency: tradeFeesCurrency }
@@ -2121,17 +2130,28 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 <label className="block text-xs font-medium text-app-muted mb-1">
                                     FX Rate
                                 </label>
-                                <input
-                                    type="number"
-                                    value={tradeFxRate}
-                                    onChange={(event) =>
-                                        handleNonNegativeChange(setTradeFxRate)(
-                                            event
-                                        )
-                                    }
-                                    min="0"
-                                    className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
-                                />
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        value={tradeFxRate}
+                                        onChange={(event) =>
+                                            handleNonNegativeChange(
+                                                setTradeFxRate
+                                            )(event)
+                                        }
+                                        min="0"
+                                        className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={handleInvertTradeFxRate}
+                                        disabled={!hasValidTradeFxRate}
+                                    >
+                                        Invert
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     )}
