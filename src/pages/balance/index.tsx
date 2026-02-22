@@ -65,6 +65,14 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
         return (cashFlow.expenses / cashFlow.income) * 100;
     }, [cashFlow.expenses, cashFlow.income]);
 
+    const spendingRateProgress = useMemo(() => {
+        if (cashFlow.income <= 0) {
+            return 0;
+        }
+
+        return Math.min(Math.max((cashFlow.expenses / cashFlow.income) * 100, 0), 100);
+    }, [cashFlow.expenses, cashFlow.income]);
+
     const formatRate = (value: number) =>
         `${Math.round(Math.min(Math.max(value, 0), 100))}%`;
 
@@ -224,10 +232,8 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                             <div
                                 className="bg-app-warning h-full"
                                 style={{
-                                    width: `${Math.min(
-                                        Math.max(spendingRate, 0),
-                                        100
-                                    )}%`,
+                                    width: `${spendingRateProgress}%`,
+                                    minWidth: spendingRateProgress > 0 ? "2px" : "0px",
                                 }}
                             ></div>
                             <div

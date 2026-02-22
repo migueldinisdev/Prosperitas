@@ -14,12 +14,12 @@ import { Asset } from "../../core/schema-types";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
+import { useNetWorthHistory } from "../../hooks/useNetWorthHistory";
 import {
     calculatePositionCostBasis,
     calculateRealizedPnl,
     getNetWorth,
     getPnL,
-    getPnLPercent,
     getPositionCurrentValue,
     getPositionInvestedValue,
     getTotalValue,
@@ -27,6 +27,19 @@ import {
 } from "../../core/finance";
 import { formatCurrency } from "../../utils/formatters";
 import { getWalletTxCurrencies } from "../../utils/netWorthHistory";
+
+const formatDateKey = (date: Date) => date.toISOString().slice(0, 10);
+
+const shiftDate = (baseDate: Date, days = 0, months = 0) => {
+    const shifted = new Date(baseDate);
+    if (months !== 0) {
+        shifted.setMonth(shifted.getMonth() + months);
+    }
+    if (days !== 0) {
+        shifted.setDate(shifted.getDate() + days);
+    }
+    return shifted;
+};
 
 export const HomeSummarySection: React.FC = () => {
     const wallets = useAppSelector(selectWallets);
@@ -148,7 +161,6 @@ export const HomeSummarySection: React.FC = () => {
             holdingValues.map((summary) => summary.currentValueVisual)
         );
         const pnl = getPnL(totalCurrent, totalInvested);
-        const pnlPercent = getPnLPercent(totalCurrent, totalInvested);
         const realizedPnl = calculateRealizedPnl(
             Object.values(walletTx),
             settings.visualCurrency,
@@ -169,7 +181,6 @@ export const HomeSummarySection: React.FC = () => {
         return {
             netWorth: getNetWorth(totalCurrent, cashTotal),
             pnl,
-            pnlPercent,
             realizedPnl,
         };
     }, [
@@ -250,6 +261,49 @@ export const HomeSummarySection: React.FC = () => {
 
     const pnlIsPositive = totalUnrealizedPnl >= 0;
 
+    const netWorthComparisonDates = useMemo(() => {
+        const now = new Date();
+        return [
+            { label: "24h", date: formatDateKey(shiftDate(now, -1)) },
+            { label: "7d", date: formatDateKey(shiftDate(now, -7)) },
+            { label: "1mo", date: formatDateKey(shiftDate(now, 0, -1)) },
+            { label: "6mo", date: formatDateKey(shiftDate(now, 0, -6)) },
+            { label: "12mo", date: formatDateKey(shiftDate(now, 0, -12)) },
+        ];
+    }, []);
+
+    const { data: netWorthSnapshots } = useNetWorthHistory({
+        transactions: walletTransactions,
+        assets,
+        baseCurrency: settings.visualCurrency,
+        locale: settings.locale,
+        snapshotDates: netWorthComparisonDates.map((item) => item.date),
+    });
+
+    const netWorthComparisons = useMemo(() => {
+        const snapshotMap = new Map(
+            netWorthSnapshots.map((snapshot) => [snapshot.date, snapshot.value])
+        );
+
+        return netWorthComparisonDates.map(({ label, date }) => {
+            const previousValue = snapshotMap.get(date);
+            if (previousValue === undefined || previousValue <= 0) {
+                return {
+                    label,
+                    hasValue: false,
+                    percent: 0,
+                };
+            }
+
+            return {
+                label,
+                hasValue: true,
+                percent:
+                    ((totals.netWorth - previousValue) / previousValue) * 100,
+            };
+        });
+    }, [netWorthComparisonDates, netWorthSnapshots, totals.netWorth]);
+
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 gap-6">
@@ -263,22 +317,37 @@ export const HomeSummarySection: React.FC = () => {
                             settings.visualCurrency
                         )}
                     </h2>
-                    <div
-                        className={`flex items-center gap-1 text-sm font-medium w-fit px-2 py-1 rounded-full mb-4 ${
-                            pnlIsPositive
-                                ? "text-app-success bg-emerald-500/10"
-                                : "text-app-danger bg-rose-500/10"
-                        }`}
-                    >
-                        {pnlIsPositive ? (
-                            <ArrowUpRight size={14} />
-                        ) : (
-                            <ArrowDownRight size={14} />
-                        )}
-                        <span>
-                            {pnlIsPositive ? "+" : ""}
-                            {totals.pnlPercent.toFixed(2)}%
-                        </span>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+                        {netWorthComparisons.map((comparison) => {
+                            const comparisonPositive = comparison.percent >= 0;
+                            return (
+                                <div
+                                    key={comparison.label}
+                                    className={`flex items-center justify-between text-xs font-medium px-2 py-1 rounded-full ${
+                                        comparison.hasValue
+                                            ? comparisonPositive
+                                                ? "text-app-success bg-emerald-500/10"
+                                                : "text-app-danger bg-rose-500/10"
+                                            : "text-app-muted bg-app-surface"
+                                    }`}
+                                >
+                                    <span>{comparison.label}</span>
+                                    {comparison.hasValue ? (
+                                        <span className="flex items-center gap-1">
+                                            {comparisonPositive ? (
+                                                <ArrowUpRight size={12} />
+                                            ) : (
+                                                <ArrowDownRight size={12} />
+                                            )}
+                                            {comparisonPositive ? "+" : ""}
+                                            {comparison.percent.toFixed(2)}%
+                                        </span>
+                                    ) : (
+                                        <span>n/a</span>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-app-border">
