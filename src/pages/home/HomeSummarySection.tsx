@@ -317,13 +317,13 @@ export const HomeSummarySection: React.FC = () => {
                             settings.visualCurrency
                         )}
                     </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+                    <div className="flex flex-wrap gap-2 mb-4">
                         {netWorthComparisons.map((comparison) => {
                             const comparisonPositive = comparison.percent >= 0;
                             return (
                                 <div
                                     key={comparison.label}
-                                    className={`flex items-center justify-between text-xs font-medium px-2 py-1 rounded-full ${
+                                    className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
                                         comparison.hasValue
                                             ? comparisonPositive
                                                 ? "text-app-success bg-emerald-500/10"
