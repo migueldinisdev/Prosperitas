@@ -640,6 +640,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             setter(value);
         };
 
+    const handleInvertTradeFxRate = () => {
+        const currentRate = Number(tradeFxRate);
+        if (!Number.isFinite(currentRate) || currentRate <= 0) return;
+        setTradeFxRate((1 / currentRate).toString());
+    };
+
     const getWalletCashValue = (currency: Currency) => {
         if (!walletCash) return 0;
         if (Array.isArray(walletCash)) {
@@ -2036,17 +2042,28 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 <label className="block text-xs font-medium text-app-muted mb-1">
                                     FX Rate
                                 </label>
-                                <input
-                                    type="number"
-                                    value={tradeFxRate}
-                                    onChange={(event) =>
-                                        handleNonNegativeChange(setTradeFxRate)(
-                                            event
-                                        )
-                                    }
-                                    min="0"
-                                    className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
-                                />
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        value={tradeFxRate}
+                                        onChange={(event) =>
+                                            handleNonNegativeChange(
+                                                setTradeFxRate
+                                            )(event)
+                                        }
+                                        min="0"
+                                        className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={handleInvertTradeFxRate}
+                                        disabled={Number(tradeFxRate) <= 0}
+                                    >
+                                        Invert
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     )}
