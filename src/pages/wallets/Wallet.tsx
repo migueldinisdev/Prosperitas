@@ -278,7 +278,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             : Boolean(tradeName || tradeTicker);
     const hasTradeBasics =
         tradeQuantityValue > 0 && tradePriceValue > 0 && hasAssetRequirement;
-    const hasFxDetails = fxEnabled ? Number(tradeFxRate) > 0 : true;
+    const tradeFxRateValue = Number(tradeFxRate);
+    const hasValidTradeFxRate =
+        Number.isFinite(tradeFxRateValue) && tradeFxRateValue > 0;
+    const hasFxDetails = fxEnabled ? hasValidTradeFxRate : true;
     const showTradeSummary = hasTradeBasics && hasFxDetails;
     const needsStooqWarning =
         (tradeAssetType === "stock" || tradeAssetType === "etf") &&
@@ -361,7 +364,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             return;
         }
         const rate = Number(tradeFxRate);
-        if (rate <= 0) {
+        if (!Number.isFinite(rate) || rate <= 0) {
             setTradeFundingAmount("");
             return;
         }
@@ -641,9 +644,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         };
 
     const handleInvertTradeFxRate = () => {
-        const currentRate = Number(tradeFxRate);
-        if (!Number.isFinite(currentRate) || currentRate <= 0) return;
-        setTradeFxRate((1 / currentRate).toString());
+        if (!hasValidTradeFxRate) return;
+        const invertedRate = 1 / tradeFxRateValue;
+        if (!Number.isFinite(invertedRate) || invertedRate <= 0) return;
+        setTradeFxRate(invertedRate.toString());
     };
 
     const getWalletCashValue = (currency: Currency) => {
@@ -861,7 +865,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     existing.tradingCurrency === tradeCurrency
             )?.id;
 
-        if (fxEnabled && Number(tradeFxRate) <= 0) return;
+        if (fxEnabled && !hasValidTradeFxRate) return;
 
         let assetId = asset ?? "";
         if (tradeType === "sell" && !assetId) return;
@@ -927,7 +931,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
         if (tradeType === "sell" && !hasSufficientAsset) return;
 
-        const shouldForex = fxEnabled && Number(tradeFxRate) > 0;
+        const shouldForex = fxEnabled && hasValidTradeFxRate;
         const dispatchForex = () => {
             const forexId = `tx_${Date.now()}_fx`;
             dispatch(
@@ -957,7 +961,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                   currency: tradeFxFeeCurrency,
                               }
                             : undefined,
-                    fxRate: Number(tradeFxRate),
+                    fxRate: tradeFxRateValue,
                     createdAt: new Date().toISOString(),
                 })
             );
@@ -977,8 +981,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 quantity: tradeQuantityValue,
                 price: { value: tradePriceValue, currency: tradeCurrency },
                 fxPair: fxEnabled ? fxPair : undefined,
-                fxRate:
-                    fxEnabled && tradeFxRate ? Number(tradeFxRate) : undefined,
+                fxRate: fxEnabled && hasValidTradeFxRate ? tradeFxRateValue : undefined,
                 fees:
                     tradeFeesValue > 0
                         ? { value: tradeFeesValue, currency: tradeFeesCurrency }
@@ -2059,7 +2062,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         variant="secondary"
                                         size="sm"
                                         onClick={handleInvertTradeFxRate}
-                                        disabled={Number(tradeFxRate) <= 0}
+                                        disabled={!hasValidTradeFxRate}
                                     >
                                         Invert
                                     </Button>
