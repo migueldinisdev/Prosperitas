@@ -277,7 +277,7 @@ export const HomeSummarySection: React.FC = () => {
                         )}
                         <span>
                             {pnlIsPositive ? "+" : ""}
-                            {totals.pnlPercent.toFixed(2)}% vs cost
+                            {totals.pnlPercent.toFixed(2)}%
                         </span>
                     </div>
 
