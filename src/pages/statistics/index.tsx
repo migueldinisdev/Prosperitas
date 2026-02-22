@@ -218,24 +218,35 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             helper: "Total portfolio value",
         },
         {
-            label: "Total invested",
-            value: formatCurrency(totals.invested, settings.visualCurrency),
-            change: "Cost basis",
-            helper: `Across ${Object.keys(wallets).length} wallets`,
-        },
-        {
             label: "Assets value",
             value: formatCurrency(totals.current, settings.visualCurrency),
             change: "Realtime valuation",
-            helper: "Holdings only",
-        },
-        {
-            label: "Total PnL",
-            value: `${totals.pnl > 0 ? "+" : ""}${formatCurrency(
-                totals.pnl,
-                settings.visualCurrency
-            )}`,
-            helper: "Unrealized gain/loss on assets",
+            helper: "Holdings only (excludes cash)",
+            breakdown: [
+                {
+                    label: "Invested money",
+                    value: formatCurrency(
+                        totals.invested,
+                        settings.visualCurrency
+                    ),
+                },
+                {
+                    label: "Surplus",
+                    value: `${totals.pnl > 0 ? "+" : ""}${formatCurrency(
+                        totals.pnl,
+                        settings.visualCurrency
+                    )}`,
+                    tone:
+                        totals.pnl < 0 ? "text-app-danger" : "text-app-success",
+                },
+                {
+                    label: "Current assets value",
+                    value: formatCurrency(
+                        totals.current,
+                        settings.visualCurrency
+                    ),
+                },
+            ],
         },
         {
             label: "Cash buffer",
@@ -436,7 +447,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             <PageHeader title="Statistics" onMenuClick={onMenuClick} />
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {summaryStats.map((stat) => (
                         <Card key={stat.label}>
                             <p className="text-xs uppercase tracking-wider text-app-muted font-semibold">
@@ -452,6 +463,28 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                                     </span>
                                 )}
                             </div>
+                            {stat.breakdown ? (
+                                <div className="mt-3 space-y-2 text-xs">
+                                    {stat.breakdown.map((item) => (
+                                        <div
+                                            key={item.label}
+                                            className="flex items-center justify-between"
+                                        >
+                                            <span className="text-app-muted">
+                                                {item.label}
+                                            </span>
+                                            <span
+                                                className={`font-semibold ${
+                                                    item.tone ??
+                                                    "text-app-foreground"
+                                                }`}
+                                            >
+                                                {item.value}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : null}
                             <p className="text-xs text-app-muted mt-2">
                                 {stat.helper}
                             </p>
