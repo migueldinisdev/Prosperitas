@@ -53,6 +53,7 @@ export const AreaChart = React.memo(
                             axisLine={false}
                             dy={10}
                             ticks={ticks}
+                            interval={0}
                             tickFormatter={tickFormatter}
                         />
                         <YAxis
