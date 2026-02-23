@@ -31,15 +31,16 @@ const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
 
 const parseDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 
-const formatDateLabel = (date: string, locale?: string) => {
+const formatDateLabel = (date: string) => {
     const parsed = parseDate(date);
     if (Number.isNaN(parsed.getTime())) {
         return date;
     }
-    return parsed.toLocaleDateString(locale ?? undefined, {
-        month: "short",
-        day: "numeric",
-    });
+
+    const day = String(parsed.getUTCDate()).padStart(2, "0");
+    const month = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+
+    return `${day}-${month}`;
 };
 
 const addMonths = (date: Date, delta: number) => {
@@ -250,10 +251,10 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
                     color={color}
                     ticks={ticks}
                     tickFormatter={(value) =>
-                        formatDateLabel(String(value), locale)
+                        formatDateLabel(String(value))
                     }
                     labelFormatter={(label) =>
-                        formatDateLabel(String(label), locale)
+                        formatDateLabel(String(label))
                     }
                     yTickFormatter={(value) =>
                         formatCurrency(value, currency)
