@@ -19,6 +19,8 @@ interface UseNetWorthHistoryOptions {
     includeDividends?: boolean;
     includeForex?: boolean;
     snapshotDates?: string[];
+    livePricesByAsset?: Record<string, number>;
+    currentDate?: string;
 }
 
 const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
@@ -59,6 +61,8 @@ export const useNetWorthHistory = ({
     includeDividends = true,
     includeForex = true,
     snapshotDates,
+    livePricesByAsset,
+    currentDate,
 }: UseNetWorthHistoryOptions): {
     data: NetWorthHistoryPoint[];
     isLoading: boolean;
@@ -228,6 +232,12 @@ export const useNetWorthHistory = ({
 
     const data = useMemo(() => {
         const getAssetPrice = (assetId: string, date: string) => {
+            if (currentDate && date === currentDate) {
+                const livePrice = livePricesByAsset?.[assetId];
+                if (Number.isFinite(livePrice)) {
+                    return livePrice;
+                }
+            }
             const asset = assets[assetId];
             if (!asset) return null;
             const request = getAssetPriceRequest(asset);
@@ -277,6 +287,8 @@ export const useNetWorthHistory = ({
         includeWithdrawals,
         locale,
         priceMap,
+        currentDate,
+        livePricesByAsset,
         sortedTransactions,
     ]);
 
