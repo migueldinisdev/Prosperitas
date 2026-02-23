@@ -136,15 +136,17 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             settings.visualCurrency,
             forexRates
         );
-        return positions.map(({ assetId, position }) => {
-            const asset = assets[assetId];
+        return positions
+            .filter(({ assetId }) => Boolean(assets[assetId]))
+            .map(({ assetId, position }) => {
+                const asset = assets[assetId] as Asset;
             const costAverage = position.avgCost.value;
             const currentPrice = livePricesByAsset[assetId] ?? costAverage;
             const currentValue = getPositionCurrentValue(
                 position.amount,
                 currentPrice
             );
-            const tradingCurrency = asset?.tradingCurrency ?? "USD";
+            const tradingCurrency = asset.tradingCurrency;
             const investedValue =
                 costBasisByAsset.get(assetId)?.costBasisVisual ??
                 toVisualValue(
@@ -155,9 +157,9 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 );
             return {
                 assetId,
-                name: asset?.name ?? assetId,
-                ticker: asset?.ticker ?? assetId,
-                assetType: asset?.assetType ?? "other",
+                name: asset.name,
+                ticker: asset.ticker,
+                assetType: asset.assetType,
                 tradingCurrency,
                 currentValue,
                 investedValue,
@@ -169,25 +171,82 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 ),
                 investedValueVisual: investedValue,
             };
-        });
+            });
     }, [
         assets,
         settings.visualCurrency,
         forexRates,
-        getForexRate,
         livePricesByAsset,
         positions,
         walletTransactions,
     ]);
 
     const totals = useMemo(() => {
+        const walletUnrealizedRows = Object.values(wallets).map((wallet) => {
+            const walletPositionsByAsset = walletPositions[wallet.id] ?? {};
+            const walletTransactionsForWallet = walletTransactions.filter(
+                (tx) => tx.walletId === wallet.id
+            );
+            const costBasisByAsset = calculatePositionCostBasis(
+                walletTransactionsForWallet,
+                settings.visualCurrency,
+                forexRates
+            );
+
+            const positionRows = Object.entries(walletPositionsByAsset)
+                .filter(([assetId]) => Boolean(assets[assetId]))
+                .map(([assetId, position]) => {
+                    const asset = assets[assetId] as Asset;
+                    const costAverage = position.avgCost.value;
+                    const currentPrice =
+                        livePricesByAsset[assetId] ?? costAverage;
+                    const currentValue = getPositionCurrentValue(
+                        position.amount,
+                        currentPrice
+                    );
+                    const currentValueVisual = toVisualValue(
+                        currentValue,
+                        asset.tradingCurrency,
+                        settings.visualCurrency,
+                        forexRates
+                    );
+                    const investedValueVisual =
+                        costBasisByAsset.get(assetId)?.costBasisVisual ??
+                        toVisualValue(
+                            getPositionInvestedValue(
+                                position.amount,
+                                costAverage
+                            ),
+                            asset.tradingCurrency,
+                            settings.visualCurrency,
+                            forexRates
+                        );
+
+                    return {
+                        currentValue: currentValueVisual,
+                        investedValue: investedValueVisual,
+                    };
+                });
+
+            const invested = getTotalValue(
+                positionRows.map((row) => row.investedValue)
+            );
+            const current = getTotalValue(positionRows.map((row) => row.currentValue));
+
+            return {
+                invested,
+                current,
+                pnl: getPnL(current, invested),
+            };
+        });
+
         const totalInvested = getTotalValue(
-            holdingSummaries.map((summary) => summary.investedValueVisual)
+            walletUnrealizedRows.map((row) => row.invested)
         );
         const totalCurrent = getTotalValue(
-            holdingSummaries.map((summary) => summary.currentValueVisual)
+            walletUnrealizedRows.map((row) => row.current)
         );
-        const totalPnL = getPnL(totalCurrent, totalInvested);
+        const totalPnL = getTotalValue(walletUnrealizedRows.map((row) => row.pnl));
         const totalPnLPercent = getPnLPercent(totalCurrent, totalInvested);
         const cashTotal = getTotalValue(
             cashBuckets.map((bucket) =>
@@ -208,7 +267,16 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             cash: cashTotal,
             netWorth: getNetWorth(totalCurrent, cashTotal),
         };
-    }, [cashBuckets, holdingSummaries, forexRates, settings.visualCurrency]);
+    }, [
+        assets,
+        cashBuckets,
+        forexRates,
+        livePricesByAsset,
+        settings.visualCurrency,
+        walletPositions,
+        walletTransactions,
+        wallets,
+    ]);
     const realizedPnl = useMemo(
         () =>
             calculateRealizedPnl(
