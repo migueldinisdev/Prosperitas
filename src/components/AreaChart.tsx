@@ -38,7 +38,7 @@ export const AreaChart = React.memo(
                 <ResponsiveContainer>
                     <ReAreaChart
                         data={data}
-                        margin={{ top: 5, right: 16, left: 12, bottom: 0 }}
+                        margin={{ top: 5, right: 16, left: 12, bottom: 24 }}
                     >
                         <CartesianGrid
                             strokeDasharray="3 3"
@@ -51,7 +51,9 @@ export const AreaChart = React.memo(
                             fontSize={12}
                             tickLine={false}
                             axisLine={false}
-                            dy={10}
+                            dy={8}
+                            height={42}
+                            minTickGap={0}
                             ticks={ticks}
                             interval={0}
                             tickFormatter={tickFormatter}
