@@ -202,6 +202,7 @@ export const defaultState: ProsperitasState = {
             useGrouping: true,
             maxFractionDigits: 2,
         },
+        hypotheticalAssetPrices: {},
     },
     account: {
         name: "",
