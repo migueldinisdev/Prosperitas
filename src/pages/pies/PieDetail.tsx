@@ -21,7 +21,11 @@ import { Modal } from "../../ui/Modal";
 import { Tooltip } from "../../ui/Tooltip";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { updatePie } from "../../store/slices/piesSlice";
-import { selectPies, selectSettings, selectWalletTxState } from "../../store/selectors";
+import {
+    selectPies,
+    selectSettings,
+    selectWalletTxState,
+} from "../../store/selectors";
 import { formatCurrency } from "../../utils/formatters";
 import {
     calculatePositionCostBasis,
@@ -62,9 +66,11 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
     const existingNamesLower = useMemo(
         () =>
             new Set(
-                Object.values(pies).map((entry) => entry.name.trim().toLowerCase())
+                Object.values(pies).map((entry) =>
+                    entry.name.trim().toLowerCase(),
+                ),
             ),
-        [pies]
+        [pies],
     );
     const editNameTrimmed = editName.trim();
     const currentNameLower = pie?.name?.trim().toLowerCase() ?? "";
@@ -84,14 +90,26 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                     description: editDescription.trim() || undefined,
                     risk: Number.isFinite(riskValue) ? riskValue : undefined,
                 },
-            })
+            }),
         );
         setEditOpen(false);
     };
 
+    const assetsRecord = useMemo(() => {
+        return assets.reduce(
+            (acc, asset) => {
+                acc[asset.id] = asset;
+                return acc;
+            },
+            {} as Record<string, (typeof assets)[number]>,
+        );
+    }, [assets]);
+
     const livePricesByAsset = useAssetLivePrices(assets);
     const transactionCurrencies = useMemo(() => {
-        const filtered = Object.values(walletTx).filter((tx) => tx.pieId === id);
+        const filtered = Object.values(walletTx).filter(
+            (tx) => tx.pieId === id,
+        );
         const currencies = new Set<string>(getWalletTxCurrencies(filtered));
         assets.forEach((asset) => currencies.add(asset.tradingCurrency));
         return Array.from(currencies);
@@ -99,12 +117,12 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const forexRates = useForexLivePrices(
         transactionCurrencies,
-        settings.visualCurrency
+        settings.visualCurrency,
     );
 
     const pieAssetIds = useMemo(
         () => new Set(pie?.assetIds ?? []),
-        [pie?.assetIds]
+        [pie?.assetIds],
     );
     const pieTransactions = useMemo(() => {
         if (pieAssetIds.size === 0) return [];
@@ -118,7 +136,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
         const costBasisByAsset = calculatePositionCostBasis(
             pieTransactions,
             settings.visualCurrency,
-            forexRates
+            forexRates,
         );
         const rows = assets.map((asset) => {
             const costAverage = asset.avgCost.value;
@@ -128,7 +146,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                 value,
                 asset.tradingCurrency,
                 settings.visualCurrency,
-                forexRates
+                forexRates,
             );
             const investedValue =
                 costBasisByAsset.get(asset.id)?.costBasisVisual ??
@@ -136,7 +154,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                     getPositionInvestedValue(asset.amount, costAverage),
                     asset.tradingCurrency,
                     settings.visualCurrency,
-                    forexRates
+                    forexRates,
                 );
             const pnl = getPnL(valueVisual, investedValue);
             const pnlPercent = getPnLPercent(valueVisual, investedValue);
@@ -146,7 +164,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                 currentPrice,
                 asset.tradingCurrency,
                 settings.visualCurrency,
-                forexRates
+                forexRates,
             );
 
             return {
@@ -172,7 +190,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
 
         const totalValue = getTotalValue(rows.map((item) => item.row.value));
         const totalInvested = getTotalValue(
-            rows.map((item) => item.investedValue)
+            rows.map((item) => item.investedValue),
         );
         const totalPnL = getTotalValue(rows.map((item) => item.row.pnl));
 
@@ -180,7 +198,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
             holdings: rows.map(({ row }) => ({
                 ...row,
                 allocation: Number(
-                    getAllocationPercent(row.value, totalValue).toFixed(2)
+                    getAllocationPercent(row.value, totalValue).toFixed(2),
                 ),
             })),
             totals: {
@@ -260,7 +278,10 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                         </p>
                         <div className="mt-2 space-y-2">
                             <p className="text-2xl font-bold text-app-foreground">
-                                {formatCurrency(totals.currentValue, settings.visualCurrency)}
+                                {formatCurrency(
+                                    totals.currentValue,
+                                    settings.visualCurrency,
+                                )}
                             </p>
                             <p className="text-sm text-app-muted">
                                 Unrealized
@@ -272,13 +293,19 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     }`}
                                 >
                                     {totals.pnl >= 0 ? "+" : ""}
-                                    {formatCurrency(totals.pnl, settings.visualCurrency)}
+                                    {formatCurrency(
+                                        totals.pnl,
+                                        settings.visualCurrency,
+                                    )}
                                 </span>
                             </p>
                             <p className="text-sm text-app-muted">
                                 Cost Basis
                                 <span className="ml-2 text-app-foreground font-semibold">
-                                    {formatCurrency(totals.invested, settings.visualCurrency)}
+                                    {formatCurrency(
+                                        totals.invested,
+                                        settings.visualCurrency,
+                                    )}
                                 </span>
                             </p>
                             <p>Assets {assets.length}</p>
@@ -293,7 +320,9 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     </p>
                                     <div className="flex items-center gap-2 mt-1">
                                         <span className="text-lg font-semibold text-app-foreground">
-                                            {pie?.risk ? `${pie.risk}/5` : "N/A"}
+                                            {pie?.risk
+                                                ? `${pie.risk}/5`
+                                                : "N/A"}
                                         </span>
                                         <div className="flex gap-1">
                                             {[1, 2, 3, 4, 5].map((level) => (
@@ -336,7 +365,10 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                             <div className="inline-flex items-center gap-2">
                                 <span>Historical Value</span>
                                 <Tooltip content="This chart does not account for sales, so this doesn't accurately measure performance, only historical pie value.">
-                                    <Info size={14} className="text-app-muted" />
+                                    <Info
+                                        size={14}
+                                        className="text-app-muted"
+                                    />
                                 </Tooltip>
                             </div>
                         }
@@ -345,7 +377,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                         {pieTransactions.length > 0 ? (
                             <NetWorthHistoryChart
                                 transactions={pieTransactions}
-                                assets={assets}
+                                assets={assetsRecord}
                                 baseCurrency={settings.visualCurrency}
                                 height={260}
                                 currency={settings.visualCurrency}
@@ -356,7 +388,6 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 includeWithdrawals={false}
                                 includeDividends={false}
                                 includeForex={false}
-                                livePricesByAsset={livePricesByAsset}
                             />
                         ) : (
                             <p className="text-sm text-app-muted">
@@ -399,7 +430,9 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <input
                             type="text"
                             value={editName}
-                            onChange={(event) => setEditName(event.target.value)}
+                            onChange={(event) =>
+                                setEditName(event.target.value)
+                            }
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         />
                         {isDuplicateName && (
@@ -431,7 +464,9 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                             max={5}
                             step={1}
                             value={editRisk}
-                            onChange={(event) => setEditRisk(event.target.value)}
+                            onChange={(event) =>
+                                setEditRisk(event.target.value)
+                            }
                             className="w-full accent-app-primary"
                         />
                         <p className="mt-2 text-sm text-app-muted">

@@ -76,7 +76,7 @@ const getRangeStart = (range: RangeKey, endDate: Date, earliest: Date) => {
 const buildTickDates = (
     startDate: Date,
     endDate: Date,
-    tickRate: TickRateKey
+    tickRate: TickRateKey,
 ) => {
     const tickIntervalDays = TICK_DAYS_BY_RATE[tickRate];
     const ticks: string[] = [];
@@ -95,7 +95,7 @@ const buildTickDates = (
 const getTodayUtc = () => {
     const now = new Date();
     return new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
     );
 };
 
@@ -113,7 +113,6 @@ interface NetWorthHistoryChartProps {
     includeWithdrawals?: boolean;
     includeDividends?: boolean;
     includeForex?: boolean;
-    livePricesByAsset?: Record<string, number>;
 }
 
 export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
@@ -130,7 +129,6 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
     includeWithdrawals,
     includeDividends,
     includeForex,
-    livePricesByAsset,
 }) => {
     const [range, setRange] = useState<RangeKey>("ALL");
     const [tickRate, setTickRate] = useState<TickRateKey>("1M");
@@ -141,11 +139,11 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         }
 
         const sortedTransactions = [...transactions].sort((a, b) =>
-            a.date.localeCompare(b.date)
+            a.date.localeCompare(b.date),
         );
         const earliestDate = parseDate(sortedTransactions[0].date);
         const latestDate = parseDate(
-            sortedTransactions[sortedTransactions.length - 1].date
+            sortedTransactions[sortedTransactions.length - 1].date,
         );
         const today = getTodayUtc();
         const chartEndDate = latestDate > today ? latestDate : today;
@@ -162,8 +160,8 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
             1,
             Math.round(
                 (chartEndDate.getTime() - rangeStart.getTime()) /
-                    (1000 * 60 * 60 * 24)
-            )
+                    (1000 * 60 * 60 * 24),
+            ),
         );
         const snapshotIntervalDays = Math.max(1, Math.ceil(dateSpanDays / 180));
         const periodicDates: string[] = [];
@@ -177,7 +175,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         periodicDates.push(toDateKey(chartEndDate));
 
         const orderedChartDates = Array.from(
-            new Set([...periodicDates, ...transactionDates])
+            new Set([...periodicDates, ...transactionDates]),
         ).sort((a, b) => a.localeCompare(b));
 
         return {
@@ -185,8 +183,6 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
             ticks: buildTickDates(rangeStart, chartEndDate, tickRate),
         };
     }, [range, tickRate, transactions]);
-
-    const currentDate = useMemo(() => toDateKey(getTodayUtc()), []);
 
     const { data: chartData } = useNetWorthHistory({
         transactions,
@@ -200,8 +196,6 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         includeDividends,
         includeForex,
         snapshotDates: ticks,
-        livePricesByAsset,
-        currentDate,
     });
 
     if (!transactions.length) {
