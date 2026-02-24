@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "../../components/PageHeader";
 import { Card } from "../../ui/Card";
 import { PieChart } from "../../components/PieChart";
@@ -10,7 +10,7 @@ import {
     selectWalletTxState,
     selectWallets,
 } from "../../store/selectors";
-import { useAppSelector } from "../../store/hooks";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { Asset } from "../../core/schema-types";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
@@ -29,6 +29,10 @@ import {
 } from "../../core/finance";
 import { formatCurrency } from "../../utils/formatters";
 import { getWalletTxCurrencies } from "../../utils/netWorthHistory";
+import { Modal } from "../../ui/Modal";
+import { Button } from "../../ui/Button";
+import { Settings2 } from "lucide-react";
+import { updateSettings } from "../../store/slices/settingsSlice";
 
 const assetTypeColors: Record<string, string> = {
     stock: "#d61544",
@@ -60,6 +64,12 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
     const pies = useAppSelector(selectPies);
     const settings = useAppSelector(selectSettings);
     const walletTx = useAppSelector(selectWalletTxState);
+    const dispatch = useAppDispatch();
+    const [isHypotheticalModalOpen, setIsHypotheticalModalOpen] =
+        useState(false);
+    const [draftHypotheticalPrices, setDraftHypotheticalPrices] = useState<
+        Record<string, string>
+    >({});
 
     const positions = useMemo(
         () =>
@@ -158,7 +168,9 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 name: asset?.name ?? assetId,
                 ticker: asset?.ticker ?? assetId,
                 assetType: asset?.assetType ?? "other",
+                amount: position.amount,
                 tradingCurrency,
+                currentPrice,
                 currentValue,
                 investedValue,
                 currentValueVisual: toVisualValue(
@@ -174,10 +186,110 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         assets,
         settings.visualCurrency,
         forexRates,
-        getForexRate,
         livePricesByAsset,
         positions,
         walletTransactions,
+    ]);
+
+    const hypotheticalHoldingSummaries = useMemo(() => {
+        const savedHypotheticalPrices = settings.hypotheticalAssetPrices ?? {};
+        return holdingSummaries.map((summary) => {
+            const hypotheticalPrice =
+                savedHypotheticalPrices[summary.assetId] ??
+                livePricesByAsset[summary.assetId] ??
+                summary.currentPrice;
+            const hypotheticalCurrentValue = getPositionCurrentValue(
+                summary.amount,
+                hypotheticalPrice
+            );
+            return {
+                ...summary,
+                hypotheticalPrice,
+                hypotheticalCurrentValueVisual: toVisualValue(
+                    hypotheticalCurrentValue,
+                    summary.tradingCurrency,
+                    settings.visualCurrency,
+                    forexRates
+                ),
+            };
+        });
+    }, [
+        forexRates,
+        holdingSummaries,
+        livePricesByAsset,
+        settings.hypotheticalAssetPrices,
+        settings.visualCurrency,
+    ]);
+
+    const hypotheticalTotals = useMemo(() => {
+        const hypotheticalCurrent = getTotalValue(
+            hypotheticalHoldingSummaries.map(
+                (summary) => summary.hypotheticalCurrentValueVisual
+            )
+        );
+        const hypotheticalInvested = getTotalValue(
+            hypotheticalHoldingSummaries.map((summary) => summary.investedValueVisual)
+        );
+        const hypotheticalUnrealized = getPnL(
+            hypotheticalCurrent,
+            hypotheticalInvested
+        );
+        const cashTotal = getTotalValue(
+            cashBuckets.map((bucket) =>
+                toVisualValue(
+                    bucket.value,
+                    bucket.currency,
+                    settings.visualCurrency,
+                    forexRates
+                )
+            )
+        );
+        return {
+            current: hypotheticalCurrent,
+            invested: hypotheticalInvested,
+            unrealized: hypotheticalUnrealized,
+            netWorth: getNetWorth(hypotheticalCurrent, cashTotal),
+        };
+    }, [
+        cashBuckets,
+        forexRates,
+        hypotheticalHoldingSummaries,
+        settings.visualCurrency,
+    ]);
+
+    useEffect(() => {
+        if (!isHypotheticalModalOpen) {
+            return;
+        }
+
+        setDraftHypotheticalPrices((previousDraft) => {
+            const nextDraft: Record<string, string> = {};
+            hypotheticalHoldingSummaries.forEach((summary) => {
+                const savedPrice =
+                    settings.hypotheticalAssetPrices?.[summary.assetId];
+                nextDraft[summary.assetId] =
+                    savedPrice !== undefined
+                        ? String(savedPrice)
+                        : String(summary.hypotheticalPrice);
+            });
+
+            const previousKeys = Object.keys(previousDraft);
+            const nextKeys = Object.keys(nextDraft);
+            if (
+                previousKeys.length === nextKeys.length &&
+                nextKeys.every(
+                    (assetId) => previousDraft[assetId] === nextDraft[assetId]
+                )
+            ) {
+                return previousDraft;
+            }
+
+            return nextDraft;
+        });
+    }, [
+        hypotheticalHoldingSummaries,
+        isHypotheticalModalOpen,
+        settings.hypotheticalAssetPrices,
     ]);
 
     const totals = useMemo(() => {
@@ -223,6 +335,37 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
     const unrealizedIsPositive = totals.pnl >= 0;
     const realizedIsPositive = realizedPnl >= 0;
     const totalIsPositive = totalPnl >= 0;
+    const hypotheticalUnrealizedIsPositive = hypotheticalTotals.unrealized >= 0;
+
+    const handleSaveHypotheticalPrices = () => {
+        const nextPrices: Record<string, number> = {};
+        hypotheticalHoldingSummaries.forEach((summary) => {
+            const draftValue = draftHypotheticalPrices[summary.assetId]?.trim();
+            if (!draftValue) {
+                return;
+            }
+            const parsedPrice = Number(draftValue);
+            if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+                return;
+            }
+            nextPrices[summary.assetId] = parsedPrice;
+        });
+        dispatch(
+            updateSettings({
+                hypotheticalAssetPrices: nextPrices,
+            })
+        );
+        setIsHypotheticalModalOpen(false);
+    };
+
+    const handleResetHypotheticalPrices = () => {
+        dispatch(
+            updateSettings({
+                hypotheticalAssetPrices: {},
+            })
+        );
+        setIsHypotheticalModalOpen(false);
+    };
 
     const assetTypeData = useMemo(() => {
         const totalsByType = holdingSummaries.reduce<Record<string, number>>(
@@ -403,7 +546,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             <PageHeader title="Statistics" onMenuClick={onMenuClick} />
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
                             Total Net Worth
@@ -417,6 +560,55 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                             </p>
                             <p>
                                 Cash {formatCurrency(totals.cash, settings.visualCurrency)}
+                            </p>
+                        </div>
+                    </Card>
+
+                    <Card className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                                Net Worth if Prices = X (Today)
+                            </p>
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                icon={<Settings2 size={14} />}
+                                onClick={() => setIsHypotheticalModalOpen(true)}
+                            >
+                                Set X
+                            </Button>
+                        </div>
+                        <div className="mt-2 space-y-2">
+                            <p className="text-2xl font-bold text-app-foreground">
+                                {formatCurrency(
+                                    hypotheticalTotals.netWorth,
+                                    settings.visualCurrency
+                                )}
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Unrealized
+                                <span
+                                    className={`ml-2 font-semibold ${
+                                        hypotheticalUnrealizedIsPositive
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    {hypotheticalUnrealizedIsPositive ? "+" : ""}
+                                    {formatCurrency(
+                                        hypotheticalTotals.unrealized,
+                                        settings.visualCurrency
+                                    )}
+                                </span>
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Cost Basis
+                                <span className="ml-2 text-app-foreground font-semibold">
+                                    {formatCurrency(
+                                        hypotheticalTotals.invested,
+                                        settings.visualCurrency
+                                    )}
+                                </span>
                             </p>
                         </div>
                     </Card>
@@ -635,6 +827,65 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                         </div>
                     </Card>
                 </section>
+                <Modal
+                    isOpen={isHypotheticalModalOpen}
+                    onClose={() => setIsHypotheticalModalOpen(false)}
+                    title="Set hypothetical asset prices"
+                >
+                    <div className="space-y-4">
+                        <p className="text-sm text-app-muted">
+                            Define your own prices (X) for each open position. Leave any field empty to use the current live price.
+                        </p>
+                        <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                            {hypotheticalHoldingSummaries.map((summary) => (
+                                <label
+                                    key={summary.assetId}
+                                    className="block border border-app-border rounded-xl p-3"
+                                >
+                                    <p className="text-sm font-semibold text-app-foreground">
+                                        {summary.name} ({summary.ticker})
+                                    </p>
+                                    <p className="text-xs text-app-muted mt-1">
+                                        Current: {formatCurrency(summary.currentPrice, summary.tradingCurrency)}
+                                    </p>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="any"
+                                        value={draftHypotheticalPrices[summary.assetId] ?? ""}
+                                        onChange={(event) =>
+                                            setDraftHypotheticalPrices((prev) => ({
+                                                ...prev,
+                                                [summary.assetId]: event.target.value,
+                                            }))
+                                        }
+                                        className="mt-2 w-full px-3 py-2 rounded-lg border border-app-border bg-app-bg text-app-foreground"
+                                        placeholder={String(summary.currentPrice)}
+                                    />
+                                </label>
+                            ))}
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <Button
+                                variant="ghost"
+                                onClick={handleResetHypotheticalPrices}
+                            >
+                                Reset to current prices
+                            </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => setIsHypotheticalModalOpen(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleSaveHypotheticalPrices}>
+                                    Save prices
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </Modal>
             </main>
         </div>
     );
