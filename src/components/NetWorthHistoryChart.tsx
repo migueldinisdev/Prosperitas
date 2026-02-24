@@ -5,6 +5,7 @@ import { useNetWorthHistory } from "../hooks/useNetWorthHistory";
 import { Asset, WalletTx } from "../core/schema-types";
 
 type RangeKey = "YTD" | "1Y" | "2Y" | "5Y" | "ALL";
+type TickRateKey = "1W" | "2W" | "1M";
 
 const RANGE_OPTIONS: Array<{ key: RangeKey; label: string }> = [
     { key: "YTD", label: "YTD" },
@@ -13,6 +14,18 @@ const RANGE_OPTIONS: Array<{ key: RangeKey; label: string }> = [
     { key: "5Y", label: "5Y" },
     { key: "ALL", label: "All time" },
 ];
+
+const TICK_RATE_OPTIONS: Array<{ key: TickRateKey; label: string }> = [
+    { key: "1W", label: "1W" },
+    { key: "2W", label: "2W" },
+    { key: "1M", label: "1M" },
+];
+
+const TICK_DAYS_BY_RATE: Record<TickRateKey, number> = {
+    "1W": 7,
+    "2W": 14,
+    "1M": 30,
+};
 
 const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -60,15 +73,23 @@ const getRangeStart = (range: RangeKey, endDate: Date, earliest: Date) => {
     }
 };
 
-const buildSparseTicks = (dates: string[], maxTicks = 6) => {
-    if (dates.length <= maxTicks) return dates;
-    const ticks = new Set<string>();
-    const step = (dates.length - 1) / (maxTicks - 1);
-    for (let i = 0; i < maxTicks; i += 1) {
-        const index = Math.round(i * step);
-        ticks.add(dates[Math.min(index, dates.length - 1)]);
+const buildTickDates = (
+    startDate: Date,
+    endDate: Date,
+    tickRate: TickRateKey
+) => {
+    const tickIntervalDays = TICK_DAYS_BY_RATE[tickRate];
+    const ticks: string[] = [];
+    let cursor = new Date(startDate);
+
+    while (cursor <= endDate) {
+        ticks.push(toDateKey(cursor));
+        cursor = addDays(cursor, tickIntervalDays);
     }
-    return Array.from(ticks).sort((a, b) => a.localeCompare(b));
+
+    ticks.push(toDateKey(endDate));
+
+    return Array.from(new Set(ticks)).sort((a, b) => a.localeCompare(b));
 };
 
 const getTodayUtc = () => {
@@ -112,6 +133,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
     livePricesByAsset,
 }) => {
     const [range, setRange] = useState<RangeKey>("ALL");
+    const [tickRate, setTickRate] = useState<TickRateKey>("1M");
 
     const { chartDates, ticks } = useMemo(() => {
         if (!transactions.length) {
@@ -143,9 +165,13 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
                     (1000 * 60 * 60 * 24)
             )
         );
-        const intervalDays = Math.max(1, Math.ceil(dateSpanDays / 180));
+        const snapshotIntervalDays = Math.max(1, Math.ceil(dateSpanDays / 180));
         const periodicDates: string[] = [];
-        for (let dayOffset = 0; dayOffset <= dateSpanDays; dayOffset += intervalDays) {
+        for (
+            let dayOffset = 0;
+            dayOffset <= dateSpanDays;
+            dayOffset += snapshotIntervalDays
+        ) {
             periodicDates.push(toDateKey(addDays(rangeStart, dayOffset)));
         }
         periodicDates.push(toDateKey(chartEndDate));
@@ -156,9 +182,9 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
 
         return {
             chartDates: orderedChartDates,
-            ticks: buildSparseTicks(orderedChartDates),
+            ticks: buildTickDates(rangeStart, chartEndDate, tickRate),
         };
-    }, [range, transactions]);
+    }, [range, tickRate, transactions]);
 
     const currentDate = useMemo(() => toDateKey(getTodayUtc()), []);
 
@@ -193,6 +219,23 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
                             onClick={() => setRange(option.key)}
                             className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                                 range === option.key
+                                    ? "bg-app-primary text-white"
+                                    : "bg-app-border text-app-muted hover:text-app-foreground"
+                            }`}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+                <div className="h-4 w-px bg-app-border" aria-hidden="true" />
+                <div className="flex flex-wrap gap-2">
+                    {TICK_RATE_OPTIONS.map((option) => (
+                        <button
+                            key={option.key}
+                            type="button"
+                            onClick={() => setTickRate(option.key)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                                tickRate === option.key
                                     ? "bg-app-primary text-white"
                                     : "bg-app-border text-app-muted hover:text-app-foreground"
                             }`}
