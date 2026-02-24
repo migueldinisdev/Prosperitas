@@ -272,12 +272,17 @@ export const HomeSummarySection: React.FC = () => {
         ];
     }, []);
 
+    const netWorthSnapshotDates = useMemo(
+        () => netWorthComparisonDates.map((item) => item.date),
+        [netWorthComparisonDates]
+    );
+
     const { data: netWorthSnapshots } = useNetWorthHistory({
         transactions: walletTransactions,
         assets,
         baseCurrency: settings.visualCurrency,
         locale: settings.locale,
-        snapshotDates: netWorthComparisonDates.map((item) => item.date),
+        snapshotDates: netWorthSnapshotDates,
     });
 
     const netWorthComparisons = useMemo(() => {
