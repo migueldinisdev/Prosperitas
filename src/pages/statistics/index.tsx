@@ -186,7 +186,6 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         assets,
         settings.visualCurrency,
         forexRates,
-        getForexRate,
         livePricesByAsset,
         positions,
         walletTransactions,
@@ -262,15 +261,31 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         if (!isHypotheticalModalOpen) {
             return;
         }
-        const currentDraft: Record<string, string> = {};
-        hypotheticalHoldingSummaries.forEach((summary) => {
-            const savedPrice = settings.hypotheticalAssetPrices?.[summary.assetId];
-            currentDraft[summary.assetId] =
-                savedPrice !== undefined
-                    ? String(savedPrice)
-                    : String(summary.hypotheticalPrice);
+
+        setDraftHypotheticalPrices((previousDraft) => {
+            const nextDraft: Record<string, string> = {};
+            hypotheticalHoldingSummaries.forEach((summary) => {
+                const savedPrice =
+                    settings.hypotheticalAssetPrices?.[summary.assetId];
+                nextDraft[summary.assetId] =
+                    savedPrice !== undefined
+                        ? String(savedPrice)
+                        : String(summary.hypotheticalPrice);
+            });
+
+            const previousKeys = Object.keys(previousDraft);
+            const nextKeys = Object.keys(nextDraft);
+            if (
+                previousKeys.length === nextKeys.length &&
+                nextKeys.every(
+                    (assetId) => previousDraft[assetId] === nextDraft[assetId]
+                )
+            ) {
+                return previousDraft;
+            }
+
+            return nextDraft;
         });
-        setDraftHypotheticalPrices(currentDraft);
     }, [
         hypotheticalHoldingSummaries,
         isHypotheticalModalOpen,
