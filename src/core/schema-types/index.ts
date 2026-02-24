@@ -33,6 +33,7 @@ export interface Settings {
     locale: string;
     timezone: string;
     numberFormat: NumberFormatSettings;
+    hypotheticalAssetPrices?: Record<string, number>;
 }
 
 export interface Meta {

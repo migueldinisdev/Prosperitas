@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
     ArrowLeft,
+    Info,
     Pencil,
     PieChart as PieIcon,
     Menu,
@@ -17,6 +18,7 @@ import { usePieData } from "../../hooks/usePieData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { Modal } from "../../ui/Modal";
+import { Tooltip } from "../../ui/Tooltip";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { updatePie } from "../../store/slices/piesSlice";
 import { selectPies, selectSettings, selectWalletTxState } from "../../store/selectors";
@@ -329,7 +331,17 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card title="Performance History" className="lg:col-span-2">
+                    <Card
+                        title={
+                            <div className="inline-flex items-center gap-2">
+                                <span>Historical Value</span>
+                                <Tooltip content="This chart does not account for sales, so this doesn't accurately measure performance, only historical pie value.">
+                                    <Info size={14} className="text-app-muted" />
+                                </Tooltip>
+                            </div>
+                        }
+                        className="lg:col-span-2"
+                    >
                         {pieTransactions.length > 0 ? (
                             <NetWorthHistoryChart
                                 transactions={pieTransactions}
@@ -344,6 +356,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 includeWithdrawals={false}
                                 includeDividends={false}
                                 includeForex={false}
+                                livePricesByAsset={livePricesByAsset}
                             />
                         ) : (
                             <p className="text-sm text-app-muted">

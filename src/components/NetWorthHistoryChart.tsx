@@ -21,10 +21,10 @@ const TICK_RATE_OPTIONS: Array<{ key: TickRateKey; label: string }> = [
     { key: "1M", label: "1M" },
 ];
 
-const TICK_DAYS_BY_RATE: Record<TickRateKey, number[]> = {
-    "1W": [1, 7, 14, 21],
-    "2W": [8, 23],
-    "1M": [15],
+const TICK_DAYS_BY_RATE: Record<TickRateKey, number> = {
+    "1W": 7,
+    "2W": 14,
+    "1M": 30,
 };
 
 const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
@@ -37,16 +37,12 @@ const formatDateLabel = (date: string) => {
         return date;
     }
 
-    const day = String(parsed.getUTCDate()).padStart(2, "0");
-    const month = String(parsed.getUTCMonth() + 1).padStart(2, "0");
-
-    return `${day}-${month}`;
-};
-
-const addMonths = (date: Date, delta: number) => {
-    const next = new Date(date);
-    next.setUTCMonth(next.getUTCMonth() + delta);
-    return next;
+    return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+    }).format(parsed);
 };
 
 const addYears = (date: Date, delta: number) => {
@@ -80,31 +76,20 @@ const getRangeStart = (range: RangeKey, endDate: Date, earliest: Date) => {
 const buildTickDates = (
     startDate: Date,
     endDate: Date,
-    dayNumbers: number[]
+    tickRate: TickRateKey
 ) => {
+    const tickIntervalDays = TICK_DAYS_BY_RATE[tickRate];
     const ticks: string[] = [];
-    const cursor = new Date(
-        Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1)
-    );
+    let cursor = new Date(startDate);
+
     while (cursor <= endDate) {
-        dayNumbers.forEach((day) => {
-            const candidate = new Date(
-                Date.UTC(
-                    cursor.getUTCFullYear(),
-                    cursor.getUTCMonth(),
-                    day
-                )
-            );
-            if (candidate.getUTCMonth() !== cursor.getUTCMonth()) {
-                return;
-            }
-            if (candidate >= startDate && candidate <= endDate) {
-                ticks.push(toDateKey(candidate));
-            }
-        });
-        cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+        ticks.push(toDateKey(cursor));
+        cursor = addDays(cursor, tickIntervalDays);
     }
-    return ticks.sort((a, b) => a.localeCompare(b));
+
+    ticks.push(toDateKey(endDate));
+
+    return Array.from(new Set(ticks)).sort((a, b) => a.localeCompare(b));
 };
 
 const getTodayUtc = () => {
@@ -128,6 +113,7 @@ interface NetWorthHistoryChartProps {
     includeWithdrawals?: boolean;
     includeDividends?: boolean;
     includeForex?: boolean;
+    livePricesByAsset?: Record<string, number>;
 }
 
 export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
@@ -144,6 +130,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
     includeWithdrawals,
     includeDividends,
     includeForex,
+    livePricesByAsset,
 }) => {
     const [range, setRange] = useState<RangeKey>("ALL");
     const [tickRate, setTickRate] = useState<TickRateKey>("1M");
@@ -152,6 +139,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         if (!transactions.length) {
             return { chartDates: [], ticks: [] };
         }
+
         const sortedTransactions = [...transactions].sort((a, b) =>
             a.date.localeCompare(b.date)
         );
@@ -163,29 +151,42 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         const chartEndDate = latestDate > today ? latestDate : today;
         const rangeStart = getRangeStart(range, chartEndDate, earliestDate);
 
-        const tickDays = TICK_DAYS_BY_RATE[tickRate];
-        const tickDates = buildTickDates(rangeStart, chartEndDate, tickDays);
-        const endDateKey = toDateKey(chartEndDate);
-        tickDates.push(endDateKey);
         const transactionDates = sortedTransactions
             .map((tx) => tx.date)
             .filter((date) => {
                 const parsed = parseDate(date);
                 return parsed >= rangeStart && parsed <= chartEndDate;
             });
-        const chartDateSet = new Set<string>([
-            ...tickDates,
-            ...transactionDates,
-        ]);
+
+        const dateSpanDays = Math.max(
+            1,
+            Math.round(
+                (chartEndDate.getTime() - rangeStart.getTime()) /
+                    (1000 * 60 * 60 * 24)
+            )
+        );
+        const snapshotIntervalDays = Math.max(1, Math.ceil(dateSpanDays / 180));
+        const periodicDates: string[] = [];
+        for (
+            let dayOffset = 0;
+            dayOffset <= dateSpanDays;
+            dayOffset += snapshotIntervalDays
+        ) {
+            periodicDates.push(toDateKey(addDays(rangeStart, dayOffset)));
+        }
+        periodicDates.push(toDateKey(chartEndDate));
+
+        const orderedChartDates = Array.from(
+            new Set([...periodicDates, ...transactionDates])
+        ).sort((a, b) => a.localeCompare(b));
+
         return {
-            chartDates: Array.from(chartDateSet).sort((a, b) =>
-                a.localeCompare(b)
-            ),
-            ticks: Array.from(new Set(tickDates)).sort((a, b) =>
-                a.localeCompare(b)
-            ),
+            chartDates: orderedChartDates,
+            ticks: buildTickDates(rangeStart, chartEndDate, tickRate),
         };
     }, [range, tickRate, transactions]);
+
+    const currentDate = useMemo(() => toDateKey(getTodayUtc()), []);
 
     const { data: chartData } = useNetWorthHistory({
         transactions,
@@ -199,6 +200,8 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         includeDividends,
         includeForex,
         snapshotDates: chartDates,
+        livePricesByAsset,
+        currentDate,
     });
 
     if (!transactions.length) {
@@ -250,15 +253,9 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
                     height={height}
                     color={color}
                     ticks={ticks}
-                    tickFormatter={(value) =>
-                        formatDateLabel(String(value))
-                    }
-                    labelFormatter={(label) =>
-                        formatDateLabel(String(label))
-                    }
-                    yTickFormatter={(value) =>
-                        formatCurrency(value, currency)
-                    }
+                    tickFormatter={(value) => formatDateLabel(String(value))}
+                    labelFormatter={(label) => formatDateLabel(String(label))}
+                    yTickFormatter={(value) => formatCurrency(value, currency)}
                 />
             ) : null}
         </div>

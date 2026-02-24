@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "../../components/PageHeader";
 import { Card } from "../../ui/Card";
 import { PieChart } from "../../components/PieChart";
@@ -10,7 +10,7 @@ import {
     selectWalletTxState,
     selectWallets,
 } from "../../store/selectors";
-import { useAppSelector } from "../../store/hooks";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { Asset } from "../../core/schema-types";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
@@ -29,6 +29,10 @@ import {
 } from "../../core/finance";
 import { formatCurrency } from "../../utils/formatters";
 import { getWalletTxCurrencies } from "../../utils/netWorthHistory";
+import { Modal } from "../../ui/Modal";
+import { Button } from "../../ui/Button";
+import { Settings2 } from "lucide-react";
+import { updateSettings } from "../../store/slices/settingsSlice";
 
 const assetTypeColors: Record<string, string> = {
     stock: "#d61544",
@@ -60,18 +64,22 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
     const pies = useAppSelector(selectPies);
     const settings = useAppSelector(selectSettings);
     const walletTx = useAppSelector(selectWalletTxState);
+    const dispatch = useAppDispatch();
+    const [isHypotheticalModalOpen, setIsHypotheticalModalOpen] =
+        useState(false);
+    const [draftHypotheticalPrices, setDraftHypotheticalPrices] = useState<
+        Record<string, string>
+    >({});
 
     const positions = useMemo(
         () =>
             Object.entries(walletPositions).flatMap(([, positionsByAsset]) =>
-                Object.entries(positionsByAsset).map(
-                    ([assetId, position]) => ({
-                        assetId,
-                        position,
-                    })
-                )
+                Object.entries(positionsByAsset).map(([assetId, position]) => ({
+                    assetId,
+                    position,
+                })),
             ),
-        [walletPositions]
+        [walletPositions],
     );
 
     const positionAssets = useMemo(
@@ -79,7 +87,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             positions
                 .map(({ assetId }) => assets[assetId])
                 .filter((asset): asset is Asset => Boolean(asset)),
-        [assets, positions]
+        [assets, positions],
     );
 
     const livePricesByAsset = useAssetLivePrices(positionAssets);
@@ -94,16 +102,16 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                     ([currency, value]) => ({
                         currency,
                         value: Number(value),
-                    })
+                    }),
                 );
             }),
-        [wallets]
+        [wallets],
     );
 
     const forexCurrencies = useMemo(() => {
         const currencies = new Set<string>(getWalletTxCurrencies(walletTx));
         positionAssets.forEach((asset) =>
-            currencies.add(asset.tradingCurrency)
+            currencies.add(asset.tradingCurrency),
         );
         cashBuckets.forEach((bucket) => currencies.add(bucket.currency));
         return Array.from(currencies);
@@ -111,66 +119,68 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
 
     const forexRates = useForexLivePrices(
         forexCurrencies,
-        settings.visualCurrency
+        settings.visualCurrency,
     );
 
     const walletTransactions = useMemo(
         () => Object.values(walletTx),
-        [walletTx]
+        [walletTx],
     );
 
     const transactionDates = useMemo(
         () => walletTransactions.map((tx) => tx.date),
-        [walletTransactions]
+        [walletTransactions],
     );
 
     const { getForexRate } = useForexHistoricalRates(
         forexCurrencies,
         transactionDates,
-        settings.visualCurrency
+        settings.visualCurrency,
     );
 
     const holdingSummaries = useMemo(() => {
         const costBasisByAsset = calculatePositionCostBasis(
             walletTransactions,
             settings.visualCurrency,
-            forexRates
+            forexRates,
         );
         return positions
             .filter(({ assetId }) => Boolean(assets[assetId]))
             .map(({ assetId, position }) => {
                 const asset = assets[assetId] as Asset;
-            const costAverage = position.avgCost.value;
-            const currentPrice = livePricesByAsset[assetId] ?? costAverage;
-            const currentValue = getPositionCurrentValue(
-                position.amount,
-                currentPrice
-            );
-            const tradingCurrency = asset.tradingCurrency;
-            const investedValue =
-                costBasisByAsset.get(assetId)?.costBasisVisual ??
-                toVisualValue(
-                    getPositionInvestedValue(position.amount, costAverage),
-                    tradingCurrency,
-                    settings.visualCurrency,
-                    forexRates
+                const costAverage = position.avgCost.value;
+                const currentPrice = livePricesByAsset[assetId] ?? costAverage;
+                const currentValue = getPositionCurrentValue(
+                    position.amount,
+                    currentPrice,
                 );
-            return {
-                assetId,
-                name: asset.name,
-                ticker: asset.ticker,
-                assetType: asset.assetType,
-                tradingCurrency,
-                currentValue,
-                investedValue,
-                currentValueVisual: toVisualValue(
-                    currentValue,
+                const tradingCurrency = asset.tradingCurrency;
+                const investedValue =
+                    costBasisByAsset.get(assetId)?.costBasisVisual ??
+                    toVisualValue(
+                        getPositionInvestedValue(position.amount, costAverage),
+                        tradingCurrency,
+                        settings.visualCurrency,
+                        forexRates,
+                    );
+                return {
+                    assetId,
+                    name: asset?.name ?? assetId,
+                    ticker: asset?.ticker ?? assetId,
+                    assetType: asset?.assetType ?? "other",
+                    amount: position.amount,
                     tradingCurrency,
-                    settings.visualCurrency,
-                    forexRates
-                ),
-                investedValueVisual: investedValue,
-            };
+                    currentPrice,
+                    currentValue,
+                    investedValue,
+                    currentValueVisual: toVisualValue(
+                        currentValue,
+                        tradingCurrency,
+                        settings.visualCurrency,
+                        forexRates,
+                    ),
+                    investedValueVisual: investedValue,
+                };
             });
     }, [
         assets,
@@ -181,16 +191,119 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         walletTransactions,
     ]);
 
+    const hypotheticalHoldingSummaries = useMemo(() => {
+        const savedHypotheticalPrices = settings.hypotheticalAssetPrices ?? {};
+        return holdingSummaries.map((summary) => {
+            const hypotheticalPrice =
+                savedHypotheticalPrices[summary.assetId] ??
+                livePricesByAsset[summary.assetId] ??
+                summary.currentPrice;
+            const hypotheticalCurrentValue = getPositionCurrentValue(
+                summary.amount,
+                hypotheticalPrice,
+            );
+            return {
+                ...summary,
+                hypotheticalPrice,
+                hypotheticalCurrentValueVisual: toVisualValue(
+                    hypotheticalCurrentValue,
+                    summary.tradingCurrency,
+                    settings.visualCurrency,
+                    forexRates,
+                ),
+            };
+        });
+    }, [
+        forexRates,
+        holdingSummaries,
+        livePricesByAsset,
+        settings.hypotheticalAssetPrices,
+        settings.visualCurrency,
+    ]);
+
+    const hypotheticalTotals = useMemo(() => {
+        const hypotheticalCurrent = getTotalValue(
+            hypotheticalHoldingSummaries.map(
+                (summary) => summary.hypotheticalCurrentValueVisual,
+            ),
+        );
+        const hypotheticalInvested = getTotalValue(
+            hypotheticalHoldingSummaries.map(
+                (summary) => summary.investedValueVisual,
+            ),
+        );
+        const hypotheticalUnrealized = getPnL(
+            hypotheticalCurrent,
+            hypotheticalInvested,
+        );
+        const cashTotal = getTotalValue(
+            cashBuckets.map((bucket) =>
+                toVisualValue(
+                    bucket.value,
+                    bucket.currency,
+                    settings.visualCurrency,
+                    forexRates,
+                ),
+            ),
+        );
+        return {
+            current: hypotheticalCurrent,
+            invested: hypotheticalInvested,
+            unrealized: hypotheticalUnrealized,
+            netWorth: getNetWorth(hypotheticalCurrent, cashTotal),
+        };
+    }, [
+        cashBuckets,
+        forexRates,
+        hypotheticalHoldingSummaries,
+        settings.visualCurrency,
+    ]);
+
+    useEffect(() => {
+        if (!isHypotheticalModalOpen) {
+            return;
+        }
+
+        setDraftHypotheticalPrices((previousDraft) => {
+            const nextDraft: Record<string, string> = {};
+            hypotheticalHoldingSummaries.forEach((summary) => {
+                const savedPrice =
+                    settings.hypotheticalAssetPrices?.[summary.assetId];
+                nextDraft[summary.assetId] =
+                    savedPrice !== undefined
+                        ? String(savedPrice)
+                        : String(summary.hypotheticalPrice);
+            });
+
+            const previousKeys = Object.keys(previousDraft);
+            const nextKeys = Object.keys(nextDraft);
+            if (
+                previousKeys.length === nextKeys.length &&
+                nextKeys.every(
+                    (assetId) => previousDraft[assetId] === nextDraft[assetId],
+                )
+            ) {
+                return previousDraft;
+            }
+
+            return nextDraft;
+        });
+    }, [
+        hypotheticalHoldingSummaries,
+        isHypotheticalModalOpen,
+        settings.hypotheticalAssetPrices,
+    ]);
+
     const totals = useMemo(() => {
         const walletUnrealizedRows = Object.values(wallets).map((wallet) => {
             const walletPositionsByAsset = walletPositions[wallet.id] ?? {};
             const walletTransactionsForWallet = walletTransactions.filter(
-                (tx) => tx.walletId === wallet.id
+                (tx) => tx.walletId === wallet.id,
             );
             const costBasisByAsset = calculatePositionCostBasis(
                 walletTransactionsForWallet,
                 settings.visualCurrency,
-                forexRates
+                forexRates,
             );
 
             const positionRows = Object.entries(walletPositionsByAsset)
@@ -202,24 +315,24 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                         livePricesByAsset[assetId] ?? costAverage;
                     const currentValue = getPositionCurrentValue(
                         position.amount,
-                        currentPrice
+                        currentPrice,
                     );
                     const currentValueVisual = toVisualValue(
                         currentValue,
                         asset.tradingCurrency,
                         settings.visualCurrency,
-                        forexRates
+                        forexRates,
                     );
                     const investedValueVisual =
                         costBasisByAsset.get(assetId)?.costBasisVisual ??
                         toVisualValue(
                             getPositionInvestedValue(
                                 position.amount,
-                                costAverage
+                                costAverage,
                             ),
                             asset.tradingCurrency,
                             settings.visualCurrency,
-                            forexRates
+                            forexRates,
                         );
 
                     return {
@@ -229,9 +342,11 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 });
 
             const invested = getTotalValue(
-                positionRows.map((row) => row.investedValue)
+                positionRows.map((row) => row.investedValue),
             );
-            const current = getTotalValue(positionRows.map((row) => row.currentValue));
+            const current = getTotalValue(
+                positionRows.map((row) => row.currentValue),
+            );
 
             return {
                 invested,
@@ -241,12 +356,14 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         });
 
         const totalInvested = getTotalValue(
-            walletUnrealizedRows.map((row) => row.invested)
+            walletUnrealizedRows.map((row) => row.invested),
         );
         const totalCurrent = getTotalValue(
-            walletUnrealizedRows.map((row) => row.current)
+            walletUnrealizedRows.map((row) => row.current),
         );
-        const totalPnL = getTotalValue(walletUnrealizedRows.map((row) => row.pnl));
+        const totalPnL = getTotalValue(
+            walletUnrealizedRows.map((row) => row.pnl),
+        );
         const totalPnLPercent = getPnLPercent(totalCurrent, totalInvested);
         const cashTotal = getTotalValue(
             cashBuckets.map((bucket) =>
@@ -254,9 +371,9 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                     bucket.value,
                     bucket.currency,
                     settings.visualCurrency,
-                    forexRates
-                )
-            )
+                    forexRates,
+                ),
+            ),
         );
 
         return {
@@ -283,14 +400,45 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 walletTransactions,
                 settings.visualCurrency,
                 forexRates,
-                getForexRate
+                getForexRate,
             ),
-        [forexRates, getForexRate, settings.visualCurrency, walletTransactions]
+        [forexRates, getForexRate, settings.visualCurrency, walletTransactions],
     );
     const totalPnl = totals.pnl + realizedPnl;
     const unrealizedIsPositive = totals.pnl >= 0;
     const realizedIsPositive = realizedPnl >= 0;
     const totalIsPositive = totalPnl >= 0;
+    const hypotheticalUnrealizedIsPositive = hypotheticalTotals.unrealized >= 0;
+
+    const handleSaveHypotheticalPrices = () => {
+        const nextPrices: Record<string, number> = {};
+        hypotheticalHoldingSummaries.forEach((summary) => {
+            const draftValue = draftHypotheticalPrices[summary.assetId]?.trim();
+            if (!draftValue) {
+                return;
+            }
+            const parsedPrice = Number(draftValue);
+            if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+                return;
+            }
+            nextPrices[summary.assetId] = parsedPrice;
+        });
+        dispatch(
+            updateSettings({
+                hypotheticalAssetPrices: nextPrices,
+            }),
+        );
+        setIsHypotheticalModalOpen(false);
+    };
+
+    const handleResetHypotheticalPrices = () => {
+        dispatch(
+            updateSettings({
+                hypotheticalAssetPrices: {},
+            }),
+        );
+        setIsHypotheticalModalOpen(false);
+    };
 
     const assetTypeData = useMemo(() => {
         const totalsByType = holdingSummaries.reduce<Record<string, number>>(
@@ -299,7 +447,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                     (acc[summary.assetType] ?? 0) + summary.currentValueVisual;
                 return acc;
             },
-            {}
+            {},
         );
 
         const cashTotal = cashBuckets.reduce((sum, bucket) => {
@@ -309,7 +457,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                     bucket.value,
                     bucket.currency,
                     settings.visualCurrency,
-                    forexRates
+                    forexRates,
                 )
             );
         }, 0);
@@ -324,7 +472,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             .map(([type, value]) => ({
                 name: type.toUpperCase(),
                 value: Number(
-                    getAllocationPercent(value, totalValue).toFixed(2)
+                    getAllocationPercent(value, totalValue).toFixed(2),
                 ),
                 color: assetTypeColors[type] ?? "#94a3b8",
             }))
@@ -337,7 +485,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             const current = totalsByCurrency.get(summary.tradingCurrency) ?? 0;
             totalsByCurrency.set(
                 summary.tradingCurrency,
-                current + summary.currentValueVisual
+                current + summary.currentValueVisual,
             );
         });
         cashBuckets.forEach((bucket) => {
@@ -349,8 +497,8 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                         bucket.value,
                         bucket.currency,
                         settings.visualCurrency,
-                        forexRates
-                    )
+                        forexRates,
+                    ),
             );
         });
         const totalValue = getTotalValue(Array.from(totalsByCurrency.values()));
@@ -359,7 +507,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             .map(([currency, value], index) => ({
                 name: currency,
                 value: Number(
-                    getAllocationPercent(value, totalValue).toFixed(2)
+                    getAllocationPercent(value, totalValue).toFixed(2),
                 ),
                 color: currencyPalette[index % currencyPalette.length],
             }))
@@ -377,7 +525,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             const risk = pie.risk ?? 0;
             const pieValue = pie.assetIds.reduce((sum, assetId) => {
                 const holding = holdingSummaries.find(
-                    (summary) => summary.assetId === assetId
+                    (summary) => summary.assetId === assetId,
                 );
                 return sum + (holding?.currentValueVisual ?? 0);
             }, 0);
@@ -393,21 +541,21 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             {
                 name: "Low (1-2)",
                 value: Number(
-                    getAllocationPercent(buckets.low, totalValue).toFixed(2)
+                    getAllocationPercent(buckets.low, totalValue).toFixed(2),
                 ),
                 color: "#10b981",
             },
             {
                 name: "Medium (3)",
                 value: Number(
-                    getAllocationPercent(buckets.medium, totalValue).toFixed(2)
+                    getAllocationPercent(buckets.medium, totalValue).toFixed(2),
                 ),
                 color: "#f59e0b",
             },
             {
                 name: "High (4-5)",
                 value: Number(
-                    getAllocationPercent(buckets.high, totalValue).toFixed(2)
+                    getAllocationPercent(buckets.high, totalValue).toFixed(2),
                 ),
                 color: "#ef4444",
             },
@@ -420,11 +568,11 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 map.set(
                     summary.assetId,
                     (map.get(summary.assetId) ?? 0) +
-                        summary.currentValueVisual
+                        summary.currentValueVisual,
                 );
                 return map;
             },
-            new Map()
+            new Map(),
         );
         const pieTotals = Object.values(pies).map((pie) => {
             const pieValue = pie.assetIds.reduce((sum, assetId) => {
@@ -433,15 +581,13 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             return { id: pie.id, name: pie.name, value: pieValue };
         });
 
-        const totalValue = getTotalValue(
-            pieTotals.map((pie) => pie.value)
-        );
+        const totalValue = getTotalValue(pieTotals.map((pie) => pie.value));
 
         return pieTotals
             .map((pie, index) => ({
                 name: pie.name,
                 value: Number(
-                    getAllocationPercent(pie.value, totalValue).toFixed(2)
+                    getAllocationPercent(pie.value, totalValue).toFixed(2),
                 ),
                 color: piePalette[index % piePalette.length],
             }))
@@ -450,7 +596,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
 
     const topHoldings = useMemo(() => {
         const totalValue = getTotalValue(
-            holdingSummaries.map((summary) => summary.currentValueVisual)
+            holdingSummaries.map((summary) => summary.currentValueVisual),
         );
         return [...holdingSummaries]
             .sort((a, b) => b.currentValueVisual - a.currentValueVisual)
@@ -460,8 +606,8 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 value: Number(
                     getAllocationPercent(
                         summary.currentValueVisual,
-                        totalValue
-                    ).toFixed(2)
+                        totalValue,
+                    ).toFixed(2),
                 ),
             }));
     }, [holdingSummaries]);
@@ -471,20 +617,82 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             <PageHeader title="Statistics" onMenuClick={onMenuClick} />
 
             <main className="p-6 max-w-7xl mx-auto space-y-6">
-                <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                     <Card className="p-4">
                         <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
                             Total Net Worth
                         </p>
                         <p className="text-2xl font-bold text-app-foreground mt-1">
-                            {formatCurrency(totals.netWorth, settings.visualCurrency)}
+                            {formatCurrency(
+                                totals.netWorth,
+                                settings.visualCurrency,
+                            )}
                         </p>
                         <div className="mt-2 space-y-1 text-sm text-app-muted">
                             <p>
-                                Assets {formatCurrency(totals.current, settings.visualCurrency)}
+                                Assets{" "}
+                                {formatCurrency(
+                                    totals.current,
+                                    settings.visualCurrency,
+                                )}
                             </p>
                             <p>
-                                Cash {formatCurrency(totals.cash, settings.visualCurrency)}
+                                Cash{" "}
+                                {formatCurrency(
+                                    totals.cash,
+                                    settings.visualCurrency,
+                                )}
+                            </p>
+                        </div>
+                    </Card>
+
+                    <Card className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                            <p className="text-xs text-app-muted uppercase tracking-wider font-semibold">
+                                Net Worth if Prices = X (Today)
+                            </p>
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                icon={<Settings2 size={14} />}
+                                onClick={() => setIsHypotheticalModalOpen(true)}
+                            >
+                                Set X
+                            </Button>
+                        </div>
+                        <div className="mt-2 space-y-2">
+                            <p className="text-2xl font-bold text-app-foreground">
+                                {formatCurrency(
+                                    hypotheticalTotals.netWorth,
+                                    settings.visualCurrency,
+                                )}
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Unrealized
+                                <span
+                                    className={`ml-2 font-semibold ${
+                                        hypotheticalUnrealizedIsPositive
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    {hypotheticalUnrealizedIsPositive
+                                        ? "+"
+                                        : ""}
+                                    {formatCurrency(
+                                        hypotheticalTotals.unrealized,
+                                        settings.visualCurrency,
+                                    )}
+                                </span>
+                            </p>
+                            <p className="text-sm text-app-muted">
+                                Cost Basis
+                                <span className="ml-2 text-app-foreground font-semibold">
+                                    {formatCurrency(
+                                        hypotheticalTotals.invested,
+                                        settings.visualCurrency,
+                                    )}
+                                </span>
                             </p>
                         </div>
                     </Card>
@@ -495,7 +703,10 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                         </p>
                         <div className="mt-2 space-y-2">
                             <p className="text-2xl font-bold text-app-foreground">
-                                {formatCurrency(totals.current, settings.visualCurrency)}
+                                {formatCurrency(
+                                    totals.current,
+                                    settings.visualCurrency,
+                                )}
                             </p>
                             <p className="text-sm text-app-muted">
                                 Unrealized
@@ -507,7 +718,10 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                                     }`}
                                 >
                                     {unrealizedIsPositive ? "+" : ""}
-                                    {formatCurrency(totals.pnl, settings.visualCurrency)}
+                                    {formatCurrency(
+                                        totals.pnl,
+                                        settings.visualCurrency,
+                                    )}
                                 </span>
                                 <span
                                     className={`ml-2 text-xs font-semibold ${
@@ -523,7 +737,10 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                             <p className="text-sm text-app-muted">
                                 Cost Basis
                                 <span className="ml-2 text-app-foreground font-semibold">
-                                    {formatCurrency(totals.invested, settings.visualCurrency)}
+                                    {formatCurrency(
+                                        totals.invested,
+                                        settings.visualCurrency,
+                                    )}
                                 </span>
                             </p>
                         </div>
@@ -544,7 +761,10 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                                     }`}
                                 >
                                     {unrealizedIsPositive ? "+" : ""}
-                                    {formatCurrency(totals.pnl, settings.visualCurrency)}
+                                    {formatCurrency(
+                                        totals.pnl,
+                                        settings.visualCurrency,
+                                    )}
                                 </span>
                             </p>
                             <p className="text-sm text-app-muted">
@@ -557,7 +777,10 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                                     }`}
                                 >
                                     {realizedIsPositive ? "+" : ""}
-                                    {formatCurrency(realizedPnl, settings.visualCurrency)}
+                                    {formatCurrency(
+                                        realizedPnl,
+                                        settings.visualCurrency,
+                                    )}
                                 </span>
                             </p>
                             <p className="text-sm text-app-muted">
@@ -570,7 +793,10 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                                     }`}
                                 >
                                     {totalIsPositive ? "+" : ""}
-                                    {formatCurrency(totalPnl, settings.visualCurrency)}
+                                    {formatCurrency(
+                                        totalPnl,
+                                        settings.visualCurrency,
+                                    )}
                                 </span>
                             </p>
                         </div>
@@ -703,6 +929,81 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                         </div>
                     </Card>
                 </section>
+                <Modal
+                    isOpen={isHypotheticalModalOpen}
+                    onClose={() => setIsHypotheticalModalOpen(false)}
+                    title="Set hypothetical asset prices"
+                >
+                    <div className="space-y-4">
+                        <p className="text-sm text-app-muted">
+                            Define your own prices (X) for each open position.
+                            Leave any field empty to use the current live price.
+                        </p>
+                        <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                            {hypotheticalHoldingSummaries.map((summary) => (
+                                <label
+                                    key={summary.assetId}
+                                    className="block border border-app-border rounded-xl p-3"
+                                >
+                                    <p className="text-sm font-semibold text-app-foreground">
+                                        {summary.name} ({summary.ticker})
+                                    </p>
+                                    <p className="text-xs text-app-muted mt-1">
+                                        Current:{" "}
+                                        {formatCurrency(
+                                            summary.currentPrice,
+                                            summary.tradingCurrency,
+                                        )}
+                                    </p>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="any"
+                                        value={
+                                            draftHypotheticalPrices[
+                                                summary.assetId
+                                            ] ?? ""
+                                        }
+                                        onChange={(event) =>
+                                            setDraftHypotheticalPrices(
+                                                (prev) => ({
+                                                    ...prev,
+                                                    [summary.assetId]:
+                                                        event.target.value,
+                                                }),
+                                            )
+                                        }
+                                        className="mt-2 w-full px-3 py-2 rounded-lg border border-app-border bg-app-bg text-app-foreground"
+                                        placeholder={String(
+                                            summary.currentPrice,
+                                        )}
+                                    />
+                                </label>
+                            ))}
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <Button
+                                variant="ghost"
+                                onClick={handleResetHypotheticalPrices}
+                            >
+                                Reset to current prices
+                            </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="secondary"
+                                    onClick={() =>
+                                        setIsHypotheticalModalOpen(false)
+                                    }
+                                >
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleSaveHypotheticalPrices}>
+                                    Save prices
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </Modal>
             </main>
         </div>
     );
