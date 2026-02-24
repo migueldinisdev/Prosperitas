@@ -90,6 +90,7 @@ interface WalletPerformanceSectionProps {
     baseCurrency: string;
     transactions: WalletTx[];
     assets: AssetsState;
+    livePricesByAsset?: Record<string, number>;
 }
 
 const WalletPerformanceSection = React.memo(
@@ -99,6 +100,7 @@ const WalletPerformanceSection = React.memo(
         baseCurrency,
         transactions,
         assets,
+        livePricesByAsset,
     }: WalletPerformanceSectionProps) => (
         <Card title="Performance History">
             {transactions.length > 0 ? (
@@ -109,6 +111,7 @@ const WalletPerformanceSection = React.memo(
                     height={300}
                     currency={currency}
                     locale={locale}
+                    livePricesByAsset={livePricesByAsset}
                 />
             ) : (
                 <p className="text-sm text-app-muted">
@@ -1213,6 +1216,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     baseCurrency={settings.visualCurrency}
                     transactions={walletTransactions}
                     assets={assets}
+                    livePricesByAsset={livePricesByAsset}
                 />
 
                 <div className="flex flex-wrap gap-4">
