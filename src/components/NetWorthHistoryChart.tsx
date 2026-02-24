@@ -199,7 +199,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         includeWithdrawals,
         includeDividends,
         includeForex,
-        snapshotDates: chartDates,
+        snapshotDates: ticks,
         livePricesByAsset,
         currentDate,
     });
