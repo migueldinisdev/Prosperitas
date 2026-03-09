@@ -221,44 +221,6 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         settings.visualCurrency,
     ]);
 
-    const hypotheticalTotals = useMemo(() => {
-        const hypotheticalCurrent = getTotalValue(
-            hypotheticalHoldingSummaries.map(
-                (summary) => summary.hypotheticalCurrentValueVisual,
-            ),
-        );
-        const hypotheticalInvested = getTotalValue(
-            hypotheticalHoldingSummaries.map(
-                (summary) => summary.investedValueVisual,
-            ),
-        );
-        const hypotheticalUnrealized = getPnL(
-            hypotheticalCurrent,
-            hypotheticalInvested,
-        );
-        const cashTotal = getTotalValue(
-            cashBuckets.map((bucket) =>
-                toVisualValue(
-                    bucket.value,
-                    bucket.currency,
-                    settings.visualCurrency,
-                    forexRates,
-                ),
-            ),
-        );
-        return {
-            current: hypotheticalCurrent,
-            invested: hypotheticalInvested,
-            unrealized: hypotheticalUnrealized,
-            netWorth: getNetWorth(hypotheticalCurrent, cashTotal),
-        };
-    }, [
-        cashBuckets,
-        forexRates,
-        hypotheticalHoldingSummaries,
-        settings.visualCurrency,
-    ]);
-
     useEffect(() => {
         if (!isHypotheticalModalOpen) {
             return;
@@ -404,6 +366,27 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             ),
         [forexRates, getForexRate, settings.visualCurrency, walletTransactions],
     );
+
+    const hypotheticalTotals = useMemo(() => {
+        const hypotheticalCurrent = getTotalValue(
+            hypotheticalHoldingSummaries.map(
+                (summary) => summary.hypotheticalCurrentValueVisual,
+            ),
+        );
+        const hypotheticalInvested = totals.invested;
+        const hypotheticalUnrealized = getPnL(
+            hypotheticalCurrent,
+            hypotheticalInvested,
+        );
+
+        return {
+            current: hypotheticalCurrent,
+            invested: hypotheticalInvested,
+            unrealized: hypotheticalUnrealized,
+            netWorth: getNetWorth(hypotheticalCurrent, totals.cash),
+        };
+    }, [hypotheticalHoldingSummaries, totals.cash, totals.invested]);
+
     const totalPnl = totals.pnl + realizedPnl;
     const unrealizedIsPositive = totals.pnl >= 0;
     const realizedIsPositive = realizedPnl >= 0;
