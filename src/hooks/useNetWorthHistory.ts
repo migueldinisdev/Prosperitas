@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Asset, WalletTx } from "../core/schema-types";
 import { getPricesBatch, PriceAssetType } from "../data/prices";
 import {
@@ -70,6 +70,11 @@ export const useNetWorthHistory = ({
         () => new Map()
     );
     const [isLoading, setIsLoading] = useState(false);
+    const errorCount = useRef(0);
+    const circuitBroken = useRef(false);
+    const lastAttemptTime = useRef(0);
+    const CIRCUIT_BREAKER_THRESHOLD = 3;
+    const COOLDOWN_PERIOD_MS = 5 * 60 * 1000; // 5 minutes
 
     const sortedTransactions = useMemo(
         () =>
@@ -176,6 +181,20 @@ export const useNetWorthHistory = ({
 
     useEffect(() => {
         let isActive = true;
+        
+        // Check if circuit breaker is active
+        if (circuitBroken.current) {
+            const timeSinceLastAttempt = Date.now() - lastAttemptTime.current;
+            if (timeSinceLastAttempt < COOLDOWN_PERIOD_MS) {
+                return () => {
+                    isActive = false;
+                };
+            }
+            // Reset circuit breaker after cooldown
+            circuitBroken.current = false;
+            errorCount.current = 0;
+        }
+        
         if (!dates.length) {
             setPriceMap(new Map());
             setForexMap(new Map());
@@ -193,32 +212,63 @@ export const useNetWorthHistory = ({
 
         const fetchPrices = async () => {
             setIsLoading(true);
+            lastAttemptTime.current = Date.now();
+            
             try {
                 const batch = await getPricesBatch(requests);
                 if (!isActive) return;
+                
                 const nextPriceMap = new Map<string, number>();
                 const nextForexMap = new Map<string, number>();
-                batch.results.forEach(({ request, value }) => {
-                    if (!value) return;
-                    if (request.type === "forex") {
-                        const currency = request.ticker.slice(0, 3);
-                        nextForexMap.set(
-                            makeForexKey(currency, request.date ?? value.date),
-                            value.close
-                        );
-                    } else {
-                        nextPriceMap.set(
-                            makePriceKey(
-                                request.type,
-                                normalizeTicker(request.ticker),
-                                request.date ?? value.date
-                            ),
-                            value.close
-                        );
+                let successCount = 0;
+                let failureCount = 0;
+                
+                batch.results.forEach(({ request, value, error }) => {
+                    if (value) {
+                        successCount++;
+                        if (request.type === "forex") {
+                            const currency = request.ticker.slice(0, 3);
+                            nextForexMap.set(
+                                makeForexKey(currency, request.date ?? value.date),
+                                value.close
+                            );
+                        } else {
+                            nextPriceMap.set(
+                                makePriceKey(
+                                    request.type,
+                                    normalizeTicker(request.ticker),
+                                    request.date ?? value.date
+                                ),
+                                value.close
+                            );
+                        }
+                    } else if (error) {
+                        failureCount++;
                     }
                 });
+                
                 setPriceMap(nextPriceMap);
                 setForexMap(nextForexMap);
+                
+                // Update circuit breaker state
+                if (failureCount > 0 && successCount === 0) {
+                    errorCount.current += 1;
+
+                    if (errorCount.current >= CIRCUIT_BREAKER_THRESHOLD) {
+                        circuitBroken.current = true;
+                    }
+                } else if (successCount > 0) {
+                    // Reset error count on any success
+                    errorCount.current = 0;
+                }
+            } catch (error) {
+                if (isActive) {
+                    errorCount.current += 1;
+                    
+                    if (errorCount.current >= CIRCUIT_BREAKER_THRESHOLD) {
+                        circuitBroken.current = true;
+                    }
+                }
             } finally {
                 if (isActive) {
                     setIsLoading(false);
