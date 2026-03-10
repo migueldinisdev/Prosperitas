@@ -45,6 +45,7 @@ export const BarChart = React.memo(
                     <ReBarChart
                         data={data}
                         layout="vertical"
+                        barCategoryGap="25%"
                         margin={{ top: 5, right: 16, left: 16, bottom: 24 }}
                     >
                         <CartesianGrid
@@ -63,6 +64,7 @@ export const BarChart = React.memo(
                         <YAxis
                             dataKey="name"
                             type="category"
+                            interval={0}
                             stroke="rgb(var(--color-app-muted))"
                             fontSize={12}
                             tickLine={false}

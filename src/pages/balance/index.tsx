@@ -3,7 +3,6 @@ import { PageHeader } from "../../components/PageHeader";
 import { BalanceMonthSwitcher } from "./BalanceMonthSwitcher";
 import { MonthlyBalanceTransactionsList } from "./MonthlyBalanceTransactionsList";
 import { BalanceCategorySpendingSection } from "./BalanceCategorySpendingSection";
-import { BalanceSankeySection } from "./BalanceSankeySection";
 import { Card } from "../../ui/Card";
 import { Button } from "../../ui/Button";
 import { Plus, SlidersHorizontal } from "lucide-react";
@@ -141,6 +140,38 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
         };
     }, [balance]);
 
+    const getRateColor = (
+        kind: "spending" | "savings",
+        currentRate: number,
+        averageRate: number
+    ) => {
+        if (averageRate <= 0) {
+            return "bg-app-success";
+        }
+
+        if (kind === "savings") {
+            if (currentRate >= averageRate) {
+                return "bg-app-success";
+            }
+
+            if (currentRate >= averageRate * 0.85) {
+                return "bg-app-warning";
+            }
+
+            return "bg-app-danger";
+        }
+
+        if (currentRate <= averageRate) {
+            return "bg-app-success";
+        }
+
+        if (currentRate <= averageRate * 1.15) {
+            return "bg-app-warning";
+        }
+
+        return "bg-app-danger";
+    };
+
     const getCardA11yProps = (kind: "spending" | "savings") => ({
         role: "button" as const,
         tabIndex: 0,
@@ -193,7 +224,7 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                     onChange={setMonthKey}
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card
                         title="Savings Rate"
                         className="cursor-pointer hover:border-app-primary/50 transition-colors"
@@ -210,7 +241,7 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                         </div>
                         <div className="relative w-full bg-app-surface h-2 rounded-full overflow-hidden">
                             <div
-                                className={`h-full ${savingsRate >= 0 ? "bg-app-success" : "bg-app-danger"}`}
+                                className={`h-full ${getRateColor("savings", savingsRate, historicalRates.avgSavingsRateEver)}`}
                                 style={{
                                     width: `${Math.min(Math.max(savingsRate, 0), 100)}%`,
                                 }}
@@ -253,7 +284,7 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                         </div>
                         <div className="relative w-full bg-app-surface h-2 rounded-full overflow-hidden">
                             <div
-                                className="bg-app-warning h-full"
+                                className={`h-full ${getRateColor("spending", spendingRate, historicalRates.avgSpendingRateEver)}`}
                                 style={{
                                     width: `${spendingRateProgress}%`,
                                     minWidth: spendingRateProgress > 0 ? "2px" : "0px",
@@ -281,48 +312,6 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                         </p>
                     </Card>
 
-                    <Card title="Cash Flow">
-                        <div className="space-y-2 mt-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-app-muted">Income</span>
-                                <span className="text-app-foreground font-medium">
-                                    {formatCurrency(
-                                        cashFlow.income,
-                                        balanceCurrency
-                                    )}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-app-muted">Expenses</span>
-                                <span className="text-app-foreground font-medium">
-                                    -
-                                    {formatCurrency(
-                                        cashFlow.expenses,
-                                        balanceCurrency
-                                    )}
-                                </span>
-                            </div>
-                            <div className="h-px bg-app-border my-2"></div>
-                            <div className="flex justify-between text-base font-semibold">
-                                <span className="text-app-foreground">
-                                    Net Savings
-                                </span>
-                                <span
-                                    className={
-                                        cashFlow.netSavings >= 0
-                                            ? "text-app-success"
-                                            : "text-app-danger"
-                                    }
-                                >
-                                    {cashFlow.netSavings >= 0 ? "+" : "-"}
-                                    {formatCurrency(
-                                        Math.abs(cashFlow.netSavings),
-                                        balanceCurrency
-                                    )}
-                                </span>
-                            </div>
-                        </div>
-                    </Card>
                 </div>
 
                 {/* Transactions List - Full Width with Scrollable Container */}
@@ -330,10 +319,9 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                     <MonthlyBalanceTransactionsList monthKey={monthKey} />
                 </div>
 
-                {/* Spending by Category + Sankey Flow Chart */}
-                <div className="grid w-full grid-cols-1 gap-6 xl:grid-cols-2">
+                {/* Spending by Category */}
+                <div className="w-full">
                     <BalanceCategorySpendingSection monthKey={monthKey} />
-                    <BalanceSankeySection monthKey={monthKey} />
                 </div>
             </main>
 
