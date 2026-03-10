@@ -36,6 +36,11 @@ const getAssetPriceRequest = (asset: Asset) => {
 export const useAssetLivePrices = (assets: Asset[]) => {
     const livePrices = useAppSelector(selectLivePrices);
     const inFlightRequests = useRef(new Set<string>());
+    const errorCount = useRef(0);
+    const circuitBroken = useRef(false);
+    const lastAttemptTime = useRef(0);
+    const CIRCUIT_BREAKER_THRESHOLD = 3;
+    const COOLDOWN_PERIOD_MS = 5 * 60 * 1000; // 5 minutes
 
     const priceRequests = useMemo(
         () =>
@@ -56,6 +61,17 @@ export const useAssetLivePrices = (assets: Asset[]) => {
     );
 
     useEffect(() => {
+        // Check if circuit breaker is active
+        if (circuitBroken.current) {
+            const timeSinceLastAttempt = Date.now() - lastAttemptTime.current;
+            if (timeSinceLastAttempt < COOLDOWN_PERIOD_MS) {
+                return;
+            }
+            // Reset circuit breaker after cooldown
+            circuitBroken.current = false;
+            errorCount.current = 0;
+        }
+
         const requestsToFetch = priceRequests.filter(({ request }) => {
             const key = `${request.type}:${request.ticker}`;
             const livePrice = livePrices[key];
@@ -70,16 +86,35 @@ export const useAssetLivePrices = (assets: Asset[]) => {
         }
 
         const fetchPrices = async () => {
+            lastAttemptTime.current = Date.now();
             requestsToFetch.forEach(({ request }) => {
                 inFlightRequests.current.add(
                     `${request.type}:${request.ticker}`
                 );
             });
-            await Promise.all(
+            
+            const results = await Promise.all(
                 requestsToFetch.map(({ request }) =>
-                    getPrice(request).catch(() => null)
+                    getPrice(request)
+                        .then((result) => ({ success: true, result }))
+                        .catch((error) => ({ success: false, error }))
                 )
             );
+
+            const successCount = results.filter((r) => r.success).length;
+            const failureCount = results.filter((r) => !r.success).length;
+
+            if (failureCount > 0 && successCount === 0) {
+                errorCount.current += 1;
+
+                if (errorCount.current >= CIRCUIT_BREAKER_THRESHOLD) {
+                    circuitBroken.current = true;
+                }
+            } else if (successCount > 0) {
+                // Reset error count on any success
+                errorCount.current = 0;
+            }
+            
             requestsToFetch.forEach(({ request }) => {
                 inFlightRequests.current.delete(
                     `${request.type}:${request.ticker}`

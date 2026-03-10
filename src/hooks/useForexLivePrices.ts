@@ -19,6 +19,11 @@ export const useForexLivePrices = (
 ) => {
     const livePrices = useAppSelector(selectLivePrices);
     const inFlightRequests = useRef(new Set<string>());
+    const errorCount = useRef(0);
+    const circuitBroken = useRef(false);
+    const lastAttemptTime = useRef(0);
+    const CIRCUIT_BREAKER_THRESHOLD = 3;
+    const COOLDOWN_PERIOD_MS = 5 * 60 * 1000; // 5 minutes
 
     const forexRequests = useMemo(() => {
         const uniqueCurrencies = Array.from(new Set(currencies));
@@ -32,6 +37,17 @@ export const useForexLivePrices = (
     }, [currencies, visualCurrency]);
 
     useEffect(() => {
+        // Check if circuit breaker is active
+        if (circuitBroken.current) {
+            const timeSinceLastAttempt = Date.now() - lastAttemptTime.current;
+            if (timeSinceLastAttempt < COOLDOWN_PERIOD_MS) {
+                return;
+            }
+            // Reset circuit breaker after cooldown
+            circuitBroken.current = false;
+            errorCount.current = 0;
+        }
+
         const requestsToFetch = forexRequests.filter(({ ticker }) => {
             const key = `forex:${ticker}`;
             const livePrice = livePrices[key];
@@ -46,14 +62,33 @@ export const useForexLivePrices = (
         }
 
         const fetchPrices = async () => {
+            lastAttemptTime.current = Date.now();
             requestsToFetch.forEach(({ ticker }) => {
                 inFlightRequests.current.add(`forex:${ticker}`);
             });
-            await Promise.all(
+            
+            const results = await Promise.all(
                 requestsToFetch.map(({ ticker }) =>
-                    getPrice({ type: "forex", ticker }).catch(() => null)
+                    getPrice({ type: "forex", ticker })
+                        .then((result) => ({ success: true, result }))
+                        .catch((error) => ({ success: false, error }))
                 )
             );
+
+            const successCount = results.filter((r) => r.success).length;
+            const failureCount = results.filter((r) => !r.success).length;
+
+            if (failureCount > 0 && successCount === 0) {
+                errorCount.current += 1;
+
+                if (errorCount.current >= CIRCUIT_BREAKER_THRESHOLD) {
+                    circuitBroken.current = true;
+                }
+            } else if (successCount > 0) {
+                // Reset error count on any success
+                errorCount.current = 0;
+            }
+            
             requestsToFetch.forEach(({ ticker }) => {
                 inFlightRequests.current.delete(`forex:${ticker}`);
             });
