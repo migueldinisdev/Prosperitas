@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "../../components/PageHeader";
 import { Card } from "../../ui/Card";
 import { PieChart } from "../../components/PieChart";
+import { StackedNormalizedAreaChart } from "../../components/StackedNormalizedAreaChart";
 import {
     selectAssets,
     selectPies,
@@ -28,7 +29,11 @@ import {
     toVisualValue,
 } from "../../core/finance";
 import { formatCurrency } from "../../utils/formatters";
-import { getWalletTxCurrencies } from "../../utils/netWorthHistory";
+import {
+    buildNetWorthHistory,
+    formatHistoryDate,
+    getWalletTxCurrencies,
+} from "../../utils/netWorthHistory";
 import { Modal } from "../../ui/Modal";
 import { Button } from "../../ui/Button";
 import { Settings2 } from "lucide-react";
@@ -52,6 +57,9 @@ const piePalette = [
     "#f43f5e",
     "#14b8a6",
 ];
+const walletPalette = ["#0ea5e9", "#8b5cf6", "#22c55e", "#f97316", "#ef4444"];
+
+type ShareView = "assetType" | "pie" | "wallet";
 
 interface Props {
     onMenuClick: () => void;
@@ -70,6 +78,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
     const [draftHypotheticalPrices, setDraftHypotheticalPrices] = useState<
         Record<string, string>
     >({});
+    const [shareView, setShareView] = useState<ShareView>("assetType");
 
     const positions = useMemo(
         () =>
@@ -577,6 +586,146 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             .filter((entry) => entry.value > 0);
     }, [holdingSummaries, pies]);
 
+    const netWorthShareData = useMemo(() => {
+        const snapshotDates = Array.from(
+            new Set(walletTransactions.map((tx) => tx.date)),
+        ).sort((a, b) => a.localeCompare(b));
+
+        if (snapshotDates.length === 0) {
+            return { data: [], series: [] as Array<{ key: string; label: string; color: string }> };
+        }
+
+        const buildSeriesMap = (
+            groups: Array<{
+                key: string;
+                label: string;
+                color: string;
+                assetIds?: string[];
+                walletId?: string;
+                includeCash?: boolean;
+            }>,
+        ) => {
+            const mapByDate = new Map<string, Record<string, number>>();
+
+            groups.forEach((group) => {
+                const filteredTransactions = group.walletId
+                    ? walletTransactions.filter((tx) => tx.walletId === group.walletId)
+                    : walletTransactions;
+
+                const history = buildNetWorthHistory({
+                    transactions: filteredTransactions,
+                    forexRates: {},
+                    baseCurrency: settings.visualCurrency,
+                    locale: settings.locale,
+                    assetFilter: group.assetIds ? new Set(group.assetIds) : undefined,
+                    includeCash: group.includeCash ?? false,
+                    includeDeposits: true,
+                    includeWithdrawals: true,
+                    includeDividends: true,
+                    includeForex: true,
+                    snapshotDates,
+                });
+
+                history.forEach((point) => {
+                    const row = mapByDate.get(point.date) ?? {
+                        date: point.date,
+                        name: formatHistoryDate(point.date, settings.locale),
+                    };
+                    row[group.key] = Math.max(0, point.value);
+                    mapByDate.set(point.date, row);
+                });
+            });
+
+            return snapshotDates.map((date) => {
+                const row = mapByDate.get(date) ?? {
+                    date,
+                    name: formatHistoryDate(date, settings.locale),
+                };
+                groups.forEach((group) => {
+                    if (typeof row[group.key] !== "number") {
+                        row[group.key] = 0;
+                    }
+                });
+                return row;
+            });
+        };
+
+        if (shareView === "assetType") {
+            const assetIdsByType = Object.values(assets).reduce<Record<string, string[]>>(
+                (acc, asset) => {
+                    const key = asset.assetType ?? "other";
+                    acc[key] = acc[key] ?? [];
+                    acc[key].push(asset.id);
+                    return acc;
+                },
+                {},
+            );
+
+            const series = Object.entries(assetIdsByType)
+                .map(([assetType, assetIds]) => ({
+                    key: assetType,
+                    label: assetType.toUpperCase(),
+                    color: assetTypeColors[assetType] ?? "#94a3b8",
+                    assetIds,
+                    includeCash: false,
+                }))
+                .filter((entry) => entry.assetIds.length > 0);
+
+            const cashSeries = {
+                key: "cash",
+                label: "CASH",
+                color: assetTypeColors.cash,
+                includeCash: true,
+            };
+
+            const filteredSeries = series.filter((entry) => entry.key !== "cash");
+            filteredSeries.push(cashSeries);
+
+            return {
+                data: buildSeriesMap(filteredSeries),
+                series: filteredSeries.map(({ key, label, color }) => ({ key, label, color })),
+            };
+        }
+
+        if (shareView === "pie") {
+            const series = Object.values(pies)
+                .map((pie, index) => ({
+                    key: pie.id,
+                    label: pie.name,
+                    color: piePalette[index % piePalette.length],
+                    assetIds: pie.assetIds,
+                    includeCash: false,
+                }))
+                .filter((entry) => entry.assetIds.length > 0);
+
+            return {
+                data: buildSeriesMap(series),
+                series: series.map(({ key, label, color }) => ({ key, label, color })),
+            };
+        }
+
+        const walletSeries = Object.values(wallets).map((wallet, index) => ({
+            key: wallet.id,
+            label: wallet.name,
+            color: walletPalette[index % walletPalette.length],
+            walletId: wallet.id,
+            includeCash: true,
+        }));
+
+        return {
+            data: buildSeriesMap(walletSeries),
+            series: walletSeries.map(({ key, label, color }) => ({ key, label, color })),
+        };
+    }, [
+        assets,
+        pies,
+        settings.locale,
+        settings.visualCurrency,
+        shareView,
+        walletTransactions,
+        wallets,
+    ]);
+
     const topHoldings = useMemo(() => {
         const totalValue = getTotalValue(
             holdingSummaries.map((summary) => summary.currentValueVisual),
@@ -854,6 +1003,44 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                                 </div>
                             ))}
                         </div>
+                    </Card>
+                </section>
+
+                <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card
+                        title="Net Worth Share Over Time"
+                        className="md:col-span-3"
+                        action={
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    variant={shareView === "assetType" ? "primary" : "secondary"}
+                                    onClick={() => setShareView("assetType")}
+                                >
+                                    Asset Type
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={shareView === "pie" ? "primary" : "secondary"}
+                                    onClick={() => setShareView("pie")}
+                                >
+                                    Pie
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={shareView === "wallet" ? "primary" : "secondary"}
+                                    onClick={() => setShareView("wallet")}
+                                >
+                                    Wallet
+                                </Button>
+                            </div>
+                        }
+                    >
+                        <StackedNormalizedAreaChart
+                            data={netWorthShareData.data}
+                            series={netWorthShareData.series}
+                            height={320}
+                        />
                     </Card>
                 </section>
 
