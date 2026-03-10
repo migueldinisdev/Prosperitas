@@ -261,6 +261,13 @@ export const getPricesBatch = async (
                 const value = await getPrice(request);
                 return { request, value };
             } catch (error) {
+                // Use fallback price if available
+                if (error instanceof PriceFallbackError && error.fallback) {
+                    return { 
+                        request, 
+                        value: error.fallback as PriceResult 
+                    };
+                }
                 return { request, value: null, error };
             }
         })

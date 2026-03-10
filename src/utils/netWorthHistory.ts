@@ -34,8 +34,13 @@ export const formatHistoryDate = (date: string, locale?: string) => {
     });
 };
 
-const sortTransactions = (transactions: WalletTx[]) =>
-    [...transactions].sort((a, b) => {
+const sortTransactions = (transactions: WalletTx[]) => {
+    // Filter out transactions with invalid dates
+    const validTransactions = transactions.filter(tx => {
+        return tx.date && !isNaN(new Date(tx.date).getTime());
+    });
+    
+    return validTransactions.sort((a, b) => {
         const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
         if (dateDiff !== 0) return dateDiff;
         return (
@@ -43,6 +48,7 @@ const sortTransactions = (transactions: WalletTx[]) =>
             new Date(b.createdAt).getTime()
         );
     });
+};
 
 const toBaseValue = (
     amount: number,
@@ -126,6 +132,7 @@ export const buildNetWorthHistory = ({
     };
 
     const sortedTransactions = sortTransactions(transactions);
+    
     const applyTransaction = (tx: WalletTx) => {
         switch (tx.type) {
             case "deposit":
@@ -258,6 +265,7 @@ export const buildNetWorthHistory = ({
         const uniqueSnapshotDates = Array.from(new Set(snapshotDates)).sort(
             (a, b) => a.localeCompare(b)
         );
+        
         let txIndex = 0;
         uniqueSnapshotDates.forEach((snapshotDate) => {
             while (
@@ -267,7 +275,8 @@ export const buildNetWorthHistory = ({
                 applyTransaction(sortedTransactions[txIndex]);
                 txIndex += 1;
             }
-            seriesByDate.set(snapshotDate, calculateSnapshotValue(snapshotDate));
+            const snapshotValue = calculateSnapshotValue(snapshotDate);
+            seriesByDate.set(snapshotDate, snapshotValue);
         });
 
         return Array.from(seriesByDate.entries())
