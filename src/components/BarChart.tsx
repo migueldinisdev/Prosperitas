@@ -45,7 +45,7 @@ export const BarChart = React.memo(
                     <ReBarChart
                         data={data}
                         layout="vertical"
-                        barCategoryGap="25%"
+                        barCategoryGap="40%"
                         margin={{ top: 5, right: 16, left: 16, bottom: 24 }}
                     >
                         <CartesianGrid

@@ -224,7 +224,7 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                     onChange={setMonthKey}
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card
                         title="Savings Rate"
                         className="cursor-pointer hover:border-app-primary/50 transition-colors"
@@ -310,6 +310,49 @@ export const BalancePage: React.FC<Props> = ({ onMenuClick }) => {
                             )}{" "}
                             spent
                         </p>
+                    </Card>
+
+                    <Card title="Cash Flow">
+                        <div className="space-y-2 mt-2">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-app-muted">Income</span>
+                                <span className="text-app-foreground font-medium">
+                                    {formatCurrency(
+                                        cashFlow.income,
+                                        balanceCurrency
+                                    )}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-app-muted">Expenses</span>
+                                <span className="text-app-foreground font-medium">
+                                    -
+                                    {formatCurrency(
+                                        cashFlow.expenses,
+                                        balanceCurrency
+                                    )}
+                                </span>
+                            </div>
+                            <div className="h-px bg-app-border my-2"></div>
+                            <div className="flex justify-between text-base font-semibold">
+                                <span className="text-app-foreground">
+                                    Net Savings
+                                </span>
+                                <span
+                                    className={
+                                        cashFlow.netSavings >= 0
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }
+                                >
+                                    {cashFlow.netSavings >= 0 ? "+" : "-"}
+                                    {formatCurrency(
+                                        Math.abs(cashFlow.netSavings),
+                                        balanceCurrency
+                                    )}
+                                </span>
+                            </div>
+                        </div>
                     </Card>
 
                 </div>
