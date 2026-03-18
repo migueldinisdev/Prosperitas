@@ -25,6 +25,20 @@ interface StackedNormalizedAreaChartProps {
 export const StackedNormalizedAreaChart: React.FC<
     StackedNormalizedAreaChartProps
 > = ({ data, series, height = 320 }) => {
+    const formatTooltipValue = (
+        value: number,
+        name: string,
+        item: { payload?: Record<string, number | string> },
+    ) => {
+        const row = item?.payload ?? {};
+        const total = series.reduce((sum, entry) => {
+            const nextValue = row[entry.key];
+            return sum + (typeof nextValue === "number" ? nextValue : 0);
+        }, 0);
+        const percent = total > 0 ? (value / total) * 100 : 0;
+        return [`${percent.toFixed(1)}%`, name];
+    };
+
     return (
         <div style={{ width: "100%", height }}>
             <ResponsiveContainer>
@@ -55,10 +69,7 @@ export const StackedNormalizedAreaChart: React.FC<
                         tickFormatter={(value) => `${Math.round(value * 100)}%`}
                     />
                     <Tooltip
-                        formatter={(value: number, name: string) => [
-                            `${(value * 100).toFixed(1)}%`,
-                            name,
-                        ]}
+                        formatter={formatTooltipValue}
                         contentStyle={{
                             backgroundColor: "rgb(var(--color-app-card))",
                             borderColor: "rgb(var(--color-app-border))",
@@ -92,4 +103,3 @@ export const StackedNormalizedAreaChart: React.FC<
         </div>
     );
 };
-
