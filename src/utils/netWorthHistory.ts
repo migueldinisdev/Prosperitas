@@ -13,6 +13,7 @@ interface NetWorthHistoryOptions {
     locale?: string;
     assetFilter?: Set<string>;
     includeCash?: boolean;
+    includeHoldings?: boolean;
     includeDeposits?: boolean;
     includeWithdrawals?: boolean;
     includeDividends?: boolean;
@@ -100,6 +101,7 @@ export const buildNetWorthHistory = ({
     locale,
     assetFilter,
     includeCash = true,
+    includeHoldings = true,
     includeDeposits = true,
     includeWithdrawals = true,
     includeDividends = true,
@@ -148,20 +150,22 @@ export const buildNetWorthHistory = ({
                 }
                 break;
             case "buy": {
-                if (assetFilter && !assetFilter.has(tx.assetId)) break;
-                const tradingCurrency =
-                    assetMetadata?.[tx.assetId]?.tradingCurrency ??
-                    tx.price.currency;
-                const holding = holdings.get(tx.assetId) ?? {
-                    quantity: 0,
-                    price: tx.price.value,
-                    currency: tradingCurrency,
-                };
-                holdings.set(tx.assetId, {
-                    quantity: holding.quantity + tx.quantity,
-                    price: tx.price.value,
-                    currency: tradingCurrency,
-                });
+                if (includeHoldings) {
+                    if (assetFilter && !assetFilter.has(tx.assetId)) break;
+                    const tradingCurrency =
+                        assetMetadata?.[tx.assetId]?.tradingCurrency ??
+                        tx.price.currency;
+                    const holding = holdings.get(tx.assetId) ?? {
+                        quantity: 0,
+                        price: tx.price.value,
+                        currency: tradingCurrency,
+                    };
+                    holdings.set(tx.assetId, {
+                        quantity: holding.quantity + tx.quantity,
+                        price: tx.price.value,
+                        currency: tradingCurrency,
+                    });
+                }
                 if (includeCash) {
                     addCash(
                         tx.price.currency,
@@ -174,24 +178,26 @@ export const buildNetWorthHistory = ({
                 break;
             }
             case "sell": {
-                if (assetFilter && !assetFilter.has(tx.assetId)) break;
-                const tradingCurrency =
-                    assetMetadata?.[tx.assetId]?.tradingCurrency ??
-                    tx.price.currency;
-                const holding = holdings.get(tx.assetId) ?? {
-                    quantity: 0,
-                    price: tx.price.value,
-                    currency: tradingCurrency,
-                };
-                const nextQuantity = holding.quantity - tx.quantity;
-                if (nextQuantity <= 0) {
-                    holdings.delete(tx.assetId);
-                } else {
-                    holdings.set(tx.assetId, {
-                        quantity: nextQuantity,
+                if (includeHoldings) {
+                    if (assetFilter && !assetFilter.has(tx.assetId)) break;
+                    const tradingCurrency =
+                        assetMetadata?.[tx.assetId]?.tradingCurrency ??
+                        tx.price.currency;
+                    const holding = holdings.get(tx.assetId) ?? {
+                        quantity: 0,
                         price: tx.price.value,
                         currency: tradingCurrency,
-                    });
+                    };
+                    const nextQuantity = holding.quantity - tx.quantity;
+                    if (nextQuantity <= 0) {
+                        holdings.delete(tx.assetId);
+                    } else {
+                        holdings.set(tx.assetId, {
+                            quantity: nextQuantity,
+                            price: tx.price.value,
+                            currency: tradingCurrency,
+                        });
+                    }
                 }
                 if (includeCash) {
                     addCash(
@@ -216,24 +222,26 @@ export const buildNetWorthHistory = ({
     };
 
     const calculateSnapshotValue = (date: string) => {
-        const holdingsValue = Array.from(holdings.entries()).reduce(
-            (total, [assetId, holding]) => {
-                const marketPrice =
-                    getAssetPrice?.(assetId, date) ?? holding.price;
-                return (
-                    total +
-                    toBaseValue(
-                        holding.quantity * marketPrice,
-                        holding.currency,
-                        baseCurrency,
-                        forexRates,
-                        date,
-                        getForexRate
-                    )
-                );
-            },
-            0
-        );
+        const holdingsValue = includeHoldings
+            ? Array.from(holdings.entries()).reduce(
+                  (total, [assetId, holding]) => {
+                      const marketPrice =
+                          getAssetPrice?.(assetId, date) ?? holding.price;
+                      return (
+                          total +
+                          toBaseValue(
+                              holding.quantity * marketPrice,
+                              holding.currency,
+                              baseCurrency,
+                              forexRates,
+                              date,
+                              getForexRate
+                          )
+                      );
+                  },
+                  0
+              )
+            : 0;
 
         const cashValue = includeCash
             ? Array.from(cashByCurrency.entries()).reduce(

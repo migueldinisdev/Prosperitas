@@ -603,6 +603,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 assetIds?: string[];
                 walletId?: string;
                 includeCash?: boolean;
+                includeHoldings?: boolean;
             }>,
         ) => {
             const mapByDate = new Map<string, Record<string, number>>();
@@ -614,15 +615,17 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
 
                 const history = buildNetWorthHistory({
                     transactions: filteredTransactions,
-                    forexRates: {},
+                    forexRates,
                     baseCurrency: settings.visualCurrency,
                     locale: settings.locale,
                     assetFilter: group.assetIds ? new Set(group.assetIds) : undefined,
                     includeCash: group.includeCash ?? false,
+                    includeHoldings: group.includeHoldings ?? true,
                     includeDeposits: true,
                     includeWithdrawals: true,
                     includeDividends: true,
                     includeForex: true,
+                    getForexRate,
                     snapshotDates,
                 });
 
@@ -676,6 +679,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 label: "CASH",
                 color: assetTypeColors.cash,
                 includeCash: true,
+                includeHoldings: false,
             };
 
             const filteredSeries = series.filter((entry) => entry.key !== "cash");
@@ -721,6 +725,8 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         pies,
         settings.locale,
         settings.visualCurrency,
+        forexRates,
+        getForexRate,
         shareView,
         walletTransactions,
         wallets,
