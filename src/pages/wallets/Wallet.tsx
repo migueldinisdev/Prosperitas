@@ -227,8 +227,11 @@ const WalletPerformanceSection = React.memo(
                 <div className="space-y-3">
                     <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-semibold text-app-muted">
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-app-muted">
                                 TWR
+                                <Tooltip content="Time-Weighted Return removes the effect of deposits/withdrawals by chaining sub-period returns. Example: +10%, deposit, +10% => TWR ≈ +21% regardless of deposit timing.">
+                                    <Info size={12} />
+                                </Tooltip>
                             </span>
                             {twrReturns.map((periodReturn) => (
                                 <span
@@ -251,8 +254,11 @@ const WalletPerformanceSection = React.memo(
                             ))}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-semibold text-app-muted">
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-app-muted">
                                 MWR (IRR)
+                                <Tooltip content="Money-Weighted Return (IRR) measures your personal annualized return, including timing/size of cash flows. Example: depositing right before a rally increases MWR.">
+                                    <Info size={12} />
+                                </Tooltip>
                             </span>
                             {mwrReturns.map((periodReturn) => (
                                 <span
@@ -889,7 +895,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             .filter((year) => Number.isFinite(year));
         const earliestTxYear =
             txYears.length > 0 ? Math.min(...txYears) : currentYear;
-        const startYear = Math.min(earliestTxYear, currentYear - 10);
+        const startYear = Math.max(earliestTxYear - 1, 2000);
         const years: number[] = [];
         for (let year = startYear; year <= currentYear; year += 1) {
             years.push(year);
