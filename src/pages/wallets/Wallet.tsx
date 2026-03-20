@@ -25,6 +25,7 @@ import { useWalletData } from "../../hooks/useWalletData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
+import { useNetWorthHistory } from "../../hooks/useNetWorthHistory";
 import { Modal } from "../../ui/Modal";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { addWalletTransaction } from "../../store/thunks/walletThunks";
@@ -82,6 +83,19 @@ const roundToInputPrecision = (value: string) => {
     return Math.round(parsed * factor) / factor;
 };
 const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
+const shiftMonths = (date: Date, months: number) => {
+    const next = new Date(date);
+    next.setUTCMonth(next.getUTCMonth() + months);
+    return next;
+};
+const shiftYears = (date: Date, years: number) => {
+    const next = new Date(date);
+    next.setUTCFullYear(next.getUTCFullYear() + years);
+    return next;
+};
 
 interface WalletAllocationSectionProps {
     pieData: { name: string; value: number; color: string }[];
@@ -94,7 +108,9 @@ interface WalletPerformanceSectionProps {
     baseCurrency: string;
     transactions: WalletTx[];
     assets: AssetsState;
-    livePricesByAsset?: Record<string, number>;
+    forexRates: Record<string, number>;
+    getForexRate: (currency: string, date: string) => number | null;
+    returns: Array<{ label: string; hasValue: boolean; value: number }>;
 }
 
 const WalletPerformanceSection = React.memo(
@@ -104,18 +120,46 @@ const WalletPerformanceSection = React.memo(
         baseCurrency,
         transactions,
         assets,
-        livePricesByAsset,
+        forexRates,
+        getForexRate,
+        returns,
     }: WalletPerformanceSectionProps) => (
         <Card title="Performance History">
             {transactions.length > 0 ? (
-                <NetWorthHistoryChart
-                    transactions={transactions}
-                    assets={assets}
-                    baseCurrency={baseCurrency}
-                    height={300}
-                    currency={currency}
-                    locale={locale}
-                />
+                <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                        {returns.map((periodReturn) => (
+                            <span
+                                key={periodReturn.label}
+                                className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+                                    periodReturn.hasValue
+                                        ? periodReturn.value >= 0
+                                            ? "text-app-success bg-emerald-500/10"
+                                            : "text-app-danger bg-rose-500/10"
+                                        : "text-app-muted bg-app-surface"
+                                }`}
+                            >
+                                <span>{periodReturn.label}</span>
+                                <span>
+                                    {periodReturn.hasValue
+                                        ? `${periodReturn.value >= 0 ? "+" : ""}${periodReturn.value.toFixed(2)}%`
+                                        : "n/a"}
+                                </span>
+                            </span>
+                        ))}
+                    </div>
+                    <NetWorthHistoryChart
+                        transactions={transactions}
+                        assets={assets}
+                        baseCurrency={baseCurrency}
+                        height={300}
+                        currency={currency}
+                        locale={locale}
+                        showNetInvestedLine
+                        forexRates={forexRates}
+                        getForexRate={getForexRate}
+                    />
+                </div>
             ) : (
                 <p className="text-sm text-app-muted">
                     Add transactions to see net worth history.
@@ -477,6 +521,32 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         settings.visualCurrency,
     );
 
+    const toBaseValue = (amount: number, currency: Currency, date: string) => {
+        if (currency === settings.visualCurrency) return amount;
+        const rate = getForexRate(currency, date) ?? forexRates[currency];
+        return rate ? amount * rate : amount;
+    };
+
+    const netInvested = useMemo(
+        () =>
+            walletTransactions.reduce((total, tx) => {
+                if (tx.type === "deposit") {
+                    return (
+                        total +
+                        toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
+                    );
+                }
+                if (tx.type === "withdraw") {
+                    return (
+                        total -
+                        toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
+                    );
+                }
+                return total;
+            }, 0),
+        [walletTransactions, settings.visualCurrency, forexRates, getForexRate],
+    );
+
     const { holdings, totals } = useMemo(() => {
         const costBasisByAsset = calculatePositionCostBasis(
             walletTransactions,
@@ -633,6 +703,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const unrealizedPositive = Math.max(totals.pnl, 0);
     const unrealizedNegative = Math.min(totals.pnl, 0);
     const totalPnl = totals.pnl + realizedPnl;
+    const totalReturnPercent =
+        netInvested > 0 ? (Math.abs(totalPnl) / netInvested) * 100 : 0;
     const unrealizedPercent =
         totals.invested > 0 ? (totals.pnl / totals.invested) * 100 : 0;
     const unrealizedIsPositive = totals.pnl >= 0;
@@ -661,6 +733,111 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             }),
         [walletTransactions],
     );
+
+    const performancePeriods = useMemo(() => {
+        const today = new Date();
+        const endDate = toDateKey(today);
+        return [
+            { key: "6M", label: "6M", startDate: toDateKey(shiftMonths(today, -6)) },
+            { key: "1Y", label: "1Y", startDate: toDateKey(shiftYears(today, -1)) },
+            { key: "2Y", label: "2Y", startDate: toDateKey(shiftYears(today, -2)) },
+            { key: "3Y", label: "3Y", startDate: toDateKey(shiftYears(today, -3)) },
+            { key: "4Y", label: "4Y", startDate: toDateKey(shiftYears(today, -4)) },
+            { key: "5Y", label: "5Y", startDate: toDateKey(shiftYears(today, -5)) },
+            { key: "ALL", label: "All Time (APY)", startDate: "" },
+        ] as const;
+    }, []);
+
+    const performanceSnapshotDates = useMemo(() => {
+        if (!walletTransactions.length) return [];
+        const uniqueDates = new Set<string>(walletTransactions.map((tx) => tx.date));
+        const endDate = toDateKey(new Date());
+        uniqueDates.add(endDate);
+        performancePeriods.forEach((period) => {
+            if (period.startDate) uniqueDates.add(period.startDate);
+        });
+        return Array.from(uniqueDates).sort((a, b) => a.localeCompare(b));
+    }, [performancePeriods, walletTransactions]);
+
+    const { data: performanceSnapshots } = useNetWorthHistory({
+        transactions: walletTransactions,
+        assets,
+        baseCurrency: settings.visualCurrency,
+        locale: settings.locale,
+        snapshotDates: performanceSnapshotDates,
+    });
+
+    const performanceReturns = useMemo(() => {
+        if (!performanceSnapshots.length) return [];
+        const snapshotMap = new Map(
+            performanceSnapshots.map((point) => [point.date, point.value]),
+        );
+        const transactionsByDate = walletTransactions.reduce<Map<string, number>>(
+            (map, tx) => {
+                if (tx.type !== "deposit" && tx.type !== "withdraw") return map;
+                const delta =
+                    tx.type === "deposit"
+                        ? toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
+                        : -toBaseValue(tx.amount.value, tx.amount.currency, tx.date);
+                map.set(tx.date, (map.get(tx.date) ?? 0) + delta);
+                return map;
+            },
+            new Map(),
+        );
+
+        const firstTxDate = sortedTransactions[0]?.date ?? null;
+        const endDate = toDateKey(new Date());
+
+        return performancePeriods.map((period) => {
+            const rawStartDate = period.key === "ALL" ? firstTxDate : period.startDate;
+            if (!rawStartDate) {
+                return { label: period.label, hasValue: false, value: 0 };
+            }
+            const startDate = rawStartDate > endDate ? endDate : rawStartDate;
+            const dates = performanceSnapshotDates.filter(
+                (date) => date >= startDate && date <= endDate,
+            );
+            if (dates.length < 2) {
+                return { label: period.label, hasValue: false, value: 0 };
+            }
+
+            let cumulativeFactor = 1;
+            let prevValue = snapshotMap.get(dates[0]) ?? 0;
+            if (prevValue <= 0) {
+                return { label: period.label, hasValue: false, value: 0 };
+            }
+
+            for (let index = 1; index < dates.length; index += 1) {
+                const date = dates[index];
+                const currentValue = snapshotMap.get(date) ?? prevValue;
+                const externalFlow = transactionsByDate.get(date) ?? 0;
+                const subperiodReturn =
+                    (currentValue - prevValue - externalFlow) / prevValue;
+                cumulativeFactor *= 1 + subperiodReturn;
+                prevValue = currentValue;
+            }
+
+            const totalReturn = cumulativeFactor - 1;
+            if (period.key === "ALL") {
+                const startTime = new Date(dates[0]).getTime();
+                const endTime = new Date(endDate).getTime();
+                const days = Math.max(1, (endTime - startTime) / MS_PER_DAY);
+                const apy = Math.pow(1 + totalReturn, 365 / days) - 1;
+                return { label: period.label, hasValue: true, value: apy * 100 };
+            }
+
+            return { label: period.label, hasValue: true, value: totalReturn * 100 };
+        });
+    }, [
+        performancePeriods,
+        performanceSnapshotDates,
+        performanceSnapshots,
+        settings.visualCurrency,
+        sortedTransactions,
+        walletTransactions,
+        forexRates,
+        getForexRate,
+    ]);
 
     const handleNonNegativeChange =
         (setter: React.Dispatch<React.SetStateAction<string>>) =>
@@ -1200,7 +1377,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 </span>
                             </p>
                             <p className="text-sm text-app-muted">
-                                Total
+                                Total Return
                                 <span
                                     className={`ml-2 font-semibold ${
                                         totalPnl >= 0
@@ -1213,6 +1390,16 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         totalPnl,
                                         settings.visualCurrency,
                                     )}
+                                </span>
+                                <span
+                                    className={`ml-2 text-xs font-semibold ${
+                                        totalPnl >= 0
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    ({totalPnl >= 0 ? "+" : "-"}
+                                    {totalReturnPercent.toFixed(1)}%)
                                 </span>
                             </p>
                         </div>
@@ -1246,7 +1433,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     baseCurrency={settings.visualCurrency}
                     transactions={walletTransactions}
                     assets={assets}
-                    livePricesByAsset={livePricesByAsset}
+                    forexRates={forexRates}
+                    getForexRate={getForexRate}
+                    returns={performanceReturns}
                 />
 
                 <div className="flex flex-wrap gap-4">

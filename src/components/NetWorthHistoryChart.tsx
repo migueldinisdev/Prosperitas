@@ -113,7 +113,25 @@ interface NetWorthHistoryChartProps {
     includeWithdrawals?: boolean;
     includeDividends?: boolean;
     includeForex?: boolean;
+    showNetInvestedLine?: boolean;
+    getForexRate?: (currency: string, date: string) => number | null;
+    forexRates?: Record<string, number>;
 }
+
+const toBaseValue = (
+    amount: number,
+    currency: string,
+    baseCurrency: string,
+    date: string,
+    forexRates?: Record<string, number>,
+    getForexRate?: (currency: string, date: string) => number | null,
+) => {
+    if (currency === baseCurrency) return amount;
+    const historicalRate = getForexRate?.(currency, date);
+    const fallbackRate = forexRates?.[currency];
+    const resolvedRate = historicalRate ?? fallbackRate;
+    return resolvedRate ? amount * resolvedRate : amount;
+};
 
 export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
     transactions,
@@ -129,13 +147,16 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
     includeWithdrawals,
     includeDividends,
     includeForex,
+    showNetInvestedLine = false,
+    getForexRate,
+    forexRates,
 }) => {
     const [range, setRange] = useState<RangeKey>("ALL");
     const [tickRate, setTickRate] = useState<TickRateKey>("1M");
 
-    const { chartDates, ticks } = useMemo(() => {
+    const { ticks } = useMemo(() => {
         if (!transactions.length) {
-            return { chartDates: [], ticks: [] };
+            return { ticks: [] };
         }
 
         const sortedTransactions = [...transactions].sort((a, b) =>
@@ -149,42 +170,12 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         const chartEndDate = latestDate > today ? latestDate : today;
         const rangeStart = getRangeStart(range, chartEndDate, earliestDate);
 
-        const transactionDates = sortedTransactions
-            .map((tx) => tx.date)
-            .filter((date) => {
-                const parsed = parseDate(date);
-                return parsed >= rangeStart && parsed <= chartEndDate;
-            });
-
-        const dateSpanDays = Math.max(
-            1,
-            Math.round(
-                (chartEndDate.getTime() - rangeStart.getTime()) /
-                    (1000 * 60 * 60 * 24),
-            ),
-        );
-        const snapshotIntervalDays = Math.max(1, Math.ceil(dateSpanDays / 180));
-        const periodicDates: string[] = [];
-        for (
-            let dayOffset = 0;
-            dayOffset <= dateSpanDays;
-            dayOffset += snapshotIntervalDays
-        ) {
-            periodicDates.push(toDateKey(addDays(rangeStart, dayOffset)));
-        }
-        periodicDates.push(toDateKey(chartEndDate));
-
-        const orderedChartDates = Array.from(
-            new Set([...periodicDates, ...transactionDates]),
-        ).sort((a, b) => a.localeCompare(b));
-
         return {
-            chartDates: orderedChartDates,
             ticks: buildTickDates(rangeStart, chartEndDate, tickRate),
         };
     }, [range, tickRate, transactions]);
 
-    const { data: chartData } = useNetWorthHistory({
+    const { data: baseChartData } = useNetWorthHistory({
         transactions,
         assets,
         baseCurrency,
@@ -197,6 +188,58 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         includeForex,
         snapshotDates: ticks,
     });
+
+    const chartDataWithNetInvested = useMemo(() => {
+        if (!showNetInvestedLine || baseChartData.length === 0) {
+            return baseChartData;
+        }
+        const sortedTx = [...transactions].sort((a, b) =>
+            a.date.localeCompare(b.date),
+        );
+        let txIndex = 0;
+        let netInvested = 0;
+
+        return baseChartData.map((point) => {
+            while (
+                txIndex < sortedTx.length &&
+                sortedTx[txIndex].date <= point.date
+            ) {
+                const tx = sortedTx[txIndex];
+                if (tx.type === "deposit") {
+                    netInvested += toBaseValue(
+                        tx.amount.value,
+                        tx.amount.currency,
+                        baseCurrency,
+                        tx.date,
+                        forexRates,
+                        getForexRate,
+                    );
+                }
+                if (tx.type === "withdraw") {
+                    netInvested -= toBaseValue(
+                        tx.amount.value,
+                        tx.amount.currency,
+                        baseCurrency,
+                        tx.date,
+                        forexRates,
+                        getForexRate,
+                    );
+                }
+                txIndex += 1;
+            }
+            return {
+                ...point,
+                netInvested: Number(netInvested.toFixed(2)),
+            };
+        });
+    }, [
+        baseCurrency,
+        baseChartData,
+        forexRates,
+        getForexRate,
+        showNetInvestedLine,
+        transactions,
+    ]);
 
     if (!transactions.length) {
         return null;
@@ -239,9 +282,9 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
                     ))}
                 </div>
             </div>
-            {chartData.length > 0 ? (
+            {chartDataWithNetInvested.length > 0 ? (
                 <AreaChart
-                    data={chartData}
+                    data={chartDataWithNetInvested}
                     dataKey="value"
                     xDataKey="date"
                     height={height}
@@ -250,6 +293,18 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
                     tickFormatter={(value) => formatDateLabel(String(value))}
                     labelFormatter={(label) => formatDateLabel(String(label))}
                     yTickFormatter={(value) => formatCurrency(value, currency)}
+                    extraLines={
+                        showNetInvestedLine
+                            ? [
+                                  {
+                                      dataKey: "netInvested",
+                                      color: "rgb(var(--color-app-warning))",
+                                      name: "Deposits - Withdrawals",
+                                      dashed: true,
+                                  },
+                              ]
+                            : undefined
+                    }
                 />
             ) : null}
         </div>
