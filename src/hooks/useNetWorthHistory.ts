@@ -124,6 +124,20 @@ export const useNetWorthHistory = ({
         );
     }, [assetIds, assets]);
 
+    const firstDateByAsset = useMemo(() => {
+        const assetIdSet = new Set(assetIds);
+        const map = new Map<string, string>();
+        sortedTransactions.forEach((tx) => {
+            if ("assetId" in tx && tx.assetId && assetIdSet.has(tx.assetId)) {
+                const current = map.get(tx.assetId);
+                if (!current || tx.date < current) {
+                    map.set(tx.assetId, tx.date);
+                }
+            }
+        });
+        return map;
+    }, [assetIds, sortedTransactions]);
+
     const priceRequests = useMemo(() => {
         if (!dates.length || !assetIds.length) return [];
         const requests: Array<{
@@ -131,24 +145,20 @@ export const useNetWorthHistory = ({
             ticker: string;
             date: string;
         }> = [];
-        let skipped = 0;
         assetIds.forEach((assetId) => {
             const asset = assets[assetId];
-            if (!asset) {
-                skipped++;
-                return;
-            }
+            if (!asset) return;
             const request = getAssetPriceRequest(asset);
-            if (!request) {
-                skipped++;
-                return;
-            }
+            if (!request) return;
+            const firstDate = firstDateByAsset.get(assetId);
             dates.forEach((date) => {
-                requests.push({ ...request, date });
+                if (!firstDate || date >= firstDate) {
+                    requests.push({ ...request, date });
+                }
             });
         });
         return requests;
-    }, [assetIds, assets, dates]);
+    }, [assetIds, assets, dates, firstDateByAsset]);
 
     const forexCurrencies = useMemo(() => {
         const currencies = new Set<string>(
