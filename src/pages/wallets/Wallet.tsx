@@ -98,6 +98,7 @@ const shiftYears = (date: Date, years: number) => {
 };
 type PortfolioValuePoint = { date: string; value: number };
 type CashFlowPoint = { date: string; amount: number };
+type ReturnPoint = { label: string; hasValue: boolean; value: number };
 
 const calculateTimeWeightedReturn = (
     portfolioValues: PortfolioValuePoint[],
@@ -129,6 +130,63 @@ const calculateTimeWeightedReturn = (
     return twrFactor - 1;
 };
 
+const toYearFraction = (startDate: string, endDate: string) => {
+    const start = new Date(`${startDate}T00:00:00.000Z`).getTime();
+    const end = new Date(`${endDate}T00:00:00.000Z`).getTime();
+    return Math.max(0, (end - start) / MS_PER_DAY / 365.25);
+};
+
+const calculateMoneyWeightedReturn = (
+    cashFlows: CashFlowPoint[],
+    startDate: string,
+) => {
+    if (!cashFlows.length) return null;
+    const orderedFlows = [...cashFlows]
+        .map((flow) => ({
+            ...flow,
+            t: toYearFraction(startDate, flow.date),
+        }))
+        .sort((a, b) => a.t - b.t);
+
+    const hasPositive = orderedFlows.some((flow) => flow.amount > 0);
+    const hasNegative = orderedFlows.some((flow) => flow.amount < 0);
+    if (!hasPositive || !hasNegative) return null;
+
+    const npv = (rate: number) =>
+        orderedFlows.reduce(
+            (sum, flow) => sum + flow.amount / Math.pow(1 + rate, flow.t),
+            0,
+        );
+
+    let low = -0.9999;
+    let high = 1;
+    let npvLow = npv(low);
+    let npvHigh = npv(high);
+    let guard = 0;
+
+    while (npvLow * npvHigh > 0 && guard < 50) {
+        high *= 2;
+        npvHigh = npv(high);
+        guard += 1;
+    }
+    if (npvLow * npvHigh > 0) return null;
+
+    for (let iteration = 0; iteration < 200; iteration += 1) {
+        const mid = (low + high) / 2;
+        const npvMid = npv(mid);
+        if (Math.abs(npvMid) < 1e-9) return mid;
+        if (npvLow * npvMid <= 0) {
+            high = mid;
+            npvHigh = npvMid;
+        } else {
+            low = mid;
+            npvLow = npvMid;
+        }
+    }
+
+    return (low + high) / 2;
+};
+
 interface WalletAllocationSectionProps {
     pieData: { name: string; value: number; color: string }[];
     holdings: HoldingRow[];
@@ -142,7 +200,8 @@ interface WalletPerformanceSectionProps {
     assets: AssetsState;
     forexRates: Record<string, number>;
     getForexRate: (currency: string, date: string) => number | null;
-    returns: Array<{ label: string; hasValue: boolean; value: number }>;
+    twrReturns: ReturnPoint[];
+    mwrReturns: ReturnPoint[];
     apyStartYear: number | null;
     apyYearOptions: number[];
     onApyStartYearChange: (year: number) => void;
@@ -157,7 +216,8 @@ const WalletPerformanceSection = React.memo(
         assets,
         forexRates,
         getForexRate,
-        returns,
+        twrReturns,
+        mwrReturns,
         apyStartYear,
         apyYearOptions,
         onApyStartYearChange,
@@ -165,44 +225,73 @@ const WalletPerformanceSection = React.memo(
         <Card title="Performance History">
             {transactions.length > 0 ? (
                 <div className="space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                        {returns.map((periodReturn) => (
-                            <span
-                                key={periodReturn.label}
-                                className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
-                                    periodReturn.hasValue
-                                        ? periodReturn.value >= 0
-                                            ? "text-app-success bg-emerald-500/10"
-                                            : "text-app-danger bg-rose-500/10"
-                                        : "text-app-muted bg-app-surface"
-                                }`}
-                            >
-                                <span>{periodReturn.label}</span>
-                                <span>
-                                    {periodReturn.hasValue
-                                        ? `${periodReturn.value >= 0 ? "+" : ""}${periodReturn.value.toFixed(2)}%`
-                                        : "n/a"}
-                                </span>
+                    <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-semibold text-app-muted">
+                                TWR
                             </span>
-                        ))}
-                        {apyStartYear !== null && apyYearOptions.length > 0 ? (
-                            <label className="ml-auto inline-flex items-center gap-2 text-xs text-app-muted">
-                                APY start
-                                <select
-                                    value={apyStartYear}
-                                    onChange={(event) =>
-                                        onApyStartYearChange(Number(event.target.value))
-                                    }
-                                    className="bg-app-surface border border-app-border rounded px-2 py-1 text-app-foreground"
+                            {twrReturns.map((periodReturn) => (
+                                <span
+                                    key={`twr-${periodReturn.label}`}
+                                    className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+                                        periodReturn.hasValue
+                                            ? periodReturn.value >= 0
+                                                ? "text-app-success bg-emerald-500/10"
+                                                : "text-app-danger bg-rose-500/10"
+                                            : "text-app-muted bg-app-surface"
+                                    }`}
                                 >
-                                    {apyYearOptions.map((year) => (
-                                        <option key={year} value={year}>
-                                            {year}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                        ) : null}
+                                    <span>{periodReturn.label}</span>
+                                    <span>
+                                        {periodReturn.hasValue
+                                            ? `${periodReturn.value >= 0 ? "+" : ""}${periodReturn.value.toFixed(2)}%`
+                                            : "n/a"}
+                                    </span>
+                                </span>
+                            ))}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-semibold text-app-muted">
+                                MWR (IRR)
+                            </span>
+                            {mwrReturns.map((periodReturn) => (
+                                <span
+                                    key={`mwr-${periodReturn.label}`}
+                                    className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+                                        periodReturn.hasValue
+                                            ? periodReturn.value >= 0
+                                                ? "text-app-success bg-emerald-500/10"
+                                                : "text-app-danger bg-rose-500/10"
+                                            : "text-app-muted bg-app-surface"
+                                    }`}
+                                >
+                                    <span>{periodReturn.label}</span>
+                                    <span>
+                                        {periodReturn.hasValue
+                                            ? `${periodReturn.value >= 0 ? "+" : ""}${periodReturn.value.toFixed(2)}%`
+                                            : "n/a"}
+                                    </span>
+                                </span>
+                            ))}
+                            {apyStartYear !== null && apyYearOptions.length > 0 ? (
+                                <label className="ml-auto inline-flex items-center gap-2 text-xs text-app-muted">
+                                    APY start
+                                    <select
+                                        value={apyStartYear}
+                                        onChange={(event) =>
+                                            onApyStartYearChange(Number(event.target.value))
+                                        }
+                                        className="bg-app-surface border border-app-border rounded px-2 py-1 text-app-foreground"
+                                    >
+                                        {apyYearOptions.map((year) => (
+                                            <option key={year} value={year}>
+                                                {year}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            ) : null}
+                        </div>
                     </div>
                     <NetWorthHistoryChart
                         transactions={transactions}
@@ -794,14 +883,18 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     );
 
     const apyYearOptions = useMemo(() => {
-        const years = new Set<number>();
-        sortedTransactions.forEach((tx) => {
-            const year = new Date(tx.date).getUTCFullYear();
-            if (Number.isFinite(year)) years.add(year);
-        });
         const currentYear = new Date().getUTCFullYear();
-        years.add(currentYear);
-        return Array.from(years).sort((a, b) => a - b);
+        const txYears = sortedTransactions
+            .map((tx) => new Date(tx.date).getUTCFullYear())
+            .filter((year) => Number.isFinite(year));
+        const earliestTxYear =
+            txYears.length > 0 ? Math.min(...txYears) : currentYear;
+        const startYear = Math.min(earliestTxYear, currentYear - 10);
+        const years: number[] = [];
+        for (let year = startYear; year <= currentYear; year += 1) {
+            years.push(year);
+        }
+        return years;
     }, [sortedTransactions]);
     const [apyStartYear, setApyStartYear] = useState<number | null>(null);
 
@@ -852,8 +945,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         snapshotDates: performanceSnapshotDates,
     });
 
-    const performanceReturns = useMemo(() => {
-        if (!performanceSnapshots.length) return [];
+    const performanceMetrics = useMemo(() => {
+        if (!performanceSnapshots.length) return { twrReturns: [], mwrReturns: [] };
         const snapshotMap = new Map(
             performanceSnapshots.map((point) => [point.date, point.value]),
         );
@@ -868,23 +961,38 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             }));
         const endDate = toDateKey(new Date());
 
-        return performancePeriods.map((period) => {
+        const twrReturns: ReturnPoint[] = [];
+        const mwrReturns: ReturnPoint[] = [];
+
+        performancePeriods.forEach((period) => {
             const rawStartDate = period.startDate;
             if (!rawStartDate) {
-                return { label: period.label, hasValue: false, value: 0 };
+                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                return;
             }
             const startDate = rawStartDate > endDate ? endDate : rawStartDate;
             const datesInRange = performanceSnapshotDates.filter(
                 (date) => date >= startDate && date <= endDate,
             );
             if (datesInRange.length < 2) {
-                return { label: period.label, hasValue: false, value: 0 };
+                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                return;
             }
 
             const periodPortfolioValues = datesInRange.map((date) => ({
                 date,
                 value: snapshotMap.get(date) ?? 0,
             }));
+            const startValue = periodPortfolioValues[0].value;
+            const endValue =
+                periodPortfolioValues[periodPortfolioValues.length - 1].value;
+            if (startValue <= 0) {
+                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                return;
+            }
             const periodCashFlows = externalCashFlows.filter(
                 (flow) => flow.date >= startDate && flow.date <= endDate,
             );
@@ -892,20 +1000,64 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 periodPortfolioValues,
                 periodCashFlows,
             );
-            if (twrDecimal === null) {
-                return { label: period.label, hasValue: false, value: 0 };
-            }
+            const mwrDecimal = calculateMoneyWeightedReturn(
+                [
+                    { date: startDate, amount: -startValue },
+                    ...periodCashFlows.map((flow) => ({
+                        date: flow.date,
+                        amount: -flow.amount,
+                    })),
+                    { date: endDate, amount: endValue },
+                ],
+                startDate,
+            );
 
-            if (period.key === "ALL") {
+            console.log("[WalletReturns][TWR]", {
+                period: period.label,
+                startDate,
+                endDate,
+                portfolioValues: periodPortfolioValues,
+                cashFlows: periodCashFlows,
+                twrDecimal,
+            });
+            console.log("[WalletReturns][MWR]", {
+                period: period.label,
+                startDate,
+                endDate,
+                startValue,
+                endValue,
+                externalCashFlows: periodCashFlows,
+                mwrDecimal,
+            });
+
+            if (twrDecimal === null) {
+                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
+            } else if (period.key === "ALL") {
                 const startTime = new Date(startDate).getTime();
                 const endTime = new Date(endDate).getTime();
                 const days = Math.max(1, (endTime - startTime) / MS_PER_DAY);
                 const apy = Math.pow(1 + twrDecimal, 365 / days) - 1;
-                return { label: period.label, hasValue: true, value: apy * 100 };
+                twrReturns.push({ label: period.label, hasValue: true, value: apy * 100 });
+            } else {
+                twrReturns.push({
+                    label: period.label,
+                    hasValue: true,
+                    value: twrDecimal * 100,
+                });
             }
 
-            return { label: period.label, hasValue: true, value: twrDecimal * 100 };
+            if (mwrDecimal === null) {
+                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+            } else {
+                mwrReturns.push({
+                    label: period.label,
+                    hasValue: true,
+                    value: mwrDecimal * 100,
+                });
+            }
         });
+
+        return { twrReturns, mwrReturns };
     }, [
         performancePeriods,
         performanceSnapshotDates,
@@ -1510,7 +1662,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     assets={assets}
                     forexRates={forexRates}
                     getForexRate={getForexRate}
-                    returns={performanceReturns}
+                    twrReturns={performanceMetrics.twrReturns}
+                    mwrReturns={performanceMetrics.mwrReturns}
                     apyStartYear={apyStartYear}
                     apyYearOptions={apyYearOptions}
                     onApyStartYearChange={setApyStartYear}
