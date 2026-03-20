@@ -23,6 +23,10 @@ interface UseNetWorthHistoryOptions {
 
 const normalizeTicker = (ticker: string) => ticker.trim().toUpperCase();
 
+// Epsilon used to treat a remaining quantity as effectively zero (handles
+// floating-point rounding when buy and sell quantities are meant to be equal).
+const QUANTITY_EPSILON = 1e-10;
+
 const getAssetPriceRequest = (asset: Asset) => {
     if (asset.assetType === "cash") return null;
     if (asset.assetType === "crypto") {
@@ -124,6 +128,44 @@ export const useNetWorthHistory = ({
         );
     }, [assetIds, assets]);
 
+    // Compute the holding date range per asset to avoid fetching prices
+    // outside of the periods the asset was actually held.
+    const assetDateRanges = useMemo(() => {
+        const ranges = new Map<string, { start: string; end: string | null }>();
+        const quantities = new Map<string, number>();
+        const firstBuyDates = new Map<string, string>();
+        const lastSellDates = new Map<string, string>();
+
+        sortedTransactions.forEach((tx) => {
+            if (tx.type !== "buy" && tx.type !== "sell") return;
+            if (assetFilter && !assetFilter.has(tx.assetId)) return;
+
+            if (tx.type === "buy") {
+                const qty = quantities.get(tx.assetId) ?? 0;
+                quantities.set(tx.assetId, qty + tx.quantity);
+                if (!firstBuyDates.has(tx.assetId)) {
+                    firstBuyDates.set(tx.assetId, tx.date);
+                }
+            } else {
+                const qty = quantities.get(tx.assetId) ?? 0;
+                const newQty = qty - tx.quantity;
+                quantities.set(tx.assetId, Math.max(0, newQty));
+                lastSellDates.set(tx.assetId, tx.date);
+            }
+        });
+
+        firstBuyDates.forEach((startDate, assetId) => {
+            const finalQty = quantities.get(assetId) ?? 0;
+            const isFullySold = finalQty <= QUANTITY_EPSILON;
+            ranges.set(assetId, {
+                start: startDate,
+                end: isFullySold ? (lastSellDates.get(assetId) ?? null) : null,
+            });
+        });
+
+        return ranges;
+    }, [assetFilter, sortedTransactions]);
+
     const priceRequests = useMemo(() => {
         if (!dates.length || !assetIds.length) return [];
         const requests: Array<{
@@ -143,12 +185,18 @@ export const useNetWorthHistory = ({
                 skipped++;
                 return;
             }
+            const dateRange = assetDateRanges.get(assetId);
             dates.forEach((date) => {
+                // Only fetch prices for dates within the asset's holding period
+                if (dateRange) {
+                    if (date < dateRange.start) return;
+                    if (dateRange.end !== null && date > dateRange.end) return;
+                }
                 requests.push({ ...request, date });
             });
         });
         return requests;
-    }, [assetIds, assets, dates]);
+    }, [assetDateRanges, assetIds, assets, dates]);
 
     const forexCurrencies = useMemo(() => {
         const currencies = new Set<string>(
