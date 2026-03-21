@@ -413,10 +413,12 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
                 <AreaChart
                     data={chartDataWithBenchmark}
                     dataKey="value"
+                    dataName="Line of value"
                     xDataKey="date"
                     height={height}
                     color={color}
                     ticks={ticks}
+                    hideXAxisTicks
                     tickFormatter={(value) => formatDateLabel(String(value))}
                     labelFormatter={(label) => formatDateLabel(String(label))}
                     yTickFormatter={(value) => formatCurrency(value, currency)}
@@ -427,7 +429,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
                                       {
                                           dataKey: "netInvested",
                                           color: "rgb(var(--color-app-warning))",
-                                          name: "Deposits - Withdrawals",
+                                          name: "Line of deposit",
                                           dashed: true,
                                       },
                                   ]

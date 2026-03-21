@@ -4,6 +4,7 @@ import {
     AreaChart as ReAreaChart,
     Area,
     Line,
+    Legend,
     XAxis,
     YAxis,
     Tooltip,
@@ -13,6 +14,7 @@ import {
 interface AreaChartProps {
     data: any[];
     dataKey: string;
+    dataName?: string;
     color?: string;
     height?: number;
     xDataKey?: string;
@@ -20,6 +22,7 @@ interface AreaChartProps {
     tickFormatter?: (value: string | number) => string;
     labelFormatter?: (label: string | number) => string;
     yTickFormatter?: (value: number) => string;
+    hideXAxisTicks?: boolean;
     extraLines?: Array<{
         dataKey: string;
         color: string;
@@ -33,6 +36,7 @@ export const AreaChart = React.memo(
     ({
         data,
         dataKey,
+        dataName = "Value",
         color = "rgb(var(--color-app-primary))",
         height = 300,
         xDataKey = "name",
@@ -40,8 +44,10 @@ export const AreaChart = React.memo(
         tickFormatter,
         labelFormatter,
         yTickFormatter,
+        hideXAxisTicks = false,
         extraLines,
     }: AreaChartProps) => {
+        const shouldShowLegend = Boolean(extraLines && extraLines.length > 0);
         return (
             <div style={{ width: "100%", height }}>
                 <ResponsiveContainer>
@@ -65,7 +71,11 @@ export const AreaChart = React.memo(
                             minTickGap={0}
                             ticks={ticks}
                             interval={0}
-                            tickFormatter={tickFormatter}
+                            tickFormatter={
+                                hideXAxisTicks
+                                    ? () => ""
+                                    : tickFormatter
+                            }
                         />
                         <YAxis
                             stroke="rgb(var(--color-app-muted))"
@@ -100,6 +110,7 @@ export const AreaChart = React.memo(
                         <Area
                             type="monotone"
                             dataKey={dataKey}
+                            name={dataName}
                             stroke={color}
                             fill={color}
                             fillOpacity={0.25}
@@ -130,6 +141,13 @@ export const AreaChart = React.memo(
                                 }}
                             />
                         ))}
+                        {shouldShowLegend ? (
+                            <Legend
+                                verticalAlign="bottom"
+                                height={28}
+                                wrapperStyle={{ fontSize: "12px" }}
+                            />
+                        ) : null}
                     </ReAreaChart>
                 </ResponsiveContainer>
             </div>
