@@ -229,7 +229,7 @@ const WalletPerformanceSection = React.memo(
                         <div className="flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center gap-1 text-xs font-semibold text-app-muted">
                                 TWR
-                                <Tooltip content="TWR measures how the portfolio itself performed, ignoring deposits and withdrawals. Think: 'If this portfolio had €1 invested from day 1, how would it grow?' It captures stock picking, allocation, and rebalancing. Example: bad stocks drop -40%, then you deposit a lot -> TWR stays about -40% because strategy was bad regardless of cash-flow timing. Use TWR to compare with S&P500, evaluate investing skill, and compare strategies fairly.">
+                                <Tooltip content="TWR measures how the portfolio itself performed, ignoring deposits and withdrawals. Think: 'If this portfolio had €1 invested from day 1, how would it grow?' It captures stock picking, allocation, and rebalancing. Example: bad stocks drop -40%, then you deposit a lot -> TWR stays about -40% because strategy was bad regardless of cash-flow timing. Use TWR to compare with S&P500 Acc Total Return (same period), evaluate investing skill, and compare strategies fairly.">
                                     <Info size={12} />
                                 </Tooltip>
                             </span>
@@ -256,7 +256,7 @@ const WalletPerformanceSection = React.memo(
                         <div className="flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center gap-1 text-xs font-semibold text-app-muted">
                                 MWR (IRR)
-                                <Tooltip content="MWR (IRR) measures how your actual money performed, including when you invested. It answers: 'How well did my capital do over time?' It captures timing of deposits, size of investments, and real-life outcome. Example: portfolio drops -40% early, but you invest most money later -> MWR may be around -10% because most capital avoided early losses. Use MWR to understand your real return, evaluate timing decisions, and compare with a benchmark using the same cash flows.">
+                                <Tooltip content="MWR (IRR) measures how your actual money performed, including when you invested. It answers: 'How well did my capital do over time?' It captures timing of deposits, size of investments, and real-life outcome. Example: portfolio drops -40% early, but you invest most money later -> MWR may be around -10% because most capital avoided early losses. Use MWR to understand your real return, evaluate timing decisions, and compare with S&P500 MWR using the same deposits/withdrawals.">
                                     <Info size={12} />
                                 </Tooltip>
                             </span>
