@@ -45,10 +45,12 @@ import {
     WalletTx,
 } from "../../core/schema-types";
 import {
+    calculatePeriodReturns,
     calculatePositionCostBasis,
     calculatePositionCostBasisFx,
     calculateRealizedPnlBreakdown,
     calculateRealizedPnl,
+    PerformancePeriod,
     getAllocationPercent,
     getPnL,
     getPnLPercent,
@@ -83,7 +85,6 @@ const roundToInputPrecision = (value: string) => {
     return Math.round(parsed * factor) / factor;
 };
 const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
 const shiftMonths = (date: Date, months: number) => {
@@ -96,39 +97,7 @@ const shiftYears = (date: Date, years: number) => {
     next.setUTCFullYear(next.getUTCFullYear() + years);
     return next;
 };
-type PortfolioValuePoint = { date: string; value: number };
-type CashFlowPoint = { date: string; amount: number };
 type ReturnPoint = { label: string; hasValue: boolean; value: number };
-
-const calculateTimeWeightedReturn = (
-    portfolioValues: PortfolioValuePoint[],
-    cashFlows: CashFlowPoint[],
-) => {
-    if (portfolioValues.length < 2) return null;
-    const orderedValues = [...portfolioValues].sort((a, b) =>
-        a.date.localeCompare(b.date),
-    );
-    const cashFlowByDate = cashFlows.reduce<Map<string, number>>((map, flow) => {
-        map.set(flow.date, (map.get(flow.date) ?? 0) + flow.amount);
-        return map;
-    }, new Map());
-
-    let twrFactor = 1;
-    let hasValidPeriod = false;
-
-    for (let index = 1; index < orderedValues.length; index += 1) {
-        const previousValue = orderedValues[index - 1].value;
-        if (previousValue === 0) continue;
-        const currentPoint = orderedValues[index];
-        const periodCashFlow = cashFlowByDate.get(currentPoint.date) ?? 0;
-        const periodReturn = (currentPoint.value - periodCashFlow) / previousValue - 1;
-        twrFactor *= 1 + periodReturn;
-        hasValidPeriod = true;
-    }
-
-    if (!hasValidPeriod) return null;
-    return twrFactor - 1;
-};
 
 
 interface WalletAllocationSectionProps {
@@ -838,7 +807,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         );
     }, [apyYearOptions]);
 
-    const performancePeriods = useMemo(() => {
+    const performancePeriods = useMemo<PerformancePeriod[]>(() => {
         const today = new Date();
         const apyStartDate = apyStartYear
             ? `${apyStartYear.toString().padStart(4, "0")}-01-01`
@@ -851,7 +820,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             { key: "4Y", label: "4Y", startDate: toDateKey(shiftYears(today, -4)) },
             { key: "5Y", label: "5Y", startDate: toDateKey(shiftYears(today, -5)) },
             { key: "ALL", label: "All Time (APY)", startDate: apyStartDate },
-        ] as const;
+        ];
     }, [apyStartYear]);
 
     const performanceSnapshotDates = useMemo(() => {
@@ -875,7 +844,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const performanceMetrics = useMemo(() => {
         if (!performanceSnapshots.length) return { twrReturns: [] };
-        const snapshotMap = new Map(
+        const snapshotValues = new Map(
             performanceSnapshots.map((point) => [point.date, point.value]),
         );
         const externalCashFlows = walletTransactions
@@ -889,67 +858,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             }));
         const endDate = toDateKey(new Date());
 
-        const twrReturns: ReturnPoint[] = [];
-        performancePeriods.forEach((period) => {
-            const rawStartDate = period.startDate;
-            if (!rawStartDate) {
-                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
-                return;
-            }
-            const startDate = rawStartDate > endDate ? endDate : rawStartDate;
-            const datesInRange = performanceSnapshotDates.filter(
-                (date) => date >= startDate && date <= endDate,
-            );
-            if (datesInRange.length < 2) {
-                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
-                return;
-            }
-
-            const periodPortfolioValues = datesInRange.map((date) => ({
-                date,
-                value: snapshotMap.get(date) ?? 0,
-            }));
-            const startValue = periodPortfolioValues[0].value;
-            const endValue =
-                periodPortfolioValues[periodPortfolioValues.length - 1].value;
-            if (startValue <= 0) {
-                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
-                return;
-            }
-            const periodCashFlows = externalCashFlows.filter(
-                (flow) => flow.date >= startDate && flow.date <= endDate,
-            );
-            const twrDecimal = calculateTimeWeightedReturn(
-                periodPortfolioValues,
-                periodCashFlows,
-            );
-
-            console.log("[WalletReturns][TWR]", {
-                period: period.label,
-                startDate,
-                endDate,
-                portfolioValues: periodPortfolioValues,
-                cashFlows: periodCashFlows,
-                twrDecimal,
-            });
-
-            if (twrDecimal === null) {
-                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
-            } else if (period.key === "ALL") {
-                const startTime = new Date(startDate).getTime();
-                const endTime = new Date(endDate).getTime();
-                const days = Math.max(1, (endTime - startTime) / MS_PER_DAY);
-                const apy = Math.pow(1 + twrDecimal, 365 / days) - 1;
-                twrReturns.push({ label: period.label, hasValue: true, value: apy * 100 });
-            } else {
-                twrReturns.push({
-                    label: period.label,
-                    hasValue: true,
-                    value: twrDecimal * 100,
-                });
-            }
-
-        });
+        const twrReturns: ReturnPoint[] = calculatePeriodReturns(
+            performancePeriods,
+            performanceSnapshotDates,
+            snapshotValues,
+            externalCashFlows,
+            endDate,
+        ).map(({ label, hasValue, value }) => ({ label, hasValue, value }));
 
         return { twrReturns };
     }, [

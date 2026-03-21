@@ -29,6 +29,21 @@ export const getNetWorth = (currentValue: number, cashValue: number) =>
     currentValue + cashValue;
 
 export type ForexRateGetter = (currency: string, date: string) => number | null;
+export type PortfolioValuePoint = { date: string; value: number };
+export type CashFlowPoint = { date: string; amount: number };
+export type PerformancePeriod = {
+    key: string;
+    label: string;
+    startDate: string | null;
+};
+export type PeriodReturnPoint = {
+    key: string;
+    label: string;
+    hasValue: boolean;
+    value: number;
+};
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const resolveForexRate = (
     currency: string,
@@ -43,6 +58,119 @@ const resolveForexRate = (
     const historicalRate = date && getForexRate ? getForexRate(currency, date) : null;
     return historicalRate ?? forexRates[currency] ?? null;
 };
+
+export const calculateTimeWeightedReturn = (
+    portfolioValues: PortfolioValuePoint[],
+    cashFlows: CashFlowPoint[]
+) => {
+    if (portfolioValues.length < 2) return null;
+    const orderedValues = [...portfolioValues].sort((a, b) =>
+        a.date.localeCompare(b.date)
+    );
+    const cashFlowByDate = cashFlows.reduce<Map<string, number>>((map, flow) => {
+        map.set(flow.date, (map.get(flow.date) ?? 0) + flow.amount);
+        return map;
+    }, new Map());
+
+    let twrFactor = 1;
+    let hasValidPeriod = false;
+
+    for (let index = 1; index < orderedValues.length; index += 1) {
+        const previousValue = orderedValues[index - 1].value;
+        if (previousValue === 0) continue;
+        const currentPoint = orderedValues[index];
+        const periodCashFlow = cashFlowByDate.get(currentPoint.date) ?? 0;
+        const periodReturn = (currentPoint.value - periodCashFlow) / previousValue - 1;
+        twrFactor *= 1 + periodReturn;
+        hasValidPeriod = true;
+    }
+
+    if (!hasValidPeriod) return null;
+    return twrFactor - 1;
+};
+
+export const calculatePeriodReturns = (
+    periods: PerformancePeriod[],
+    snapshotDates: string[],
+    snapshotValues: Map<string, number>,
+    cashFlows: CashFlowPoint[],
+    endDate: string,
+    apyPeriodKey = "ALL"
+): PeriodReturnPoint[] =>
+    periods.map((period) => {
+        const rawStartDate = period.startDate;
+        if (!rawStartDate) {
+            return {
+                key: period.key,
+                label: period.label,
+                hasValue: false,
+                value: 0,
+            };
+        }
+
+        const startDate = rawStartDate > endDate ? endDate : rawStartDate;
+        const datesInRange = snapshotDates.filter(
+            (date) => date >= startDate && date <= endDate
+        );
+        if (datesInRange.length < 2) {
+            return {
+                key: period.key,
+                label: period.label,
+                hasValue: false,
+                value: 0,
+            };
+        }
+
+        const periodPortfolioValues = datesInRange.map((date) => ({
+            date,
+            value: snapshotValues.get(date) ?? 0,
+        }));
+        const startValue = periodPortfolioValues[0].value;
+        if (startValue <= 0) {
+            return {
+                key: period.key,
+                label: period.label,
+                hasValue: false,
+                value: 0,
+            };
+        }
+
+        const periodCashFlows = cashFlows.filter(
+            (flow) => flow.date >= startDate && flow.date <= endDate
+        );
+        const twrDecimal = calculateTimeWeightedReturn(
+            periodPortfolioValues,
+            periodCashFlows
+        );
+        if (twrDecimal === null) {
+            return {
+                key: period.key,
+                label: period.label,
+                hasValue: false,
+                value: 0,
+            };
+        }
+
+        if (period.key === apyPeriodKey) {
+            const startTime = new Date(startDate).getTime();
+            const endTime = new Date(endDate).getTime();
+            const days = Math.max(1, (endTime - startTime) / MS_PER_DAY);
+            const apy = Math.pow(1 + twrDecimal, 365 / days) - 1;
+            return {
+                key: period.key,
+                label: period.label,
+                hasValue: true,
+                value: apy * 100,
+            };
+        }
+
+        return {
+            key: period.key,
+            label: period.label,
+            hasValue: true,
+            value: twrDecimal * 100,
+        };
+    });
 
 export const toVisualValue = (
     amount: number,
