@@ -33,6 +33,8 @@ export interface Settings {
     locale: string;
     timezone: string;
     numberFormat: NumberFormatSettings;
+    sp500AccSymbol: string;
+    sp500AccCurrency: Currency;
     hypotheticalAssetPrices?: Record<string, number>;
 }
 

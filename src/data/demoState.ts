@@ -479,6 +479,8 @@ export const createDemoState = (): PersistedState => {
                 useGrouping: true,
                 maxFractionDigits: 2,
             },
+            sp500AccSymbol: "VUAA.DE",
+            sp500AccCurrency: "EUR",
         },
         account: {
             name: "Demo Portfolio",

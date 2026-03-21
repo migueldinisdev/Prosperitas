@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Card } from "../../ui/Card";
 import { NetWorthHistoryChart } from "../../components/NetWorthHistoryChart";
@@ -25,6 +25,8 @@ import { useWalletData } from "../../hooks/useWalletData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
+import { useNetWorthHistory } from "../../hooks/useNetWorthHistory";
+import { getPricesBatch } from "../../data/prices";
 import { Modal } from "../../ui/Modal";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { addWalletTransaction } from "../../store/thunks/walletThunks";
@@ -82,6 +84,109 @@ const roundToInputPrecision = (value: string) => {
     return Math.round(parsed * factor) / factor;
 };
 const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
+const shiftMonths = (date: Date, months: number) => {
+    const next = new Date(date);
+    next.setUTCMonth(next.getUTCMonth() + months);
+    return next;
+};
+const shiftYears = (date: Date, years: number) => {
+    const next = new Date(date);
+    next.setUTCFullYear(next.getUTCFullYear() + years);
+    return next;
+};
+type PortfolioValuePoint = { date: string; value: number };
+type CashFlowPoint = { date: string; amount: number };
+type ReturnPoint = { label: string; hasValue: boolean; value: number };
+
+const calculateTimeWeightedReturn = (
+    portfolioValues: PortfolioValuePoint[],
+    cashFlows: CashFlowPoint[],
+) => {
+    if (portfolioValues.length < 2) return null;
+    const orderedValues = [...portfolioValues].sort((a, b) =>
+        a.date.localeCompare(b.date),
+    );
+    const cashFlowByDate = cashFlows.reduce<Map<string, number>>((map, flow) => {
+        map.set(flow.date, (map.get(flow.date) ?? 0) + flow.amount);
+        return map;
+    }, new Map());
+
+    let twrFactor = 1;
+    let hasValidPeriod = false;
+
+    for (let index = 1; index < orderedValues.length; index += 1) {
+        const previousValue = orderedValues[index - 1].value;
+        if (previousValue === 0) continue;
+        const currentPoint = orderedValues[index];
+        const periodCashFlow = cashFlowByDate.get(currentPoint.date) ?? 0;
+        const periodReturn = (currentPoint.value - periodCashFlow) / previousValue - 1;
+        twrFactor *= 1 + periodReturn;
+        hasValidPeriod = true;
+    }
+
+    if (!hasValidPeriod) return null;
+    return twrFactor - 1;
+};
+
+const toYearFraction = (startDate: string, endDate: string) => {
+    const start = new Date(`${startDate}T00:00:00.000Z`).getTime();
+    const end = new Date(`${endDate}T00:00:00.000Z`).getTime();
+    return Math.max(0, (end - start) / MS_PER_DAY / 365.25);
+};
+
+const calculateMoneyWeightedReturn = (
+    cashFlows: CashFlowPoint[],
+    startDate: string,
+) => {
+    if (!cashFlows.length) return null;
+    const orderedFlows = [...cashFlows]
+        .map((flow) => ({
+            ...flow,
+            t: toYearFraction(startDate, flow.date),
+        }))
+        .sort((a, b) => a.t - b.t);
+
+    const hasPositive = orderedFlows.some((flow) => flow.amount > 0);
+    const hasNegative = orderedFlows.some((flow) => flow.amount < 0);
+    if (!hasPositive || !hasNegative) return null;
+
+    const npv = (rate: number) =>
+        orderedFlows.reduce(
+            (sum, flow) => sum + flow.amount / Math.pow(1 + rate, flow.t),
+            0,
+        );
+
+    let low = -0.9999;
+    let high = 1;
+    let npvLow = npv(low);
+    let npvHigh = npv(high);
+    let guard = 0;
+
+    while (npvLow * npvHigh > 0 && guard < 50) {
+        high *= 2;
+        npvHigh = npv(high);
+        guard += 1;
+    }
+    if (npvLow * npvHigh > 0) return null;
+
+    for (let iteration = 0; iteration < 200; iteration += 1) {
+        const mid = (low + high) / 2;
+        const npvMid = npv(mid);
+        if (Math.abs(npvMid) < 1e-9) return mid;
+        if (npvLow * npvMid <= 0) {
+            high = mid;
+            npvHigh = npvMid;
+        } else {
+            low = mid;
+            npvLow = npvMid;
+        }
+    }
+
+    return (low + high) / 2;
+};
 
 interface WalletAllocationSectionProps {
     pieData: { name: string; value: number; color: string }[];
@@ -94,7 +199,16 @@ interface WalletPerformanceSectionProps {
     baseCurrency: string;
     transactions: WalletTx[];
     assets: AssetsState;
-    livePricesByAsset?: Record<string, number>;
+    forexRates: Record<string, number>;
+    getForexRate: (currency: string, date: string) => number | null;
+    twrReturns: ReturnPoint[];
+    mwrReturns: ReturnPoint[];
+    apyStartYear: number | null;
+    apyYearOptions: number[];
+    onApyStartYearChange: (year: number) => void;
+    benchmarkSymbol: string;
+    benchmarkCurrency: Currency;
+    benchmarkMwr1Y: number | null;
 }
 
 const WalletPerformanceSection = React.memo(
@@ -104,18 +218,115 @@ const WalletPerformanceSection = React.memo(
         baseCurrency,
         transactions,
         assets,
-        livePricesByAsset,
+        forexRates,
+        getForexRate,
+        twrReturns,
+        mwrReturns,
+        apyStartYear,
+        apyYearOptions,
+        onApyStartYearChange,
+        benchmarkSymbol,
+        benchmarkCurrency,
+        benchmarkMwr1Y,
     }: WalletPerformanceSectionProps) => (
         <Card title="Performance History">
             {transactions.length > 0 ? (
-                <NetWorthHistoryChart
-                    transactions={transactions}
-                    assets={assets}
-                    baseCurrency={baseCurrency}
-                    height={300}
-                    currency={currency}
-                    locale={locale}
-                />
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-app-muted">
+                                TWR
+                                <Tooltip content="TWR measures how the portfolio itself performed, ignoring deposits and withdrawals. Think: 'If this portfolio had €1 invested from day 1, how would it grow?' It captures stock picking, allocation, and rebalancing. Example: bad stocks drop -40%, then you deposit a lot -> TWR stays about -40% because strategy was bad regardless of cash-flow timing. Use TWR to compare with S&P500 Acc Total Return (same period), evaluate investing skill, and compare strategies fairly.">
+                                    <Info size={12} />
+                                </Tooltip>
+                            </span>
+                            {twrReturns.map((periodReturn) => (
+                                <span
+                                    key={`twr-${periodReturn.label}`}
+                                    className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+                                        periodReturn.hasValue
+                                            ? periodReturn.value >= 0
+                                                ? "text-app-success bg-emerald-500/10"
+                                                : "text-app-danger bg-rose-500/10"
+                                            : "text-app-muted bg-app-surface"
+                                    }`}
+                                >
+                                    <span>{periodReturn.label}</span>
+                                    <span>
+                                        {periodReturn.hasValue
+                                            ? `${periodReturn.value >= 0 ? "+" : ""}${periodReturn.value.toFixed(2)}%`
+                                            : "n/a"}
+                                    </span>
+                                </span>
+                            ))}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-app-muted">
+                                MWR (IRR)
+                                <Tooltip content="MWR (IRR) measures how your actual money performed, including when you invested. It answers: 'How well did my capital do over time?' It captures timing of deposits, size of investments, and real-life outcome. Example: portfolio drops -40% early, but you invest most money later -> MWR may be around -10% because most capital avoided early losses. Use MWR to understand your real return, evaluate timing decisions, and compare with S&P500 MWR using the same deposits/withdrawals.">
+                                    <Info size={12} />
+                                </Tooltip>
+                            </span>
+                            {mwrReturns.map((periodReturn) => (
+                                <span
+                                    key={`mwr-${periodReturn.label}`}
+                                    className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+                                        periodReturn.hasValue
+                                            ? periodReturn.value >= 0
+                                                ? "text-app-success bg-emerald-500/10"
+                                                : "text-app-danger bg-rose-500/10"
+                                            : "text-app-muted bg-app-surface"
+                                    }`}
+                                >
+                                    <span>{periodReturn.label}</span>
+                                    <span>
+                                        {periodReturn.hasValue
+                                            ? `${periodReturn.value >= 0 ? "+" : ""}${periodReturn.value.toFixed(2)}%`
+                                            : "n/a"}
+                                    </span>
+                                </span>
+                            ))}
+                            <span className="text-xs text-app-muted ml-2">
+                                Bench 1Y ({benchmarkSymbol}){" "}
+                                {benchmarkMwr1Y === null
+                                    ? "n/a"
+                                    : `${benchmarkMwr1Y >= 0 ? "+" : ""}${benchmarkMwr1Y.toFixed(2)}%`}
+                            </span>
+                            {apyStartYear !== null && apyYearOptions.length > 0 ? (
+                                <label className="ml-auto inline-flex items-center gap-2 text-xs text-app-muted">
+                                    APY start
+                                    <select
+                                        value={apyStartYear}
+                                        onChange={(event) =>
+                                            onApyStartYearChange(Number(event.target.value))
+                                        }
+                                        className="bg-app-surface border border-app-border rounded px-2 py-1 text-app-foreground"
+                                    >
+                                        {apyYearOptions.map((year) => (
+                                            <option key={year} value={year}>
+                                                {year}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            ) : null}
+                        </div>
+                    </div>
+                    <NetWorthHistoryChart
+                        transactions={transactions}
+                        assets={assets}
+                        baseCurrency={baseCurrency}
+                        height={300}
+                        currency={currency}
+                        locale={locale}
+                        showNetInvestedLine
+                        forexRates={forexRates}
+                        getForexRate={getForexRate}
+                        showBenchmarkLine
+                        benchmarkSymbol={benchmarkSymbol}
+                        benchmarkCurrency={benchmarkCurrency}
+                    />
+                </div>
             ) : (
                 <p className="text-sm text-app-muted">
                     Add transactions to see net worth history.
@@ -477,6 +688,35 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         settings.visualCurrency,
     );
 
+    const toBaseValue = useCallback(
+        (amount: number, currency: Currency, date: string) => {
+            if (currency === settings.visualCurrency) return amount;
+            const rate = getForexRate(currency, date) ?? forexRates[currency];
+            return rate ? amount * rate : amount;
+        },
+        [forexRates, getForexRate, settings.visualCurrency],
+    );
+
+    const netInvested = useMemo(
+        () =>
+            walletTransactions.reduce((total, tx) => {
+                if (tx.type === "deposit") {
+                    return (
+                        total +
+                        toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
+                    );
+                }
+                if (tx.type === "withdraw") {
+                    return (
+                        total -
+                        toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
+                    );
+                }
+                return total;
+            }, 0),
+        [walletTransactions, toBaseValue],
+    );
+
     const { holdings, totals } = useMemo(() => {
         const costBasisByAsset = calculatePositionCostBasis(
             walletTransactions,
@@ -633,6 +873,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const unrealizedPositive = Math.max(totals.pnl, 0);
     const unrealizedNegative = Math.min(totals.pnl, 0);
     const totalPnl = totals.pnl + realizedPnl;
+    const totalReturnPercent =
+        netInvested > 0 ? (Math.abs(totalPnl) / netInvested) * 100 : 0;
     const unrealizedPercent =
         totals.invested > 0 ? (totals.pnl / totals.invested) * 100 : 0;
     const unrealizedIsPositive = totals.pnl >= 0;
@@ -661,6 +903,316 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             }),
         [walletTransactions],
     );
+
+    const apyYearOptions = useMemo(() => {
+        const currentYear = new Date().getUTCFullYear();
+        const txYears = sortedTransactions
+            .map((tx) => new Date(tx.date).getUTCFullYear())
+            .filter((year) => Number.isFinite(year));
+        const earliestTxYear =
+            txYears.length > 0 ? Math.min(...txYears) : currentYear;
+        const startYear = Math.max(earliestTxYear - 1, 2000);
+        const years: number[] = [];
+        for (let year = startYear; year <= currentYear; year += 1) {
+            years.push(year);
+        }
+        return years;
+    }, [sortedTransactions]);
+    const [apyStartYear, setApyStartYear] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (!apyYearOptions.length) {
+            setApyStartYear(null);
+            return;
+        }
+        setApyStartYear((previous) =>
+            previous && apyYearOptions.includes(previous)
+                ? previous
+                : apyYearOptions[0],
+        );
+    }, [apyYearOptions]);
+
+    const performancePeriods = useMemo(() => {
+        const today = new Date();
+        const apyStartDate = apyStartYear
+            ? `${apyStartYear.toString().padStart(4, "0")}-01-01`
+            : null;
+        return [
+            { key: "6M", label: "6M", startDate: toDateKey(shiftMonths(today, -6)) },
+            { key: "1Y", label: "1Y", startDate: toDateKey(shiftYears(today, -1)) },
+            { key: "2Y", label: "2Y", startDate: toDateKey(shiftYears(today, -2)) },
+            { key: "3Y", label: "3Y", startDate: toDateKey(shiftYears(today, -3)) },
+            { key: "4Y", label: "4Y", startDate: toDateKey(shiftYears(today, -4)) },
+            { key: "5Y", label: "5Y", startDate: toDateKey(shiftYears(today, -5)) },
+            { key: "ALL", label: "All Time (APY)", startDate: apyStartDate },
+        ] as const;
+    }, [apyStartYear]);
+
+    const performanceSnapshotDates = useMemo(() => {
+        if (!walletTransactions.length) return [];
+        const uniqueDates = new Set<string>(walletTransactions.map((tx) => tx.date));
+        const endDate = toDateKey(new Date());
+        uniqueDates.add(endDate);
+        performancePeriods.forEach((period) => {
+            if (period.startDate) uniqueDates.add(period.startDate);
+        });
+        return Array.from(uniqueDates).sort((a, b) => a.localeCompare(b));
+    }, [performancePeriods, walletTransactions]);
+
+    const { data: performanceSnapshots } = useNetWorthHistory({
+        transactions: walletTransactions,
+        assets,
+        baseCurrency: settings.visualCurrency,
+        locale: settings.locale,
+        snapshotDates: performanceSnapshotDates,
+    });
+
+    const [benchmarkPriceByDate, setBenchmarkPriceByDate] = useState<
+        Record<string, number>
+    >({});
+
+    useEffect(() => {
+        let isActive = true;
+        const externalTx = walletTransactions.filter(
+            (tx) => tx.type === "deposit" || tx.type === "withdraw",
+        );
+        const today = toDateKey(new Date());
+        const uniqueDates = Array.from(
+            new Set([...externalTx.map((tx) => tx.date), ...performanceSnapshotDates, today]),
+        ).sort((a, b) => a.localeCompare(b));
+        if (!uniqueDates.length || !settings.sp500AccSymbol.trim()) {
+            setBenchmarkPriceByDate({});
+            return () => {
+                isActive = false;
+            };
+        }
+
+        const fetchBenchmarkPrices = async () => {
+            const batch = await getPricesBatch(
+                uniqueDates.map((date) => ({
+                    type: "stock",
+                    ticker: settings.sp500AccSymbol,
+                    date,
+                })),
+            );
+            if (!isActive) return;
+            const next: Record<string, number> = {};
+            batch.results.forEach((entry) => {
+                if (entry.value?.close) {
+                    next[entry.request.date ?? entry.value.date] = entry.value.close;
+                }
+            });
+            setBenchmarkPriceByDate(next);
+        };
+
+        fetchBenchmarkPrices();
+        return () => {
+            isActive = false;
+        };
+    }, [performanceSnapshotDates, settings.sp500AccSymbol, walletTransactions]);
+
+    const performanceMetrics = useMemo(() => {
+        if (!performanceSnapshots.length) return { twrReturns: [], mwrReturns: [] };
+        const snapshotMap = new Map(
+            performanceSnapshots.map((point) => [point.date, point.value]),
+        );
+        const externalCashFlows = walletTransactions
+            .filter((tx) => tx.type === "deposit" || tx.type === "withdraw")
+            .map((tx) => ({
+                date: tx.date,
+                amount:
+                    tx.type === "deposit"
+                        ? toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
+                        : -toBaseValue(tx.amount.value, tx.amount.currency, tx.date),
+            }));
+        const endDate = toDateKey(new Date());
+
+        const twrReturns: ReturnPoint[] = [];
+        const mwrReturns: ReturnPoint[] = [];
+
+        performancePeriods.forEach((period) => {
+            const rawStartDate = period.startDate;
+            if (!rawStartDate) {
+                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                return;
+            }
+            const startDate = rawStartDate > endDate ? endDate : rawStartDate;
+            const datesInRange = performanceSnapshotDates.filter(
+                (date) => date >= startDate && date <= endDate,
+            );
+            if (datesInRange.length < 2) {
+                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                return;
+            }
+
+            const periodPortfolioValues = datesInRange.map((date) => ({
+                date,
+                value: snapshotMap.get(date) ?? 0,
+            }));
+            const startValue = periodPortfolioValues[0].value;
+            const endValue =
+                periodPortfolioValues[periodPortfolioValues.length - 1].value;
+            if (startValue <= 0) {
+                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                return;
+            }
+            const periodCashFlows = externalCashFlows.filter(
+                (flow) => flow.date >= startDate && flow.date <= endDate,
+            );
+            const twrDecimal = calculateTimeWeightedReturn(
+                periodPortfolioValues,
+                periodCashFlows,
+            );
+            const mwrDecimal = calculateMoneyWeightedReturn(
+                [
+                    { date: startDate, amount: -startValue },
+                    ...periodCashFlows.map((flow) => ({
+                        date: flow.date,
+                        amount: -flow.amount,
+                    })),
+                    { date: endDate, amount: endValue },
+                ],
+                startDate,
+            );
+
+            console.log("[WalletReturns][TWR]", {
+                period: period.label,
+                startDate,
+                endDate,
+                portfolioValues: periodPortfolioValues,
+                cashFlows: periodCashFlows,
+                twrDecimal,
+            });
+            console.log("[WalletReturns][MWR]", {
+                period: period.label,
+                startDate,
+                endDate,
+                startValue,
+                endValue,
+                externalCashFlows: periodCashFlows,
+                mwrDecimal,
+            });
+
+            if (twrDecimal === null) {
+                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
+            } else if (period.key === "ALL") {
+                const startTime = new Date(startDate).getTime();
+                const endTime = new Date(endDate).getTime();
+                const days = Math.max(1, (endTime - startTime) / MS_PER_DAY);
+                const apy = Math.pow(1 + twrDecimal, 365 / days) - 1;
+                twrReturns.push({ label: period.label, hasValue: true, value: apy * 100 });
+            } else {
+                twrReturns.push({
+                    label: period.label,
+                    hasValue: true,
+                    value: twrDecimal * 100,
+                });
+            }
+
+            if (mwrDecimal === null) {
+                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+            } else {
+                mwrReturns.push({
+                    label: period.label,
+                    hasValue: true,
+                    value: mwrDecimal * 100,
+                });
+            }
+        });
+
+        return { twrReturns, mwrReturns };
+    }, [
+        performancePeriods,
+        performanceSnapshotDates,
+        performanceSnapshots,
+        walletTransactions,
+        toBaseValue,
+    ]);
+
+    const benchmarkMwr1Y = useMemo(() => {
+        const period = performancePeriods.find((entry) => entry.key === "1Y");
+        if (!period?.startDate) return null;
+        const endDate = toDateKey(new Date());
+        const dates = performanceSnapshotDates.filter(
+            (date) => date >= period.startDate && date <= endDate,
+        );
+        if (!dates.length) return null;
+
+        const cashFlowsInBenchmark = walletTransactions
+            .filter(
+                (tx) =>
+                    (tx.type === "deposit" || tx.type === "withdraw") &&
+                    tx.date >= period.startDate &&
+                    tx.date <= endDate,
+            )
+            .map((tx) => {
+                const flowInVisual = toBaseValue(
+                    tx.amount.value * (tx.type === "withdraw" ? -1 : 1),
+                    tx.amount.currency,
+                    tx.date,
+                );
+                const benchmarkToVisualRate =
+                    settings.sp500AccCurrency === settings.visualCurrency
+                        ? 1
+                        : getForexRate(settings.sp500AccCurrency, tx.date) ??
+                          forexRates[settings.sp500AccCurrency] ??
+                          1;
+                return {
+                    date: tx.date,
+                    amount:
+                        benchmarkToVisualRate !== 0
+                            ? flowInVisual / benchmarkToVisualRate
+                            : flowInVisual,
+                };
+            });
+
+        const simulateBenchmarkValue = (targetDate: string) => {
+            const orderedDates = dates.filter((date) => date <= targetDate);
+            let units = 0;
+            let lastPrice: number | null = null;
+            orderedDates.forEach((date) => {
+                const price = benchmarkPriceByDate[date] ?? lastPrice;
+                if (!price) return;
+                const flow = cashFlowsInBenchmark
+                    .filter((entry) => entry.date === date)
+                    .reduce((sum, entry) => sum + entry.amount, 0);
+                units += flow / price;
+                lastPrice = price;
+            });
+            if (!lastPrice) return 0;
+            return units * lastPrice;
+        };
+
+        const startValueNative = simulateBenchmarkValue(period.startDate);
+        const endValueNative = simulateBenchmarkValue(endDate);
+        if (startValueNative <= 0 || endValueNative <= 0) return null;
+
+        const irr = calculateMoneyWeightedReturn(
+            [
+                { date: period.startDate, amount: -startValueNative },
+                ...cashFlowsInBenchmark.map((flow) => ({
+                    date: flow.date,
+                    amount: -flow.amount,
+                })),
+                { date: endDate, amount: endValueNative },
+            ],
+            period.startDate,
+        );
+        return irr === null ? null : irr * 100;
+    }, [
+        benchmarkPriceByDate,
+        forexRates,
+        getForexRate,
+        performancePeriods,
+        performanceSnapshotDates,
+        settings.sp500AccCurrency,
+        settings.visualCurrency,
+        toBaseValue,
+        walletTransactions,
+    ]);
 
     const handleNonNegativeChange =
         (setter: React.Dispatch<React.SetStateAction<string>>) =>
@@ -1200,7 +1752,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 </span>
                             </p>
                             <p className="text-sm text-app-muted">
-                                Total
+                                Total Return
                                 <span
                                     className={`ml-2 font-semibold ${
                                         totalPnl >= 0
@@ -1213,6 +1765,16 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                         totalPnl,
                                         settings.visualCurrency,
                                     )}
+                                </span>
+                                <span
+                                    className={`ml-2 text-xs font-semibold ${
+                                        totalPnl >= 0
+                                            ? "text-app-success"
+                                            : "text-app-danger"
+                                    }`}
+                                >
+                                    ({totalPnl >= 0 ? "+" : "-"}
+                                    {totalReturnPercent.toFixed(1)}%)
                                 </span>
                             </p>
                         </div>
@@ -1246,7 +1808,16 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     baseCurrency={settings.visualCurrency}
                     transactions={walletTransactions}
                     assets={assets}
-                    livePricesByAsset={livePricesByAsset}
+                    forexRates={forexRates}
+                    getForexRate={getForexRate}
+                    twrReturns={performanceMetrics.twrReturns}
+                    mwrReturns={performanceMetrics.mwrReturns}
+                    apyStartYear={apyStartYear}
+                    apyYearOptions={apyYearOptions}
+                    onApyStartYearChange={setApyStartYear}
+                    benchmarkSymbol={settings.sp500AccSymbol}
+                    benchmarkCurrency={settings.sp500AccCurrency}
+                    benchmarkMwr1Y={benchmarkMwr1Y}
                 />
 
                 <div className="flex flex-wrap gap-4">

@@ -3,6 +3,7 @@ import {
     ResponsiveContainer,
     AreaChart as ReAreaChart,
     Area,
+    Line,
     XAxis,
     YAxis,
     Tooltip,
@@ -19,6 +20,13 @@ interface AreaChartProps {
     tickFormatter?: (value: string | number) => string;
     labelFormatter?: (label: string | number) => string;
     yTickFormatter?: (value: number) => string;
+    extraLines?: Array<{
+        dataKey: string;
+        color: string;
+        name?: string;
+        strokeWidth?: number;
+        dashed?: boolean;
+    }>;
 }
 
 export const AreaChart = React.memo(
@@ -32,6 +40,7 @@ export const AreaChart = React.memo(
         tickFormatter,
         labelFormatter,
         yTickFormatter,
+        extraLines,
     }: AreaChartProps) => {
         return (
             <div style={{ width: "100%", height }}>
@@ -83,6 +92,10 @@ export const AreaChart = React.memo(
                                 strokeWidth: 1,
                             }}
                             labelFormatter={labelFormatter}
+                            formatter={(value: number, name: string) => [
+                                yTickFormatter?.(value) ?? String(value),
+                                name,
+                            ]}
                         />
                         <Area
                             type="monotone"
@@ -99,6 +112,24 @@ export const AreaChart = React.memo(
                                 strokeWidth: 2,
                             }}
                         />
+                        {extraLines?.map((line) => (
+                            <Line
+                                key={line.dataKey}
+                                type="monotone"
+                                dataKey={line.dataKey}
+                                name={line.name}
+                                stroke={line.color}
+                                strokeWidth={line.strokeWidth ?? 2}
+                                strokeDasharray={line.dashed ? "6 4" : undefined}
+                                dot={false}
+                                activeDot={{
+                                    r: 4,
+                                    fill: line.color,
+                                    stroke: "rgb(var(--color-app-bg))",
+                                    strokeWidth: 2,
+                                }}
+                            />
+                        ))}
                     </ReAreaChart>
                 </ResponsiveContainer>
             </div>
