@@ -322,24 +322,37 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
             );
 
             let units = 0;
+            let pendingFlow = 0;
             let previousPrice: number | null = null;
             const nextSeries: Record<string, number> = {};
             requestedDates.forEach((date) => {
-                const price = priceByDate.get(date) ?? previousPrice;
-                if (!price) return;
                 const flow = cashFlowByDate.get(date) ?? 0;
+                // Keep flows until we can price them so missing candles do not drop deposits/withdrawals.
                 if (flow !== 0) {
-                    units += flow / price;
+                    pendingFlow += flow;
                 }
-                previousPrice = price;
-                const nativeValue = units * price;
+
+                const price = priceByDate.get(date) ?? previousPrice;
+                if (price && pendingFlow !== 0) {
+                    units += pendingFlow / price;
+                    pendingFlow = 0;
+                }
+
+                if (price) {
+                    previousPrice = price;
+                }
+
+                const valuationPrice = price ?? previousPrice;
+                const investedNativeValue = valuationPrice ? units * valuationPrice : 0;
                 const benchmarkToVisualRate =
                     benchmarkCurrency === baseCurrency
                         ? 1
                         : getForexRate?.(benchmarkCurrency, date) ??
                           forexRates?.[benchmarkCurrency] ??
                           1;
-                nextSeries[date] = nativeValue * benchmarkToVisualRate;
+                const investedVisualValue = investedNativeValue * benchmarkToVisualRate;
+                const pendingFlowVisualValue = pendingFlow * benchmarkToVisualRate;
+                nextSeries[date] = investedVisualValue + pendingFlowVisualValue;
             });
             setBenchmarkByDate(nextSeries);
         };
