@@ -160,6 +160,9 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
 }) => {
     const [range, setRange] = useState<RangeKey>("ALL");
     const [tickRate, setTickRate] = useState<TickRateKey>("1M");
+    const [benchmarkByDate, setBenchmarkByDate] = useState<
+        Record<string, number>
+    >({});
 
     const { ticks } = useMemo(() => {
         if (!transactions.length) {
@@ -445,6 +448,3 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         </div>
     );
 };
-    const [benchmarkByDate, setBenchmarkByDate] = useState<
-        Record<string, number>
-    >({});
