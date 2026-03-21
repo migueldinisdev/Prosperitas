@@ -100,6 +100,17 @@ const shiftYears = (date: Date, years: number) => {
 type PortfolioValuePoint = { date: string; value: number };
 type CashFlowPoint = { date: string; amount: number };
 type ReturnPoint = { label: string; hasValue: boolean; value: number };
+type PeriodDebugPoint = {
+    label: string;
+    startDate: string;
+    endDate: string;
+    startValue: number;
+    endValue: number;
+    cashFlowCount: number;
+    cashFlowSum: number;
+    twrDecimal: number | null;
+    mwrDecimal: number | null;
+};
 
 const calculateTimeWeightedReturn = (
     portfolioValues: PortfolioValuePoint[],
@@ -109,10 +120,13 @@ const calculateTimeWeightedReturn = (
     const orderedValues = [...portfolioValues].sort((a, b) =>
         a.date.localeCompare(b.date),
     );
-    const cashFlowByDate = cashFlows.reduce<Map<string, number>>((map, flow) => {
-        map.set(flow.date, (map.get(flow.date) ?? 0) + flow.amount);
-        return map;
-    }, new Map());
+    const cashFlowByDate = cashFlows.reduce<Map<string, number>>(
+        (map, flow) => {
+            map.set(flow.date, (map.get(flow.date) ?? 0) + flow.amount);
+            return map;
+        },
+        new Map(),
+    );
 
     let twrFactor = 1;
     let hasValidPeriod = false;
@@ -122,7 +136,8 @@ const calculateTimeWeightedReturn = (
         if (previousValue === 0) continue;
         const currentPoint = orderedValues[index];
         const periodCashFlow = cashFlowByDate.get(currentPoint.date) ?? 0;
-        const periodReturn = (currentPoint.value - periodCashFlow) / previousValue - 1;
+        const periodReturn =
+            (currentPoint.value - periodCashFlow) / previousValue - 1;
         twrFactor *= 1 + periodReturn;
         hasValidPeriod = true;
     }
@@ -292,13 +307,16 @@ const WalletPerformanceSection = React.memo(
                                     ? "n/a"
                                     : `${benchmarkMwr1Y >= 0 ? "+" : ""}${benchmarkMwr1Y.toFixed(2)}%`}
                             </span>
-                            {apyStartYear !== null && apyYearOptions.length > 0 ? (
+                            {apyStartYear !== null &&
+                            apyYearOptions.length > 0 ? (
                                 <label className="ml-auto inline-flex items-center gap-2 text-xs text-app-muted">
                                     APY start
                                     <select
                                         value={apyStartYear}
                                         onChange={(event) =>
-                                            onApyStartYearChange(Number(event.target.value))
+                                            onApyStartYearChange(
+                                                Number(event.target.value),
+                                            )
                                         }
                                         className="bg-app-surface border border-app-border rounded px-2 py-1 text-app-foreground"
                                     >
@@ -703,13 +721,21 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 if (tx.type === "deposit") {
                     return (
                         total +
-                        toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
+                        toBaseValue(
+                            tx.amount.value,
+                            tx.amount.currency,
+                            tx.date,
+                        )
                     );
                 }
                 if (tx.type === "withdraw") {
                     return (
                         total -
-                        toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
+                        toBaseValue(
+                            tx.amount.value,
+                            tx.amount.currency,
+                            tx.date,
+                        )
                     );
                 }
                 return total;
@@ -938,19 +964,45 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             ? `${apyStartYear.toString().padStart(4, "0")}-01-01`
             : null;
         return [
-            { key: "6M", label: "6M", startDate: toDateKey(shiftMonths(today, -6)) },
-            { key: "1Y", label: "1Y", startDate: toDateKey(shiftYears(today, -1)) },
-            { key: "2Y", label: "2Y", startDate: toDateKey(shiftYears(today, -2)) },
-            { key: "3Y", label: "3Y", startDate: toDateKey(shiftYears(today, -3)) },
-            { key: "4Y", label: "4Y", startDate: toDateKey(shiftYears(today, -4)) },
-            { key: "5Y", label: "5Y", startDate: toDateKey(shiftYears(today, -5)) },
+            {
+                key: "6M",
+                label: "6M",
+                startDate: toDateKey(shiftMonths(today, -6)),
+            },
+            {
+                key: "1Y",
+                label: "1Y",
+                startDate: toDateKey(shiftYears(today, -1)),
+            },
+            {
+                key: "2Y",
+                label: "2Y",
+                startDate: toDateKey(shiftYears(today, -2)),
+            },
+            {
+                key: "3Y",
+                label: "3Y",
+                startDate: toDateKey(shiftYears(today, -3)),
+            },
+            {
+                key: "4Y",
+                label: "4Y",
+                startDate: toDateKey(shiftYears(today, -4)),
+            },
+            {
+                key: "5Y",
+                label: "5Y",
+                startDate: toDateKey(shiftYears(today, -5)),
+            },
             { key: "ALL", label: "All Time (APY)", startDate: apyStartDate },
         ] as const;
     }, [apyStartYear]);
 
     const performanceSnapshotDates = useMemo(() => {
         if (!walletTransactions.length) return [];
-        const uniqueDates = new Set<string>(walletTransactions.map((tx) => tx.date));
+        const uniqueDates = new Set<string>(
+            walletTransactions.map((tx) => tx.date),
+        );
         const endDate = toDateKey(new Date());
         uniqueDates.add(endDate);
         performancePeriods.forEach((period) => {
@@ -978,7 +1030,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         );
         const today = toDateKey(new Date());
         const uniqueDates = Array.from(
-            new Set([...externalTx.map((tx) => tx.date), ...performanceSnapshotDates, today]),
+            new Set([
+                ...externalTx.map((tx) => tx.date),
+                ...performanceSnapshotDates,
+                today,
+            ]),
         ).sort((a, b) => a.localeCompare(b));
         if (!uniqueDates.length || !settings.sp500AccSymbol.trim()) {
             setBenchmarkPriceByDate({});
@@ -999,7 +1055,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             const next: Record<string, number> = {};
             batch.results.forEach((entry) => {
                 if (entry.value?.close) {
-                    next[entry.request.date ?? entry.value.date] = entry.value.close;
+                    next[entry.request.date ?? entry.value.date] =
+                        entry.value.close;
                 }
             });
             setBenchmarkPriceByDate(next);
@@ -1012,7 +1069,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     }, [performanceSnapshotDates, settings.sp500AccSymbol, walletTransactions]);
 
     const performanceMetrics = useMemo(() => {
-        if (!performanceSnapshots.length) return { twrReturns: [], mwrReturns: [] };
+        if (!performanceSnapshots.length)
+            return {
+                twrReturns: [],
+                mwrReturns: [],
+                debugPeriods: [] as PeriodDebugPoint[],
+            };
         const snapshotMap = new Map(
             performanceSnapshots.map((point) => [point.date, point.value]),
         );
@@ -1022,19 +1084,36 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 date: tx.date,
                 amount:
                     tx.type === "deposit"
-                        ? toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
-                        : -toBaseValue(tx.amount.value, tx.amount.currency, tx.date),
+                        ? toBaseValue(
+                              tx.amount.value,
+                              tx.amount.currency,
+                              tx.date,
+                          )
+                        : -toBaseValue(
+                              tx.amount.value,
+                              tx.amount.currency,
+                              tx.date,
+                          ),
             }));
         const endDate = toDateKey(new Date());
 
         const twrReturns: ReturnPoint[] = [];
         const mwrReturns: ReturnPoint[] = [];
+        const debugPeriods: PeriodDebugPoint[] = [];
 
         performancePeriods.forEach((period) => {
             const rawStartDate = period.startDate;
             if (!rawStartDate) {
-                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
-                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                twrReturns.push({
+                    label: period.label,
+                    hasValue: false,
+                    value: 0,
+                });
+                mwrReturns.push({
+                    label: period.label,
+                    hasValue: false,
+                    value: 0,
+                });
                 return;
             }
             const startDate = rawStartDate > endDate ? endDate : rawStartDate;
@@ -1042,8 +1121,16 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 (date) => date >= startDate && date <= endDate,
             );
             if (datesInRange.length < 2) {
-                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
-                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                twrReturns.push({
+                    label: period.label,
+                    hasValue: false,
+                    value: 0,
+                });
+                mwrReturns.push({
+                    label: period.label,
+                    hasValue: false,
+                    value: 0,
+                });
                 return;
             }
 
@@ -1055,12 +1142,23 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             const endValue =
                 periodPortfolioValues[periodPortfolioValues.length - 1].value;
             if (startValue <= 0) {
-                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
-                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                twrReturns.push({
+                    label: period.label,
+                    hasValue: false,
+                    value: 0,
+                });
+                mwrReturns.push({
+                    label: period.label,
+                    hasValue: false,
+                    value: 0,
+                });
                 return;
             }
             const periodCashFlows = externalCashFlows.filter(
                 (flow) => flow.date >= startDate && flow.date <= endDate,
+            );
+            const periodCashFlowsForMwr = periodCashFlows.filter(
+                (flow) => flow.date > startDate && flow.date < endDate,
             );
             const twrDecimal = calculateTimeWeightedReturn(
                 periodPortfolioValues,
@@ -1069,7 +1167,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             const mwrDecimal = calculateMoneyWeightedReturn(
                 [
                     { date: startDate, amount: -startValue },
-                    ...periodCashFlows.map((flow) => ({
+                    ...periodCashFlowsForMwr.map((flow) => ({
                         date: flow.date,
                         amount: -flow.amount,
                     })),
@@ -1077,33 +1175,44 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 ],
                 startDate,
             );
-
-            console.log("[WalletReturns][TWR]", {
-                period: period.label,
-                startDate,
-                endDate,
-                portfolioValues: periodPortfolioValues,
-                cashFlows: periodCashFlows,
-                twrDecimal,
-            });
-            console.log("[WalletReturns][MWR]", {
-                period: period.label,
+            debugPeriods.push({
+                label: period.label,
                 startDate,
                 endDate,
                 startValue,
                 endValue,
-                externalCashFlows: periodCashFlows,
+                cashFlowCount: periodCashFlowsForMwr.length,
+                cashFlowSum: periodCashFlowsForMwr.reduce(
+                    (sum, flow) => sum + flow.amount,
+                    0,
+                ),
+                twrDecimal,
                 mwrDecimal,
             });
 
             if (twrDecimal === null) {
-                twrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                twrReturns.push({
+                    label: period.label,
+                    hasValue: false,
+                    value: 0,
+                });
             } else if (period.key === "ALL") {
-                const startTime = new Date(startDate).getTime();
-                const endTime = new Date(endDate).getTime();
-                const days = Math.max(1, (endTime - startTime) / MS_PER_DAY);
-                const apy = Math.pow(1 + twrDecimal, 365 / days) - 1;
-                twrReturns.push({ label: period.label, hasValue: true, value: apy * 100 });
+                const years = toYearFraction(startDate, endDate);
+                const apy =
+                    years > 0 ? Math.pow(1 + twrDecimal, 1 / years) - 1 : null;
+                if (apy === null || !Number.isFinite(apy)) {
+                    twrReturns.push({
+                        label: period.label,
+                        hasValue: false,
+                        value: 0,
+                    });
+                } else {
+                    twrReturns.push({
+                        label: period.label,
+                        hasValue: true,
+                        value: apy * 100,
+                    });
+                }
             } else {
                 twrReturns.push({
                     label: period.label,
@@ -1113,7 +1222,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             }
 
             if (mwrDecimal === null) {
-                mwrReturns.push({ label: period.label, hasValue: false, value: 0 });
+                mwrReturns.push({
+                    label: period.label,
+                    hasValue: false,
+                    value: 0,
+                });
             } else {
                 mwrReturns.push({
                     label: period.label,
@@ -1123,7 +1236,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             }
         });
 
-        return { twrReturns, mwrReturns };
+        return { twrReturns, mwrReturns, debugPeriods };
     }, [
         performancePeriods,
         performanceSnapshotDates,
@@ -1132,20 +1245,37 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         toBaseValue,
     ]);
 
-    const benchmarkMwr1Y = useMemo(() => {
+    const benchmark1YMetrics = useMemo(() => {
         const period = performancePeriods.find((entry) => entry.key === "1Y");
-        if (!period?.startDate) return null;
+        if (!period?.startDate) {
+            return {
+                value: null,
+                debug: {
+                    period: "1Y",
+                    reason: "missing-start-date",
+                },
+            };
+        }
         const endDate = toDateKey(new Date());
-        const dates = performanceSnapshotDates.filter(
-            (date) => date >= period.startDate && date <= endDate,
+        const simulationDates = performanceSnapshotDates.filter(
+            (date) => date <= endDate,
         );
-        if (!dates.length) return null;
+        if (!simulationDates.length) {
+            return {
+                value: null,
+                debug: {
+                    period: "1Y",
+                    startDate: period.startDate,
+                    endDate,
+                    reason: "no-simulation-dates",
+                },
+            };
+        }
 
         const cashFlowsInBenchmark = walletTransactions
             .filter(
                 (tx) =>
                     (tx.type === "deposit" || tx.type === "withdraw") &&
-                    tx.date >= period.startDate &&
                     tx.date <= endDate,
             )
             .map((tx) => {
@@ -1157,9 +1287,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 const benchmarkToVisualRate =
                     settings.sp500AccCurrency === settings.visualCurrency
                         ? 1
-                        : getForexRate(settings.sp500AccCurrency, tx.date) ??
+                        : (getForexRate(settings.sp500AccCurrency, tx.date) ??
                           forexRates[settings.sp500AccCurrency] ??
-                          1;
+                          1);
                 return {
                     date: tx.date,
                     amount:
@@ -1169,8 +1299,32 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 };
             });
 
+        const simulationDateSet = new Set<string>(simulationDates);
+        cashFlowsInBenchmark.forEach((flow) =>
+            simulationDateSet.add(flow.date),
+        );
+        const orderedSimulationDates = Array.from(simulationDateSet).sort(
+            (a, b) => a.localeCompare(b),
+        );
+
+        const benchmarkValueByDate: Record<string, number> = {};
+        let units = 0;
+        let lastPrice: number | null = null;
+        orderedSimulationDates.forEach((date) => {
+            const price = benchmarkPriceByDate[date] ?? lastPrice;
+            if (!price) return;
+            const flow = cashFlowsInBenchmark
+                .filter((entry) => entry.date === date)
+                .reduce((sum, entry) => sum + entry.amount, 0);
+            units += flow / price;
+            lastPrice = price;
+            benchmarkValueByDate[date] = units * price;
+        });
+
         const simulateBenchmarkValue = (targetDate: string) => {
-            const orderedDates = dates.filter((date) => date <= targetDate);
+            const orderedDates = orderedSimulationDates.filter(
+                (date) => date <= targetDate,
+            );
             let units = 0;
             let lastPrice: number | null = null;
             orderedDates.forEach((date) => {
@@ -1188,12 +1342,30 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
         const startValueNative = simulateBenchmarkValue(period.startDate);
         const endValueNative = simulateBenchmarkValue(endDate);
-        if (startValueNative <= 0 || endValueNative <= 0) return null;
+        if (startValueNative <= 0 || endValueNative <= 0) {
+            return {
+                value: null,
+                debug: {
+                    period: "1Y",
+                    startDate: period.startDate,
+                    endDate,
+                    startValueNative,
+                    endValueNative,
+                    cashFlowCount: cashFlowsInBenchmark.length,
+                    simulationDateCount: orderedSimulationDates.length,
+                    reason: "non-positive-boundary-values",
+                },
+            };
+        }
+
+        const cashFlowsForIrr = cashFlowsInBenchmark.filter(
+            (flow) => flow.date > period.startDate && flow.date < endDate,
+        );
 
         const irr = calculateMoneyWeightedReturn(
             [
                 { date: period.startDate, amount: -startValueNative },
-                ...cashFlowsInBenchmark.map((flow) => ({
+                ...cashFlowsForIrr.map((flow) => ({
                     date: flow.date,
                     amount: -flow.amount,
                 })),
@@ -1201,7 +1373,23 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             ],
             period.startDate,
         );
-        return irr === null ? null : irr * 100;
+        return {
+            value: irr === null ? null : irr * 100,
+            debug: {
+                period: "1Y",
+                startDate: period.startDate,
+                endDate,
+                startValueNative,
+                endValueNative,
+                cashFlowCount: cashFlowsForIrr.length,
+                cashFlowSum: cashFlowsForIrr.reduce(
+                    (sum, flow) => sum + flow.amount,
+                    0,
+                ),
+                simulationDateCount: orderedSimulationDates.length,
+                irr,
+            },
+        };
     }, [
         benchmarkPriceByDate,
         forexRates,
@@ -1212,6 +1400,29 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         settings.visualCurrency,
         toBaseValue,
         walletTransactions,
+    ]);
+
+    useEffect(() => {
+        if (!performanceMetrics.debugPeriods.length) return;
+        const payload = {
+            walletId: id ?? null,
+            asOf: toDateKey(new Date()),
+            visualCurrency: settings.visualCurrency,
+            benchmarkSymbol: settings.sp500AccSymbol,
+            benchmarkCurrency: settings.sp500AccCurrency,
+            apyStartYear,
+            periods: performanceMetrics.debugPeriods,
+            benchmark1Y: benchmark1YMetrics,
+        };
+        console.log(`[RETDBG_V1]${JSON.stringify(payload)}`);
+    }, [
+        apyStartYear,
+        benchmark1YMetrics,
+        id,
+        performanceMetrics.debugPeriods,
+        settings.sp500AccCurrency,
+        settings.sp500AccSymbol,
+        settings.visualCurrency,
     ]);
 
     const handleNonNegativeChange =
@@ -1817,7 +2028,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     onApyStartYearChange={setApyStartYear}
                     benchmarkSymbol={settings.sp500AccSymbol}
                     benchmarkCurrency={settings.sp500AccCurrency}
-                    benchmarkMwr1Y={benchmarkMwr1Y}
+                    benchmarkMwr1Y={benchmark1YMetrics.value}
                 />
 
                 <div className="flex flex-wrap gap-4">
