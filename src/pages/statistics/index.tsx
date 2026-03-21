@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "../../components/PageHeader";
 import { Card } from "../../ui/Card";
 import { PieChart } from "../../components/PieChart";
@@ -16,8 +16,11 @@ import { Asset } from "../../core/schema-types";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
+import { useNetWorthHistory } from "../../hooks/useNetWorthHistory";
 import {
+    calculatePeriodReturns,
     calculatePositionCostBasis,
+    PerformancePeriod,
     calculateRealizedPnl,
     getAllocationPercent,
     getNetWorth,
@@ -36,8 +39,10 @@ import {
 } from "../../utils/netWorthHistory";
 import { Modal } from "../../ui/Modal";
 import { Button } from "../../ui/Button";
-import { Settings2 } from "lucide-react";
+import { Info, Settings2 } from "lucide-react";
 import { updateSettings } from "../../store/slices/settingsSlice";
+import { NetWorthHistoryChart } from "../../components/NetWorthHistoryChart";
+import { Tooltip } from "../../ui/Tooltip";
 
 const assetTypeColors: Record<string, string> = {
     stock: "#d61544",
@@ -60,6 +65,19 @@ const piePalette = [
 const walletPalette = ["#0ea5e9", "#8b5cf6", "#22c55e", "#f97316", "#ef4444"];
 
 type ShareView = "assetType" | "pie" | "wallet";
+type ReturnPoint = { label: string; hasValue: boolean; value: number };
+
+const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
+const shiftMonths = (date: Date, months: number) => {
+    const next = new Date(date);
+    next.setUTCMonth(next.getUTCMonth() + months);
+    return next;
+};
+const shiftYears = (date: Date, years: number) => {
+    const next = new Date(date);
+    next.setUTCFullYear(next.getUTCFullYear() + years);
+    return next;
+};
 
 interface Props {
     onMenuClick: () => void;
@@ -79,6 +97,24 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         Record<string, string>
     >({});
     const [shareView, setShareView] = useState<ShareView>("assetType");
+    const [selectedWalletIds, setSelectedWalletIds] = useState<string[]>([]);
+    const [apyStartYear, setApyStartYear] = useState<number | null>(null);
+
+    const walletList = useMemo(() => Object.values(wallets), [wallets]);
+
+    useEffect(() => {
+        const walletIds = walletList.map((wallet) => wallet.id);
+        setSelectedWalletIds((previous) => {
+            if (!walletIds.length) return [];
+            const keptSelection = previous.filter((id) => walletIds.includes(id));
+            return keptSelection.length > 0 ? keptSelection : walletIds;
+        });
+    }, [walletList]);
+
+    const selectedWalletIdSet = useMemo(
+        () => new Set(selectedWalletIds),
+        [selectedWalletIds],
+    );
 
     const positions = useMemo(
         () =>
@@ -136,6 +172,12 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         [walletTx],
     );
 
+    const selectedWalletTransactions = useMemo(
+        () =>
+            walletTransactions.filter((tx) => selectedWalletIdSet.has(tx.walletId)),
+        [selectedWalletIdSet, walletTransactions],
+    );
+
     const transactionDates = useMemo(
         () => walletTransactions.map((tx) => tx.date),
         [walletTransactions],
@@ -146,6 +188,179 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         transactionDates,
         settings.visualCurrency,
     );
+
+    const toBaseValue = useCallback(
+        (amount: number, currency: string, date: string) => {
+            if (currency === settings.visualCurrency) return amount;
+            const rate = getForexRate(currency, date) ?? forexRates[currency];
+            return rate ? amount * rate : amount;
+        },
+        [forexRates, getForexRate, settings.visualCurrency],
+    );
+
+    const sortedSelectedTransactions = useMemo(
+        () =>
+            [...selectedWalletTransactions].sort((a, b) => {
+                const dateDiff =
+                    new Date(b.date).getTime() - new Date(a.date).getTime();
+                if (dateDiff !== 0) return dateDiff;
+                return (
+                    new Date(b.createdAt).getTime() -
+                    new Date(a.createdAt).getTime()
+                );
+            }),
+        [selectedWalletTransactions],
+    );
+
+    const apyYearOptions = useMemo(() => {
+        const currentYear = new Date().getUTCFullYear();
+        const txYears = sortedSelectedTransactions
+            .map((tx) => new Date(tx.date).getUTCFullYear())
+            .filter((year) => Number.isFinite(year));
+        const earliestTxYear = txYears.length > 0 ? Math.min(...txYears) : currentYear;
+        const startYear = Math.max(earliestTxYear - 1, 2000);
+        const years: number[] = [];
+        for (let year = startYear; year <= currentYear; year += 1) {
+            years.push(year);
+        }
+        return years;
+    }, [sortedSelectedTransactions]);
+
+    useEffect(() => {
+        if (!apyYearOptions.length) {
+            setApyStartYear(null);
+            return;
+        }
+        setApyStartYear((previous) =>
+            previous && apyYearOptions.includes(previous)
+                ? previous
+                : apyYearOptions[0],
+        );
+    }, [apyYearOptions]);
+
+    const performancePeriods = useMemo<PerformancePeriod[]>(() => {
+        const today = new Date();
+        const apyStartDate = apyStartYear
+            ? `${apyStartYear.toString().padStart(4, "0")}-01-01`
+            : null;
+        return [
+            { key: "6M", label: "6M", startDate: toDateKey(shiftMonths(today, -6)) },
+            { key: "1Y", label: "1Y", startDate: toDateKey(shiftYears(today, -1)) },
+            { key: "2Y", label: "2Y", startDate: toDateKey(shiftYears(today, -2)) },
+            { key: "3Y", label: "3Y", startDate: toDateKey(shiftYears(today, -3)) },
+            { key: "4Y", label: "4Y", startDate: toDateKey(shiftYears(today, -4)) },
+            { key: "5Y", label: "5Y", startDate: toDateKey(shiftYears(today, -5)) },
+            { key: "ALL", label: "All Time (APY)", startDate: apyStartDate },
+        ];
+    }, [apyStartYear]);
+
+    const performanceSnapshotDates = useMemo(() => {
+        if (!selectedWalletTransactions.length) return [];
+        const uniqueDates = new Set<string>(
+            selectedWalletTransactions.map((tx) => tx.date),
+        );
+        const endDate = toDateKey(new Date());
+        uniqueDates.add(endDate);
+        performancePeriods.forEach((period) => {
+            if (period.startDate) uniqueDates.add(period.startDate);
+        });
+        return Array.from(uniqueDates).sort((a, b) => a.localeCompare(b));
+    }, [performancePeriods, selectedWalletTransactions]);
+
+    const { data: performanceSnapshots } = useNetWorthHistory({
+        transactions: selectedWalletTransactions,
+        assets,
+        baseCurrency: settings.visualCurrency,
+        locale: settings.locale,
+        snapshotDates: performanceSnapshotDates,
+    });
+
+    const performanceMetrics = useMemo(() => {
+        if (!performanceSnapshots.length) return { twrReturns: [] as ReturnPoint[] };
+
+        const snapshotValues = new Map(
+            performanceSnapshots.map((point) => [point.date, point.value]),
+        );
+        const externalCashFlows = selectedWalletTransactions
+            .filter((tx) => tx.type === "deposit" || tx.type === "withdraw")
+            .map((tx) => ({
+                date: tx.date,
+                amount:
+                    tx.type === "deposit"
+                        ? toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
+                        : -toBaseValue(tx.amount.value, tx.amount.currency, tx.date),
+            }));
+        const endDate = toDateKey(new Date());
+
+        const twrReturns: ReturnPoint[] = calculatePeriodReturns(
+            performancePeriods,
+            performanceSnapshotDates,
+            snapshotValues,
+            externalCashFlows,
+            endDate,
+        ).map(({ label, hasValue, value }) => ({ label, hasValue, value }));
+
+        return { twrReturns };
+    }, [
+        performancePeriods,
+        performanceSnapshotDates,
+        performanceSnapshots,
+        selectedWalletTransactions,
+        toBaseValue,
+    ]);
+
+    const selectedTotals = useMemo(() => {
+        const walletRows = walletList
+            .filter((wallet) => selectedWalletIdSet.has(wallet.id))
+            .map((wallet) => {
+                const cash = Array.isArray(wallet.cash)
+                    ? wallet.cash
+                    : Object.entries(wallet.cash ?? {}).map(([currency, value]) => ({
+                          currency,
+                          value: Number(value),
+                      }));
+                const cashVisual = getTotalValue(
+                    cash.map((bucket) =>
+                        toVisualValue(
+                            bucket.value,
+                            bucket.currency,
+                            settings.visualCurrency,
+                            forexRates,
+                        ),
+                    ),
+                );
+                const positionsByAsset = walletPositions[wallet.id] ?? {};
+                const positionsVisual = getTotalValue(
+                    Object.entries(positionsByAsset)
+                        .filter(([assetId]) => Boolean(assets[assetId]))
+                        .map(([assetId, position]) => {
+                            const asset = assets[assetId] as Asset;
+                            const price =
+                                livePricesByAsset[assetId] ?? position.avgCost.value;
+                            const currentValue = getPositionCurrentValue(
+                                position.amount,
+                                price,
+                            );
+                            return toVisualValue(
+                                currentValue,
+                                asset.tradingCurrency,
+                                settings.visualCurrency,
+                                forexRates,
+                            );
+                        }),
+                );
+                return positionsVisual + cashVisual;
+            });
+        return getTotalValue(walletRows);
+    }, [
+        assets,
+        forexRates,
+        livePricesByAsset,
+        selectedWalletIdSet,
+        settings.visualCurrency,
+        walletList,
+        walletPositions,
+    ]);
 
     const holdingSummaries = useMemo(() => {
         const costBasisByAsset = calculatePositionCostBasis(
@@ -750,6 +965,19 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             }));
     }, [holdingSummaries]);
 
+    const toggleWalletSelection = useCallback((walletId: string) => {
+        setSelectedWalletIds((previous) => {
+            const exists = previous.includes(walletId);
+            if (exists) {
+                if (previous.length <= 1) {
+                    return previous;
+                }
+                return previous.filter((id) => id !== walletId);
+            }
+            return [...previous, walletId];
+        });
+    }, []);
+
     return (
         <div className="pb-20">
             <PageHeader title="Statistics" onMenuClick={onMenuClick} />
@@ -937,6 +1165,125 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                                     )}
                                 </span>
                             </p>
+                        </div>
+                    </Card>
+                </section>
+
+                <section>
+                    <Card
+                        title="Performance History"
+                        action={
+                            <div className="text-xs text-app-muted">
+                                Consolidated Value:{" "}
+                                <span className="font-semibold text-app-foreground">
+                                    {formatCurrency(
+                                        selectedTotals,
+                                        settings.visualCurrency,
+                                    )}
+                                </span>
+                            </div>
+                        }
+                    >
+                        <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-4">
+                            <div className="space-y-3">
+                                <div className="space-y-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-app-muted">
+                                            TWR
+                                            <Tooltip content="TWR measures how the portfolio itself performed, ignoring deposits and withdrawals. Think: 'If this portfolio had €1 invested from day 1, how would it grow?' It captures stock picking, allocation, and rebalancing. Example: bad stocks drop -40%, then you deposit a lot -> TWR stays about -40% because strategy was bad regardless of cash-flow timing. Use TWR to compare with S&P500 Acc Total Return (same period), evaluate investing skill, and compare strategies fairly.">
+                                                <Info size={12} />
+                                            </Tooltip>
+                                        </span>
+                                        {performanceMetrics.twrReturns.map((periodReturn) => (
+                                            <span
+                                                key={`stats-twr-${periodReturn.label}`}
+                                                className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+                                                    periodReturn.hasValue
+                                                        ? periodReturn.value >= 0
+                                                            ? "text-app-success bg-emerald-500/10"
+                                                            : "text-app-danger bg-rose-500/10"
+                                                        : "text-app-muted bg-app-surface"
+                                                }`}
+                                            >
+                                                <span>{periodReturn.label}</span>
+                                                <span>
+                                                    {periodReturn.hasValue
+                                                        ? `${periodReturn.value >= 0 ? "+" : ""}${periodReturn.value.toFixed(2)}%`
+                                                        : "n/a"}
+                                                </span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                    {apyStartYear !== null && apyYearOptions.length > 0 ? (
+                                        <label className="inline-flex items-center gap-2 text-xs text-app-muted">
+                                            APY start
+                                            <select
+                                                value={apyStartYear}
+                                                onChange={(event) =>
+                                                    setApyStartYear(Number(event.target.value))
+                                                }
+                                                className="bg-app-surface border border-app-border rounded px-2 py-1 text-app-foreground"
+                                            >
+                                                {apyYearOptions.map((year) => (
+                                                    <option key={year} value={year}>
+                                                        {year}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    ) : null}
+                                </div>
+                                {selectedWalletTransactions.length > 0 ? (
+                                    <NetWorthHistoryChart
+                                        transactions={selectedWalletTransactions}
+                                        assets={assets}
+                                        baseCurrency={settings.visualCurrency}
+                                        height={300}
+                                        currency={settings.visualCurrency}
+                                        locale={settings.locale}
+                                        showNetInvestedLine
+                                        forexRates={forexRates}
+                                        getForexRate={getForexRate}
+                                        showBenchmarkLine
+                                        benchmarkSymbol={settings.sp500AccSymbol}
+                                        benchmarkCurrency={settings.sp500AccCurrency}
+                                    />
+                                ) : (
+                                    <p className="text-sm text-app-muted">
+                                        Add transactions to see net worth history.
+                                    </p>
+                                )}
+                            </div>
+                            <div className="rounded-xl border border-app-border p-3 h-fit">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-3">
+                                    Included Wallets
+                                </p>
+                                <div className="space-y-2">
+                                    {walletList.map((wallet) => {
+                                        const checked = selectedWalletIdSet.has(wallet.id);
+                                        return (
+                                            <label
+                                                key={`wallet-select-${wallet.id}`}
+                                                className="flex items-center gap-2 text-sm text-app-foreground"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() =>
+                                                        toggleWalletSelection(wallet.id)
+                                                    }
+                                                    disabled={
+                                                        checked &&
+                                                        selectedWalletIds.length === 1
+                                                    }
+                                                    className="accent-app-primary"
+                                                />
+                                                <span>{wallet.name}</span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         </div>
                     </Card>
                 </section>
