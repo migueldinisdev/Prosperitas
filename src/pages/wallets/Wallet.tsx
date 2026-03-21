@@ -26,6 +26,7 @@ import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
 import { useNetWorthHistory } from "../../hooks/useNetWorthHistory";
+import { getPricesBatch } from "../../data/prices";
 import { Modal } from "../../ui/Modal";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { addWalletTransaction } from "../../store/thunks/walletThunks";
@@ -205,6 +206,9 @@ interface WalletPerformanceSectionProps {
     apyStartYear: number | null;
     apyYearOptions: number[];
     onApyStartYearChange: (year: number) => void;
+    benchmarkSymbol: string;
+    benchmarkCurrency: Currency;
+    benchmarkMwr1Y: number | null;
 }
 
 const WalletPerformanceSection = React.memo(
@@ -221,6 +225,9 @@ const WalletPerformanceSection = React.memo(
         apyStartYear,
         apyYearOptions,
         onApyStartYearChange,
+        benchmarkSymbol,
+        benchmarkCurrency,
+        benchmarkMwr1Y,
     }: WalletPerformanceSectionProps) => (
         <Card title="Performance History">
             {transactions.length > 0 ? (
@@ -279,6 +286,12 @@ const WalletPerformanceSection = React.memo(
                                     </span>
                                 </span>
                             ))}
+                            <span className="text-xs text-app-muted ml-2">
+                                Bench 1Y ({benchmarkSymbol}){" "}
+                                {benchmarkMwr1Y === null
+                                    ? "n/a"
+                                    : `${benchmarkMwr1Y >= 0 ? "+" : ""}${benchmarkMwr1Y.toFixed(2)}%`}
+                            </span>
                             {apyStartYear !== null && apyYearOptions.length > 0 ? (
                                 <label className="ml-auto inline-flex items-center gap-2 text-xs text-app-muted">
                                     APY start
@@ -309,6 +322,9 @@ const WalletPerformanceSection = React.memo(
                         showNetInvestedLine
                         forexRates={forexRates}
                         getForexRate={getForexRate}
+                        showBenchmarkLine
+                        benchmarkSymbol={benchmarkSymbol}
+                        benchmarkCurrency={benchmarkCurrency}
                     />
                 </div>
             ) : (
@@ -951,6 +967,50 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         snapshotDates: performanceSnapshotDates,
     });
 
+    const [benchmarkPriceByDate, setBenchmarkPriceByDate] = useState<
+        Record<string, number>
+    >({});
+
+    useEffect(() => {
+        let isActive = true;
+        const externalTx = walletTransactions.filter(
+            (tx) => tx.type === "deposit" || tx.type === "withdraw",
+        );
+        const today = toDateKey(new Date());
+        const uniqueDates = Array.from(
+            new Set([...externalTx.map((tx) => tx.date), ...performanceSnapshotDates, today]),
+        ).sort((a, b) => a.localeCompare(b));
+        if (!uniqueDates.length || !settings.sp500AccSymbol.trim()) {
+            setBenchmarkPriceByDate({});
+            return () => {
+                isActive = false;
+            };
+        }
+
+        const fetchBenchmarkPrices = async () => {
+            const batch = await getPricesBatch(
+                uniqueDates.map((date) => ({
+                    type: "stock",
+                    ticker: settings.sp500AccSymbol,
+                    date,
+                })),
+            );
+            if (!isActive) return;
+            const next: Record<string, number> = {};
+            batch.results.forEach((entry) => {
+                if (entry.value?.close) {
+                    next[entry.request.date ?? entry.value.date] = entry.value.close;
+                }
+            });
+            setBenchmarkPriceByDate(next);
+        };
+
+        fetchBenchmarkPrices();
+        return () => {
+            isActive = false;
+        };
+    }, [performanceSnapshotDates, settings.sp500AccSymbol, walletTransactions]);
+
     const performanceMetrics = useMemo(() => {
         if (!performanceSnapshots.length) return { twrReturns: [], mwrReturns: [] };
         const snapshotMap = new Map(
@@ -1070,6 +1130,88 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         performanceSnapshots,
         walletTransactions,
         toBaseValue,
+    ]);
+
+    const benchmarkMwr1Y = useMemo(() => {
+        const period = performancePeriods.find((entry) => entry.key === "1Y");
+        if (!period?.startDate) return null;
+        const endDate = toDateKey(new Date());
+        const dates = performanceSnapshotDates.filter(
+            (date) => date >= period.startDate && date <= endDate,
+        );
+        if (!dates.length) return null;
+
+        const cashFlowsInBenchmark = walletTransactions
+            .filter(
+                (tx) =>
+                    (tx.type === "deposit" || tx.type === "withdraw") &&
+                    tx.date >= period.startDate &&
+                    tx.date <= endDate,
+            )
+            .map((tx) => {
+                const flowInVisual = toBaseValue(
+                    tx.amount.value * (tx.type === "withdraw" ? -1 : 1),
+                    tx.amount.currency,
+                    tx.date,
+                );
+                const benchmarkToVisualRate =
+                    settings.sp500AccCurrency === settings.visualCurrency
+                        ? 1
+                        : getForexRate(settings.sp500AccCurrency, tx.date) ??
+                          forexRates[settings.sp500AccCurrency] ??
+                          1;
+                return {
+                    date: tx.date,
+                    amount:
+                        benchmarkToVisualRate !== 0
+                            ? flowInVisual / benchmarkToVisualRate
+                            : flowInVisual,
+                };
+            });
+
+        const simulateBenchmarkValue = (targetDate: string) => {
+            const orderedDates = dates.filter((date) => date <= targetDate);
+            let units = 0;
+            let lastPrice: number | null = null;
+            orderedDates.forEach((date) => {
+                const price = benchmarkPriceByDate[date] ?? lastPrice;
+                if (!price) return;
+                const flow = cashFlowsInBenchmark
+                    .filter((entry) => entry.date === date)
+                    .reduce((sum, entry) => sum + entry.amount, 0);
+                units += flow / price;
+                lastPrice = price;
+            });
+            if (!lastPrice) return 0;
+            return units * lastPrice;
+        };
+
+        const startValueNative = simulateBenchmarkValue(period.startDate);
+        const endValueNative = simulateBenchmarkValue(endDate);
+        if (startValueNative <= 0 || endValueNative <= 0) return null;
+
+        const irr = calculateMoneyWeightedReturn(
+            [
+                { date: period.startDate, amount: -startValueNative },
+                ...cashFlowsInBenchmark.map((flow) => ({
+                    date: flow.date,
+                    amount: -flow.amount,
+                })),
+                { date: endDate, amount: endValueNative },
+            ],
+            period.startDate,
+        );
+        return irr === null ? null : irr * 100;
+    }, [
+        benchmarkPriceByDate,
+        forexRates,
+        getForexRate,
+        performancePeriods,
+        performanceSnapshotDates,
+        settings.sp500AccCurrency,
+        settings.visualCurrency,
+        toBaseValue,
+        walletTransactions,
     ]);
 
     const handleNonNegativeChange =
@@ -1673,6 +1815,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     apyStartYear={apyStartYear}
                     apyYearOptions={apyYearOptions}
                     onApyStartYearChange={setApyStartYear}
+                    benchmarkSymbol={settings.sp500AccSymbol}
+                    benchmarkCurrency={settings.sp500AccCurrency}
+                    benchmarkMwr1Y={benchmarkMwr1Y}
                 />
 
                 <div className="flex flex-wrap gap-4">

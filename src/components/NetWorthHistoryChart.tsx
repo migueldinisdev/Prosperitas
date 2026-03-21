@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AreaChart } from "./AreaChart";
 import { formatCurrency } from "../utils/formatters";
 import { useNetWorthHistory } from "../hooks/useNetWorthHistory";
-import { Asset, WalletTx } from "../core/schema-types";
+import { Asset, Currency, WalletTx } from "../core/schema-types";
+import { getPricesBatch } from "../data/prices";
 
 type RangeKey = "YTD" | "1Y" | "2Y" | "5Y" | "ALL";
 type TickRateKey = "1W" | "2W" | "1M";
@@ -116,6 +117,9 @@ interface NetWorthHistoryChartProps {
     showNetInvestedLine?: boolean;
     getForexRate?: (currency: string, date: string) => number | null;
     forexRates?: Record<string, number>;
+    showBenchmarkLine?: boolean;
+    benchmarkSymbol?: string;
+    benchmarkCurrency?: Currency;
 }
 
 const toBaseValue = (
@@ -150,6 +154,9 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
     showNetInvestedLine = false,
     getForexRate,
     forexRates,
+    showBenchmarkLine = false,
+    benchmarkSymbol,
+    benchmarkCurrency,
 }) => {
     const [range, setRange] = useState<RangeKey>("ALL");
     const [tickRate, setTickRate] = useState<TickRateKey>("1M");
@@ -241,6 +248,123 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         transactions,
     ]);
 
+    useEffect(() => {
+        let isActive = true;
+        if (
+            !showBenchmarkLine ||
+            !benchmarkSymbol ||
+            !benchmarkCurrency ||
+            !ticks.length
+        ) {
+            setBenchmarkByDate({});
+            return () => {
+                isActive = false;
+            };
+        }
+
+        const flowDates = transactions
+            .filter((tx) => tx.type === "deposit" || tx.type === "withdraw")
+            .map((tx) => tx.date);
+        const requestedDates = Array.from(new Set([...ticks, ...flowDates])).sort(
+            (a, b) => a.localeCompare(b),
+        );
+        if (!requestedDates.length) {
+            setBenchmarkByDate({});
+            return () => {
+                isActive = false;
+            };
+        }
+
+        const fetchBenchmark = async () => {
+            const batch = await getPricesBatch(
+                requestedDates.map((date) => ({
+                    type: "stock",
+                    ticker: benchmarkSymbol,
+                    date,
+                })),
+            );
+            if (!isActive) return;
+            const priceByDate = new Map<string, number>();
+            batch.results.forEach((entry) => {
+                if (entry.value?.close) {
+                    priceByDate.set(entry.request.date ?? entry.value.date, entry.value.close);
+                }
+            });
+
+            const cashFlowByDate = transactions.reduce<Map<string, number>>(
+                (map, tx) => {
+                    if (tx.type !== "deposit" && tx.type !== "withdraw") return map;
+                    const flowInVisual = toBaseValue(
+                        tx.amount.value * (tx.type === "withdraw" ? -1 : 1),
+                        tx.amount.currency,
+                        baseCurrency,
+                        tx.date,
+                        forexRates,
+                        getForexRate,
+                    );
+                    const benchmarkToVisualRate =
+                        benchmarkCurrency === baseCurrency
+                            ? 1
+                            : getForexRate?.(benchmarkCurrency, tx.date) ??
+                              forexRates?.[benchmarkCurrency] ??
+                              1;
+                    const flowInBenchmark =
+                        benchmarkToVisualRate !== 0
+                            ? flowInVisual / benchmarkToVisualRate
+                            : flowInVisual;
+                    map.set(tx.date, (map.get(tx.date) ?? 0) + flowInBenchmark);
+                    return map;
+                },
+                new Map(),
+            );
+
+            let units = 0;
+            let previousPrice: number | null = null;
+            const nextSeries: Record<string, number> = {};
+            requestedDates.forEach((date) => {
+                const price = priceByDate.get(date) ?? previousPrice;
+                if (!price) return;
+                const flow = cashFlowByDate.get(date) ?? 0;
+                if (flow !== 0) {
+                    units += flow / price;
+                }
+                previousPrice = price;
+                const nativeValue = units * price;
+                const benchmarkToVisualRate =
+                    benchmarkCurrency === baseCurrency
+                        ? 1
+                        : getForexRate?.(benchmarkCurrency, date) ??
+                          forexRates?.[benchmarkCurrency] ??
+                          1;
+                nextSeries[date] = nativeValue * benchmarkToVisualRate;
+            });
+            setBenchmarkByDate(nextSeries);
+        };
+
+        fetchBenchmark();
+        return () => {
+            isActive = false;
+        };
+    }, [
+        baseCurrency,
+        benchmarkCurrency,
+        benchmarkSymbol,
+        forexRates,
+        getForexRate,
+        showBenchmarkLine,
+        ticks,
+        transactions,
+    ]);
+
+    const chartDataWithBenchmark = useMemo(
+        () =>
+            chartDataWithNetInvested.map((point) => ({
+                ...point,
+                benchmarkValue: benchmarkByDate[point.date],
+            })),
+        [benchmarkByDate, chartDataWithNetInvested],
+    );
+
     if (!transactions.length) {
         return null;
     }
@@ -282,9 +406,9 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
                     ))}
                 </div>
             </div>
-            {chartDataWithNetInvested.length > 0 ? (
+            {chartDataWithBenchmark.length > 0 ? (
                 <AreaChart
-                    data={chartDataWithNetInvested}
+                    data={chartDataWithBenchmark}
                     dataKey="value"
                     xDataKey="date"
                     height={height}
@@ -294,19 +418,33 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
                     labelFormatter={(label) => formatDateLabel(String(label))}
                     yTickFormatter={(value) => formatCurrency(value, currency)}
                     extraLines={
-                        showNetInvestedLine
-                            ? [
-                                  {
-                                      dataKey: "netInvested",
-                                      color: "rgb(var(--color-app-warning))",
-                                      name: "Deposits - Withdrawals",
-                                      dashed: true,
-                                  },
-                              ]
-                            : undefined
+                        [
+                            ...(showNetInvestedLine
+                                ? [
+                                      {
+                                          dataKey: "netInvested",
+                                          color: "rgb(var(--color-app-warning))",
+                                          name: "Deposits - Withdrawals",
+                                          dashed: true,
+                                      },
+                                  ]
+                                : []),
+                            ...(showBenchmarkLine
+                                ? [
+                                      {
+                                          dataKey: "benchmarkValue",
+                                          color: "#0ea5e9",
+                                          name: "S&P500 benchmark",
+                                      },
+                                  ]
+                                : []),
+                        ]
                     }
                 />
             ) : null}
         </div>
     );
 };
+    const [benchmarkByDate, setBenchmarkByDate] = useState<
+        Record<string, number>
+    >({});
