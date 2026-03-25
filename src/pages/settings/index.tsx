@@ -15,6 +15,7 @@ interface Props {
 export const SettingsPage: React.FC<Props> = ({ onMenuClick }) => {
   const dispatch = useAppDispatch();
   const settings = useAppSelector(selectSettings);
+  const currencyOptions: Currency[] = ["EUR", "USD", "GBP"];
 
   return (
     <div>
@@ -24,6 +25,31 @@ export const SettingsPage: React.FC<Props> = ({ onMenuClick }) => {
              <div className="flex items-center justify-between py-2">
                 <span className="text-app-foreground">Theme</span>
                 <ThemeToggle />
+             </div>
+          </Card>
+
+          <Card title="Localization">
+             <div>
+                <label className="block text-xs font-medium text-app-muted mb-1">
+                   Visualization Currency
+                </label>
+                <select
+                   value={settings.visualCurrency}
+                   onChange={(event) =>
+                      dispatch(
+                         updateSettings({
+                            visualCurrency: event.target.value as Currency,
+                         })
+                      )
+                   }
+                   className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
+                >
+                   {currencyOptions.map((currency) => (
+                      <option key={currency} value={currency}>
+                         {currency}
+                      </option>
+                   ))}
+                </select>
              </div>
           </Card>
 
@@ -61,9 +87,11 @@ export const SettingsPage: React.FC<Props> = ({ onMenuClick }) => {
                       }
                       className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                    >
-                      <option value="EUR">EUR</option>
-                      <option value="USD">USD</option>
-                      <option value="GBP">GBP</option>
+                      {currencyOptions.map((currency) => (
+                         <option key={currency} value={currency}>
+                            {currency}
+                         </option>
+                      ))}
                    </select>
                 </div>
              </div>
