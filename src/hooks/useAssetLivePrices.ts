@@ -27,9 +27,9 @@ const getAssetPriceRequest = (asset: Asset) => {
         if (!ticker) return null;
         return { type: "crypto" as PriceAssetType, ticker };
     }
-    const symbolYF = normalizeTicker(asset.yfTicker ?? asset.ticker);
+    const symbolYF = normalizeTicker(asset.yfTicker ?? "");
     const symbolStooq = normalizeTicker(asset.stooqTicker ?? "");
-    const ticker = symbolYF || symbolStooq;
+    const ticker = symbolYF || symbolStooq || normalizeTicker(asset.ticker);
     if (!ticker) return null;
     return {
         type: "stock" as PriceAssetType,

@@ -423,7 +423,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     useEffect(() => {
         if (selectedAsset) {
             setTradeTicker(selectedAsset.ticker);
-            const selectedYfTicker = selectedAsset.yfTicker ?? selectedAsset.ticker;
+            const selectedYfTicker = selectedAsset.yfTicker ?? "";
             setTradeYfSearch(selectedYfTicker ?? "");
             setTradeYfTicker(selectedYfTicker ?? "");
             setTradeStooqSearch(selectedAsset.stooqTicker ?? "");
