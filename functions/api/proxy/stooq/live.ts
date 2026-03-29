@@ -2,6 +2,16 @@
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
+interface UnifiedCandle {
+    date: string | null;
+    time: string | null;
+    open: number | null;
+    high: number | null;
+    low: number | null;
+    close: number | null;
+    volume: number | null;
+}
+
 function corsHeaders(): Headers {
     return new Headers({
         "Access-Control-Allow-Origin": "*",
@@ -30,51 +40,75 @@ function parseNumber(value: unknown): number | null {
     return null;
 }
 
-export async function onRequest(context: {
-    request: Request,
-}): Promise<Response> {
-    const { request } = context;
-    const requestId = crypto.randomUUID().slice(0, 8);
-    const logs: string[] = [];
-    const log = (label: string, value?: unknown) => {
-        if (value === undefined) {
-            logs.push(label);
-            return;
-        }
-        if (typeof value === "string") {
-            logs.push(`${label} ${value}`);
-            return;
-        }
-        logs.push(`${label} ${JSON.stringify(value)}`);
-    };
-    const flushLogs = () => {
-        if (!logs.length) return;
-        const header = `[stooq/live][${requestId}]`;
-        const line = "+------------------------------------------------------------";
-        const body = logs.map((entry) => `| ${entry}`).join("\n");
-        console.debug(`${header} ${line}\n${body}\n${header} ${line}`);
-    };
-
-    if (request.method === "OPTIONS") {
-        return new Response(null, { status: 204, headers: corsHeaders() });
+const fetchWithTimeout = async (url: string, timeoutMs: number, init?: RequestInit) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...init, signal: controller.signal });
+    } finally {
+        clearTimeout(timeoutId);
     }
+};
 
-    const url = new URL(request.url);
-    log("request:", `${request.method} ${url.pathname}${url.search}`);
-    const symbol = url.searchParams.get("symbol");
-
-    if (!symbol) {
-        log("error:", "Missing required query param: symbol");
-        flushLogs();
-        return jsonResponse({ error: "Missing required query param: symbol" }, 400);
+const readSymbols = (url: URL) => {
+    const symbolYF = url.searchParams.get("symbolYF")?.trim() || "";
+    const symbolStooq = url.searchParams.get("symbolStooq")?.trim() || "";
+    const legacySymbol = url.searchParams.get("symbol")?.trim() || "";
+    if (symbolYF || symbolStooq) {
+        return { symbolYF, symbolStooq };
     }
+    if (legacySymbol) {
+        return { symbolYF: legacySymbol, symbolStooq: legacySymbol };
+    }
+    return { symbolYF: "", symbolStooq: "" };
+};
 
+const fetchYahooLive = async (symbol: string): Promise<UnifiedCandle[] | null> => {
+    const yahooUrl = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`);
+    yahooUrl.searchParams.set("interval", "1d");
+    yahooUrl.searchParams.set("range", "5d");
+
+    const upstream = await fetchWithTimeout(yahooUrl.toString(), 3500, {
+        method: "GET",
+        headers: {
+            "User-Agent": "Prosperitas/1.0",
+            "Accept": "application/json,text/plain,*/*",
+        },
+    });
+    if (!upstream.ok) return null;
+    const payload = (await upstream.json()) as {
+        chart?: {
+            result?: Array<{
+                timestamp?: number[];
+                indicators?: { quote?: Array<{ close?: Array<number | null> }> };
+            }>;
+        };
+    };
+    const result = payload.chart?.result?.[0];
+    const timestamps = result?.timestamp ?? [];
+    const closes = result?.indicators?.quote?.[0]?.close ?? [];
+    if (!timestamps.length || !closes.length) return [];
+    const lastIndex = closes.length - 1;
+    const close = parseNumber(closes[lastIndex]);
+    const timestamp = timestamps[Math.min(lastIndex, timestamps.length - 1)];
+    if (!timestamp) return [];
+    return [{
+        date: new Date(timestamp * 1000).toISOString().slice(0, 10),
+        time: null,
+        open: null,
+        high: null,
+        low: null,
+        close,
+        volume: null,
+    }];
+};
+
+const fetchStooqLive = async (symbol: string): Promise<UnifiedCandle[] | null> => {
     const stooqUrl = new URL("https://stooq.com/q/l/");
     stooqUrl.searchParams.set("s", symbol.toUpperCase());
     stooqUrl.searchParams.set("f", "sd2t2ohlcv");
     stooqUrl.searchParams.set("h", "");
     stooqUrl.searchParams.set("e", "json");
-    log("upstream url:", stooqUrl.toString());
 
     const upstream = await fetch(stooqUrl.toString(), {
         method: "GET",
@@ -83,53 +117,23 @@ export async function onRequest(context: {
             "Accept": "application/json,text/plain,*/*",
         },
     });
-
-    const contentType = upstream.headers.get("content-type") ?? "unknown";
-    log("upstream status:", upstream.status);
-    log("upstream content-type:", contentType);
-
-    if (!upstream.ok) {
-        log("error:", `Upstream error ${upstream.status}`);
-        flushLogs();
-        return jsonResponse({ error: "Upstream error", status: upstream.status }, upstream.status);
-    }
-
+    if (!upstream.ok) return null;
     const rawBody = await upstream.text();
-    log("upstream body length:", rawBody.length);
-    log("upstream body snippet:", rawBody.slice(0, 500));
-
     const sanitizedBody = rawBody.replace(/:\s*(?=[,}\]])/g, ": null");
-    if (sanitizedBody !== rawBody) {
-        log("sanitize:", "sanitized malformed JSON fields");
-    }
-
-    const payload = (() => {
-        try {
-            return JSON.parse(sanitizedBody);
-        } catch (error) {
-            log("error:", `JSON parse error ${String(error)}`);
-            return null;
-        }
-    })() as {
+    const payload = JSON.parse(sanitizedBody) as {
         symbols?: Array<{
-            symbol?: string,
-            date?: string,
-            time?: string,
-            open?: number | string,
-            high?: number | string,
-            low?: number | string,
-            close?: number | string,
-            volume?: number | string,
-        }>,
-    } | null;
-
-    log("payload:", payload);
-    flushLogs();
-
-    const symbols = payload?.symbols ?? [];
-    const first = symbols[0];
-
-    const data = first ? [{
+            date?: string;
+            time?: string;
+            open?: number | string;
+            high?: number | string;
+            low?: number | string;
+            close?: number | string;
+            volume?: number | string;
+        }>;
+    };
+    const first = payload?.symbols?.[0];
+    if (!first) return [];
+    return [{
         date: first.date ?? null,
         time: first.time ?? null,
         open: parseNumber(first.open),
@@ -137,12 +141,45 @@ export async function onRequest(context: {
         low: parseNumber(first.low),
         close: parseNumber(first.close),
         volume: parseNumber(first.volume),
-    }] : [];
+    }];
+};
 
-    return jsonResponse({
-        symbol,
-        type: "live",
-        data,
-        source: "stooq",
-    });
+export async function onRequest(context: {
+    request: Request,
+}): Promise<Response> {
+    const { request } = context;
+    if (request.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: corsHeaders() });
+    }
+
+    const url = new URL(request.url);
+    const { symbolYF, symbolStooq } = readSymbols(url);
+
+    if (!symbolYF && !symbolStooq) {
+        return jsonResponse({ error: "Missing required query param: symbolYF or symbolStooq or symbol" }, 400);
+    }
+
+    if (symbolYF) {
+        try {
+            const yfData = await fetchYahooLive(symbolYF);
+            if (yfData && yfData.length > 0 && yfData[0].close != null) {
+                return jsonResponse({ symbol: symbolYF, type: "live", data: yfData, source: "yahoo" });
+            }
+        } catch {
+            // fallback to stooq when available
+        }
+    }
+
+    if (symbolStooq) {
+        try {
+            const stooqData = await fetchStooqLive(symbolStooq);
+            if (stooqData) {
+                return jsonResponse({ symbol: symbolStooq, type: "live", data: stooqData, source: "stooq" });
+            }
+        } catch {
+            // return upstream error below
+        }
+    }
+
+    return jsonResponse({ error: "Upstream error", status: 502 }, 502);
 }

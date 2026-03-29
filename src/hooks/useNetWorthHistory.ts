@@ -36,10 +36,16 @@ const getAssetPriceRequest = (asset: Asset) => {
         if (!ticker) return null;
         return { type: "crypto" as PriceAssetType, ticker };
     }
-    if (!asset.stooqTicker) return null;
-    const ticker = normalizeTicker(asset.stooqTicker);
+    const symbolYF = normalizeTicker(asset.yfTicker ?? asset.ticker);
+    const symbolStooq = normalizeTicker(asset.stooqTicker ?? "");
+    const ticker = symbolYF || symbolStooq;
     if (!ticker) return null;
-    return { type: "stock" as PriceAssetType, ticker };
+    return {
+        type: "stock" as PriceAssetType,
+        ticker,
+        symbolYF: symbolYF || undefined,
+        symbolStooq: symbolStooq || undefined,
+    };
 };
 
 const makePriceKey = (type: PriceAssetType, ticker: string, date: string) =>

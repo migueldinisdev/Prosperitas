@@ -2,6 +2,16 @@
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
+interface UnifiedCandle {
+    date: string;
+    time: string | null;
+    open: number | null;
+    high: number | null;
+    low: number | null;
+    close: number | null;
+    volume: number | null;
+}
+
 function corsHeaders(): Headers {
     return new Headers({
         "Access-Control-Allow-Origin": "*",
@@ -36,40 +46,34 @@ function formatYmdCompact(date: Date): string {
     return `${year}${month}${day}`;
 }
 
-function formatYmdDashed(date: Date): string {
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(date.getUTCDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-}
-
 function addDaysUtc(date: Date, days: number): Date {
     const copy = new Date(date.getTime());
     copy.setUTCDate(copy.getUTCDate() + days);
     return copy;
 }
 
-function parseNumber(value: string | undefined): number | null {
-    if (!value) return null;
-    const normalized = value.trim();
-    if (!normalized || normalized === "-" || normalized.toLowerCase() === "null") return null;
-    const num = Number(normalized);
-    return Number.isFinite(num) ? num : null;
+function parseNumber(value: unknown): number | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    if (typeof value === "string") {
+        const normalized = value.trim();
+        if (!normalized || normalized === "-" || normalized.toLowerCase() === "null") return null;
+        const num = Number(normalized);
+        return Number.isFinite(num) ? num : null;
+    }
+    return null;
 }
 
 function parseCsvRows(csvText: string) {
     const lines = csvText.trim().split(/\r?\n/);
-    if (lines.length <= 1) return [];
-    const rows = [];
+    if (lines.length <= 1) return [] as UnifiedCandle[];
+    const rows: UnifiedCandle[] = [];
     for (let i = 1; i < lines.length; i += 1) {
         const line = lines[i].trim();
         if (!line) continue;
         const parts = line.split(",");
-        // Some rows omit trailing volume; accept rows with at least OHLC.
         if (parts.length < 5) continue;
-        while (parts.length < 6) {
-            parts.push("");
-        }
+        while (parts.length < 6) parts.push("");
         rows.push({
             date: parts[0],
             time: null,
@@ -83,51 +87,115 @@ function parseCsvRows(csvText: string) {
     return rows;
 }
 
-export async function onRequest(context: {
-    request: Request,
-}): Promise<Response> {
-    const { request } = context;
-    const requestId = crypto.randomUUID().slice(0, 8);
-    const logs: string[] = [];
-    const log = (label: string, value?: unknown) => {
-        if (value === undefined) {
-            logs.push(label);
-            return;
-        }
-        if (typeof value === "string") {
-            logs.push(`${label} ${value}`);
-            return;
-        }
-        logs.push(`${label} ${JSON.stringify(value)}`);
-    };
-    const flushLogs = () => {
-        if (!logs.length) return;
-        const header = `[stooq/historical][${requestId}]`;
-        const line = "+------------------------------------------------------------";
-        const body = logs.map((entry) => `| ${entry}`).join("\n");
-        console.debug(`${header} ${line}\n${body}\n${header} ${line}`);
+const fetchWithTimeout = async (url: string, timeoutMs: number, init?: RequestInit) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...init, signal: controller.signal });
+    } finally {
+        clearTimeout(timeoutId);
+    }
+};
+
+const readSymbols = (url: URL) => {
+    const symbolYF = url.searchParams.get("symbolYF")?.trim() || "";
+    const symbolStooq = url.searchParams.get("symbolStooq")?.trim() || "";
+    const legacySymbol = url.searchParams.get("symbol")?.trim() || "";
+    if (symbolYF || symbolStooq) {
+        return { symbolYF, symbolStooq };
+    }
+    if (legacySymbol) {
+        return { symbolYF: legacySymbol, symbolStooq: legacySymbol };
+    }
+    return { symbolYF: "", symbolStooq: "" };
+};
+
+const fetchYahooHistorical = async (
+    symbol: string,
+    fromDate: Date,
+    toDate: Date
+): Promise<UnifiedCandle[] | null> => {
+    const period1 = Math.floor(fromDate.getTime() / 1000);
+    const period2 = Math.floor(addDaysUtc(toDate, 1).getTime() / 1000);
+    const yahooUrl = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`);
+    yahooUrl.searchParams.set("interval", "1d");
+    yahooUrl.searchParams.set("period1", String(period1));
+    yahooUrl.searchParams.set("period2", String(period2));
+
+    const upstream = await fetchWithTimeout(yahooUrl.toString(), 4000, {
+        method: "GET",
+        headers: { "User-Agent": "Prosperitas/1.0" },
+    });
+    if (!upstream.ok) return null;
+
+    const payload = (await upstream.json()) as {
+        chart?: {
+            result?: Array<{
+                timestamp?: number[];
+                indicators?: {
+                    quote?: Array<{
+                        close?: Array<number | null>;
+                    }>;
+                };
+            }>;
+        };
     };
 
+    const result = payload.chart?.result?.[0];
+    if (!result) return [];
+    const timestamps = result.timestamp ?? [];
+    const closes = result.indicators?.quote?.[0]?.close ?? [];
+
+    return timestamps.map((ts, index) => ({
+        date: new Date(ts * 1000).toISOString().slice(0, 10),
+        time: null,
+        open: null,
+        high: null,
+        low: null,
+        close: parseNumber(closes[index]),
+        volume: null,
+    }));
+};
+
+const fetchStooqHistorical = async (
+    symbol: string,
+    effectiveFrom: string,
+    effectiveTo: string
+): Promise<UnifiedCandle[] | null> => {
+    const stooqUrl = new URL("https://stooq.com/q/d/l/");
+    stooqUrl.searchParams.set("s", symbol.toLowerCase());
+    stooqUrl.searchParams.set("i", "d");
+    stooqUrl.searchParams.set("f", effectiveFrom);
+    stooqUrl.searchParams.set("t", effectiveTo);
+
+    const upstream = await fetch(stooqUrl.toString(), {
+        method: "GET",
+        headers: {
+            "User-Agent": "Prosperitas/1.0",
+        },
+    });
+    if (!upstream.ok) return null;
+    const csvText = await upstream.text();
+    return parseCsvRows(csvText);
+};
+
+export async function onRequest(context: { request: Request }): Promise<Response> {
+    const { request } = context;
     if (request.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
     const url = new URL(request.url);
-    log("request:", `${request.method} ${url.pathname}${url.search}`);
-    const symbol = url.searchParams.get("symbol");
+    const { symbolYF, symbolStooq } = readSymbols(url);
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
 
-    if (!symbol || !from) {
-        log("error:", "Missing required query params: symbol, from");
-        flushLogs();
-        return jsonResponse({ error: "Missing required query params: symbol, from" }, 400);
+    if ((!symbolYF && !symbolStooq) || !from) {
+        return jsonResponse({ error: "Missing required query params: symbolYF or symbolStooq or symbol, from" }, 400);
     }
 
     const fromDate = parseYmdCompact(from);
     if (!fromDate) {
-        log("error:", "Invalid from date. Use YYYYMMDD.");
-        flushLogs();
         return jsonResponse({ error: "Invalid from date. Use YYYYMMDD." }, 400);
     }
 
@@ -137,8 +205,6 @@ export async function onRequest(context: {
     if (to) {
         const toDate = parseYmdCompact(to);
         if (!toDate) {
-            log("error:", "Invalid to date. Use YYYYMMDD.");
-            flushLogs();
             return jsonResponse({ error: "Invalid to date. Use YYYYMMDD." }, 400);
         }
     } else {
@@ -148,43 +214,46 @@ export async function onRequest(context: {
         effectiveTo = formatYmdCompact(end);
     }
 
-    const stooqUrl = new URL("https://stooq.com/q/d/l/");
-    stooqUrl.searchParams.set("s", symbol.toLowerCase());
-    stooqUrl.searchParams.set("i", "d");
-    stooqUrl.searchParams.set("f", effectiveFrom);
-    stooqUrl.searchParams.set("t", effectiveTo);
-    log("upstream url:", stooqUrl.toString());
+    const effectiveFromDate = parseYmdCompact(effectiveFrom) ?? fromDate;
+    const effectiveToDate = parseYmdCompact(effectiveTo) ?? fromDate;
 
-    const upstream = await fetch(stooqUrl.toString(), {
-        method: "GET",
-        headers: {
-            "User-Agent": "Prosperitas/1.0",
-        },
-    });
-
-    if (!upstream.ok) {
-        log("error:", `Upstream error ${upstream.status}`);
-        flushLogs();
-        return jsonResponse({ error: "Upstream error", status: upstream.status }, upstream.status);
+    if (symbolYF) {
+        try {
+            const yfData = await fetchYahooHistorical(
+                symbolYF,
+                effectiveFromDate,
+                effectiveToDate
+            );
+            if (yfData && yfData.length > 0) {
+                return jsonResponse({
+                    symbol: symbolYF,
+                    type: "historical",
+                    range: { from: effectiveFrom, to: effectiveTo },
+                    data: yfData,
+                    source: "yahoo",
+                });
+            }
+        } catch {
+            // fallback to stooq when available
+        }
     }
 
-    const csvText = await upstream.text();
-    log("upstream body length:", csvText.length);
-    const csvLines = csvText.trim().split(/\r?\n/);
-    const maxLines = 14;
-    const csvPreview = csvLines.slice(0, maxLines).map((line) => `| ${line}`).join("\n");
-    log("upstream body lines:", csvLines.length);
-    log("upstream body preview:");
-    logs.push(csvPreview || "| <empty>");
-    const data = parseCsvRows(csvText);
-    log("rows parsed:", data.length);
-    flushLogs();
+    if (symbolStooq) {
+        try {
+            const stooqData = await fetchStooqHistorical(symbolStooq, effectiveFrom, effectiveTo);
+            if (stooqData) {
+                return jsonResponse({
+                    symbol: symbolStooq,
+                    type: "historical",
+                    range: { from: effectiveFrom, to: effectiveTo },
+                    data: stooqData,
+                    source: "stooq",
+                });
+            }
+        } catch {
+            // return error below
+        }
+    }
 
-    return jsonResponse({
-        symbol,
-        type: "historical",
-        range: { from: effectiveFrom, to: effectiveTo },
-        data,
-        source: "stooq",
-    });
+    return jsonResponse({ error: "Upstream error", status: 502 }, 502);
 }

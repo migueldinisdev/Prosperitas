@@ -491,6 +491,7 @@ export const createDemoState = (): PersistedState => {
             asset_btc: {
                 id: "asset_btc",
                 ticker: "BTC",
+                yfTicker: null,
                 stooqTicker: null,
                 tradingCurrency: "EUR",
                 cryptoQuoteAlias: "EUR",
@@ -505,6 +506,7 @@ export const createDemoState = (): PersistedState => {
             asset_googl: {
                 id: "asset_googl",
                 ticker: "GOOGL",
+                yfTicker: "GOOGL",
                 stooqTicker: "GOOGL.US",
                 tradingCurrency: "USD",
                 name: "Alphabet Inc.",
@@ -518,6 +520,7 @@ export const createDemoState = (): PersistedState => {
             asset_aapl: {
                 id: "asset_aapl",
                 ticker: "AAPL",
+                yfTicker: "AAPL",
                 stooqTicker: "AAPL.US",
                 tradingCurrency: "USD",
                 name: "Apple Inc.",
@@ -531,6 +534,7 @@ export const createDemoState = (): PersistedState => {
             asset_vuaa: {
                 id: "asset_vuaa",
                 ticker: "VUAA",
+                yfTicker: "VUAA.MI",
                 stooqTicker: "VUAA.DE",
                 tradingCurrency: "EUR",
                 name: "Vanguard S&P 500 UCITS ETF",

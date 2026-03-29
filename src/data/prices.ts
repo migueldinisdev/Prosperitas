@@ -33,6 +33,8 @@ interface PriceRequest {
     ticker: string;
     type: PriceAssetType;
     date?: string;
+    symbolYF?: string;
+    symbolStooq?: string;
 }
 
 export interface PriceBatchRequest extends PriceRequest {}
@@ -77,11 +79,17 @@ const buildResult = (
 const fetchFromApi = async (
     type: PriceAssetType,
     ticker: string,
-    date?: string
+    date?: string,
+    symbolYF?: string,
+    symbolStooq?: string
 ) => {
     if (!date) {
         if (type === "stock") {
-            const price = await fetchStockLive(ticker);
+            const price = await fetchStockLive({
+                symbol: ticker,
+                symbolYF,
+                symbolStooq,
+            });
             return [price];
         }
         if (type === "forex") {
@@ -93,7 +101,14 @@ const fetchFromApi = async (
     }
 
     if (type === "stock") {
-        return fetchStockHistorical(ticker, date);
+        return fetchStockHistorical(
+            {
+                symbol: ticker,
+                symbolYF,
+                symbolStooq,
+            },
+            date
+        );
     }
     if (type === "forex") {
         return fetchForexHistorical(ticker, date);
@@ -125,7 +140,9 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
         const apiEntries = await fetchFromApi(
             request.type,
             ticker,
-            request.date
+            request.date,
+            request.symbolYF,
+            request.symbolStooq
         );
         const cacheEntries = apiEntries.map((entry) =>
             buildPriceCacheEntry(
