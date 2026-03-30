@@ -30,7 +30,7 @@ export const fetchYahooStockSearch = async (
     }
 
     const response = await fetchWithTimeout(
-        `/api/proxy/stooq/search-yahoo?q=${encodeURIComponent(trimmedQuery)}`,
+        `/api/proxy/stock/search-yahoo?q=${encodeURIComponent(trimmedQuery)}`,
         { signal }
     );
 

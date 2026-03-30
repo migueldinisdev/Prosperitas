@@ -1,4 +1,4 @@
-// functions/api/proxy/stooq/live.ts
+// functions/api/proxy/stock/live.ts
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 

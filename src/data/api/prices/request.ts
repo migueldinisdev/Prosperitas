@@ -67,10 +67,10 @@ const getRequestUrl = (input: RequestInfo | URL): string => {
 const shouldApplyGlobalRateLimit = (input: RequestInfo | URL): boolean => {
     const url = getRequestUrl(input);
     // Typeahead search should not be throttled by unrelated live-price traffic.
-    if (url.includes("/api/proxy/stooq/search-yahoo")) {
+    if (url.includes("/api/proxy/stock/search-yahoo")) {
         return false;
     }
-    if (url.includes("/api/proxy/stooq/search?")) {
+    if (url.includes("/api/proxy/stock/search?")) {
         return false;
     }
     return true;

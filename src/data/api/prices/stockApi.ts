@@ -40,7 +40,7 @@ export interface StockSymbols {
     symbolStooq?: string | null;
 }
 
-const STQ_BASE_PATH = "/api/proxy/stooq";
+const STQ_BASE_PATH = "/api/proxy/stock";
 
 const parseStockResponse = async <T>(response: Response): Promise<T> => {
     const payload = (await response.json()) as T | StockErrorResponse;

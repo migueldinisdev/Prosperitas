@@ -1,4 +1,4 @@
-// functions/api/proxy/stooq/search-yahoo.ts
+// functions/api/proxy/stock/search-yahoo.ts
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
