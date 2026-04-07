@@ -290,7 +290,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [editAssetTicker, setEditAssetTicker] = useState("");
     const [editAssetName, setEditAssetName] = useState("");
     const [editAssetYfTicker, setEditAssetYfTicker] = useState("");
+    const [editAssetYfSearch, setEditAssetYfSearch] = useState("");
     const [editAssetStooq, setEditAssetStooq] = useState("");
+    const [editAssetStooqSearch, setEditAssetStooqSearch] = useState("");
     const [editAssetCurrency, setEditAssetCurrency] = useState<Currency>("USD");
     const [editAssetQuoteAlias, setEditAssetQuoteAlias] = useState("USDT");
     const [editAssetPieId, setEditAssetPieId] = useState("");
@@ -996,7 +998,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         setEditAssetTicker(asset.ticker);
         setEditAssetName(asset.name);
         setEditAssetYfTicker(asset.yfTicker ?? "");
+        setEditAssetYfSearch(asset.yfTicker ?? "");
         setEditAssetStooq(asset.stooqTicker ?? "");
+        setEditAssetStooqSearch(asset.stooqTicker ?? "");
         setEditAssetCurrency(asset.tradingCurrency);
         setEditAssetQuoteAlias(
             asset.assetType === "crypto"
@@ -1014,11 +1018,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         if (!editAssetId) return;
         const stooqValue =
             editAssetType === "stock" || editAssetType === "etf"
-                ? editAssetStooq.trim() || null
+                ? (editAssetStooqSearch.trim() || editAssetStooq.trim()) || null
                 : null;
         const yfValue =
             editAssetType === "stock" || editAssetType === "etf"
-                ? editAssetYfTicker.trim().toUpperCase() || null
+                ?
+                      (editAssetYfSearch.trim() || editAssetYfTicker.trim())
+                          .toUpperCase() || null
                 : null;
         dispatch(
             updateAsset({
@@ -2195,34 +2201,38 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         <label className="block text-xs font-medium text-app-muted mb-1">
                             Yahoo Finance Ticker
                         </label>
-                        <input
-                            type="text"
-                            value={editAssetYfTicker}
-                            onChange={(event) =>
-                                setEditAssetYfTicker(event.target.value)
-                            }
+                        <YahooAPIStockSelect
+                            searchValue={editAssetYfSearch}
+                            onSearchChange={(value) => {
+                                setEditAssetYfSearch(value);
+                                setEditAssetYfTicker(value);
+                            }}
+                            selectedValue={editAssetYfTicker}
+                            onSelect={setEditAssetYfTicker}
+                            placeholder="Search Yahoo ticker"
                             disabled={
                                 editAssetType !== "stock" &&
                                 editAssetType !== "etf"
                             }
-                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                         />
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-app-muted mb-1">
                             Stooq Ticker
                         </label>
-                        <input
-                            type="text"
-                            value={editAssetStooq}
-                            onChange={(event) =>
-                                setEditAssetStooq(event.target.value)
-                            }
+                        <StooqAPIStockSelect
+                            searchValue={editAssetStooqSearch}
+                            onSearchChange={(value) => {
+                                setEditAssetStooqSearch(value);
+                                setEditAssetStooq(value);
+                            }}
+                            selectedValue={editAssetStooq}
+                            onSelect={setEditAssetStooq}
+                            placeholder="Search stooq ticker"
                             disabled={
                                 editAssetType !== "stock" &&
                                 editAssetType !== "etf"
                             }
-                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
                         />
                     </div>
                     <Button

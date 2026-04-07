@@ -172,6 +172,7 @@ export const YahooAPIStockSelect: React.FC<Props> = (props) => {
                                     <li key={option.symbol}>
                                         <button
                                             type="button"
+                                            title={label}
                                             className={`w-full px-3 py-2 text-left hover:bg-app-surface ${
                                                 isSelected
                                                     ? "bg-app-surface"
