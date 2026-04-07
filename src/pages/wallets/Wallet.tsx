@@ -18,6 +18,7 @@ import {
 import { HoldingRow, HoldingsTable } from "../../components/HoldingsTable";
 import { WalletTransactionsTable } from "../../components/WalletTransactionsTable";
 import { StooqAPIStockSelect } from "../../components/StooqAPIStockSelect";
+import { YahooAPIStockSelect } from "../../components/YahooAPIStockSelect";
 import { SyncStatusPills } from "../../components/SyncStatusPills";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Tooltip } from "../../ui/Tooltip";
@@ -288,6 +289,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [editAssetType, setEditAssetType] = useState<AssetType>("stock");
     const [editAssetTicker, setEditAssetTicker] = useState("");
     const [editAssetName, setEditAssetName] = useState("");
+    const [editAssetYfTicker, setEditAssetYfTicker] = useState("");
     const [editAssetStooq, setEditAssetStooq] = useState("");
     const [editAssetCurrency, setEditAssetCurrency] = useState<Currency>("USD");
     const [editAssetQuoteAlias, setEditAssetQuoteAlias] = useState("USDT");
@@ -310,6 +312,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [tradeType, setTradeType] = useState<"buy" | "sell">("buy");
     const [tradeAssetId, setTradeAssetId] = useState("");
     const [tradeTicker, setTradeTicker] = useState("");
+    const [tradeYfSearch, setTradeYfSearch] = useState("");
+    const [tradeYfTicker, setTradeYfTicker] = useState("");
+    const [tradeAddStooqTicker, setTradeAddStooqTicker] = useState(false);
     const [tradeStooqSearch, setTradeStooqSearch] = useState("");
     const [tradeStooqTicker, setTradeStooqTicker] = useState("");
     const [tradeName, setTradeName] = useState("");
@@ -380,9 +385,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         Number.isFinite(tradeFxRateValue) && tradeFxRateValue > 0;
     const hasFxDetails = fxEnabled ? hasValidTradeFxRate : true;
     const showTradeSummary = hasTradeBasics && hasFxDetails;
-    const needsStooqWarning =
+    const needsYahooTickerWarning =
         (tradeAssetType === "stock" || tradeAssetType === "etf") &&
-        tradeStooqTicker.trim().length === 0;
+        tradeYfTicker.trim().length === 0;
     const fundingCurrency = fxEnabled ? tradeFundingCurrency : tradeCurrency;
     const tradeFundingAmountValue = Number(tradeFundingAmount);
     const roundedFundingAmountValue = roundToTwo(tradeFundingAmountValue);
@@ -418,8 +423,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     useEffect(() => {
         if (selectedAsset) {
             setTradeTicker(selectedAsset.ticker);
+            const selectedYfTicker = selectedAsset.yfTicker ?? "";
+            setTradeYfSearch(selectedYfTicker ?? "");
+            setTradeYfTicker(selectedYfTicker ?? "");
             setTradeStooqSearch(selectedAsset.stooqTicker ?? "");
             setTradeStooqTicker(selectedAsset.stooqTicker ?? "");
+            setTradeAddStooqTicker(Boolean(selectedAsset.stooqTicker));
             setTradeName(selectedAsset.name);
             setTradeAssetType(selectedAsset.assetType);
             setTradeCurrency(selectedAsset.tradingCurrency);
@@ -430,6 +439,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     useEffect(() => {
         if (!tradeAssetId) {
             setTradeTicker("");
+            setTradeYfSearch("");
+            setTradeYfTicker("");
+            setTradeAddStooqTicker(false);
             setTradeStooqSearch("");
             setTradeStooqTicker("");
             setTradeName("");
@@ -474,6 +486,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     useEffect(() => {
         if (tradeAssetType !== "stock" && tradeAssetType !== "etf") {
+            setTradeYfSearch("");
+            setTradeYfTicker("");
+            setTradeAddStooqTicker(false);
             setTradeStooqSearch("");
             setTradeStooqTicker("");
         }
@@ -980,6 +995,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         setEditAssetType(asset.assetType);
         setEditAssetTicker(asset.ticker);
         setEditAssetName(asset.name);
+        setEditAssetYfTicker(asset.yfTicker ?? "");
         setEditAssetStooq(asset.stooqTicker ?? "");
         setEditAssetCurrency(asset.tradingCurrency);
         setEditAssetQuoteAlias(
@@ -1000,6 +1016,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             editAssetType === "stock" || editAssetType === "etf"
                 ? editAssetStooq.trim() || null
                 : null;
+        const yfValue =
+            editAssetType === "stock" || editAssetType === "etf"
+                ? editAssetYfTicker.trim().toUpperCase() || null
+                : null;
         dispatch(
             updateAsset({
                 id: editAssetId,
@@ -1007,6 +1027,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     assetType: editAssetType,
                     ticker: editAssetTicker.trim().toUpperCase(),
                     name: editAssetName.trim() || editAssetTicker.trim(),
+                    yfTicker: yfValue,
                     stooqTicker: stooqValue,
                     cryptoQuoteAlias:
                         editAssetType === "crypto"
@@ -1116,9 +1137,15 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 addAsset({
                     id: assetId,
                     ticker: tradeTicker.toUpperCase(),
+                    yfTicker:
+                        tradeAssetType === "stock" || tradeAssetType === "etf"
+                            ? tradeYfTicker || null
+                            : null,
                     stooqTicker:
                         tradeAssetType === "stock" || tradeAssetType === "etf"
-                            ? tradeStooqTicker || null
+                            ? tradeAddStooqTicker
+                                ? tradeStooqTicker || null
+                                : null
                             : null,
                     tradingCurrency: tradeCurrency,
                     name: tradeName || tradeTicker.toUpperCase(),
@@ -2166,6 +2193,23 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-app-muted mb-1">
+                            Yahoo Finance Ticker
+                        </label>
+                        <input
+                            type="text"
+                            value={editAssetYfTicker}
+                            onChange={(event) =>
+                                setEditAssetYfTicker(event.target.value)
+                            }
+                            disabled={
+                                editAssetType !== "stock" &&
+                                editAssetType !== "etf"
+                            }
+                            className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary disabled:opacity-60"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-app-muted mb-1">
                             Stooq Ticker
                         </label>
                         <input
@@ -2315,6 +2359,38 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             tradeAssetType === "etf") && (
                             <div className="col-span-2 space-y-1">
                                 <label className="flex items-center gap-1 text-xs font-medium text-app-muted">
+                                    Yahoo Finance ticker
+                                    <Tooltip content="Yahoo Finance ticker for live pricing fallback chain. Example: AAPL">
+                                        <Info
+                                            size={12}
+                                            className="text-app-muted"
+                                        />
+                                    </Tooltip>
+                                </label>
+                                <YahooAPIStockSelect
+                                    searchValue={tradeYfSearch}
+                                    onSearchChange={setTradeYfSearch}
+                                    selectedValue={tradeYfTicker}
+                                    onSelect={setTradeYfTicker}
+                                    placeholder="Search Yahoo ticker"
+                                    disabled={Boolean(tradeAssetId)}
+                                />
+                                <label className="mt-2 flex items-center gap-2 text-xs text-app-muted">
+                                    <input
+                                        type="checkbox"
+                                        checked={tradeAddStooqTicker}
+                                        onChange={(event) =>
+                                            setTradeAddStooqTicker(
+                                                event.target.checked,
+                                            )
+                                        }
+                                        disabled={Boolean(tradeAssetId)}
+                                    />
+                                    Add Stooq Ticker (optional)
+                                </label>
+                                {tradeAddStooqTicker && (
+                                    <>
+                                <label className="flex items-center gap-1 text-xs font-medium text-app-muted">
                                     Stooq ticker
                                     <Tooltip content="Stooq ticker for live pricing (stooq.com). Example: AAPL.US">
                                         <Info
@@ -2331,10 +2407,12 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                     placeholder="Search stooq ticker"
                                     disabled={Boolean(tradeAssetId)}
                                 />
-                                {needsStooqWarning && (
+                                    </>
+                                )}
+                                {needsYahooTickerWarning && (
                                     <p className="text-xs text-yellow-500">
-                                        Select a Stooq ticker to enable
-                                        real-time price lookups.
+                                        Yahoo Finance ticker is required for
+                                        stock and ETF trades.
                                     </p>
                                 )}
                             </div>
@@ -2710,7 +2788,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         disabled={
                             !hasTradeBasics ||
                             !hasFxDetails ||
-                            !hasSufficientAsset
+                            !hasSufficientAsset ||
+                            needsYahooTickerWarning
                         }
                         onClick={() => {
                             handleAddTrade();

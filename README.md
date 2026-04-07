@@ -12,7 +12,7 @@
    `npx wrangler pages dev . --port 8788`
 
 **Notes:**
-- This project uses a Cloudflare Pages + Workers (serverless) instance to host the `/api/proxy/stooq` endpoint.
+- This project uses a Cloudflare Pages + Workers (serverless) instance to host the `/api/proxy/stock` endpoint.
 - The Vite dev server proxies `/api` to `http://localhost:8788` as configured in `vite.config.ts`.
 
 ## Architecture Documentation

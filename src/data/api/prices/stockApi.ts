@@ -1,7 +1,7 @@
 import { PriceApiError, TickerNotFoundError } from "./errors";
 import { fetchWithTimeout } from "./request";
 
-interface StooqCandle {
+interface StockCandle {
     date: string;
     time: string | null;
     open: number;
@@ -11,51 +11,79 @@ interface StooqCandle {
     volume: number;
 }
 
-interface StooqLiveResponse {
+interface StockLiveResponse {
     symbol: string;
     type: "live";
-    data: StooqCandle[];
+    data: StockCandle[];
     source: string;
 }
 
-interface StooqHistoricalResponse {
+interface StockHistoricalResponse {
     symbol: string;
     type: "historical";
     range?: {
         from: string;
         to: string;
     };
-    data: StooqCandle[];
+    data: StockCandle[];
     source: string;
 }
 
-interface StooqErrorResponse {
+interface StockErrorResponse {
     error: string;
     status: number;
 }
 
-const STQ_BASE_PATH = "/api/proxy/stooq";
+export interface StockSymbols {
+    symbol?: string;
+    symbolYF?: string | null;
+    symbolStooq?: string | null;
+}
 
-const parseStooqResponse = async <T>(response: Response): Promise<T> => {
-    const payload = (await response.json()) as T | StooqErrorResponse;
+const STQ_BASE_PATH = "/api/proxy/stock";
+
+const parseStockResponse = async <T>(response: Response): Promise<T> => {
+    const payload = (await response.json()) as T | StockErrorResponse;
     if (!response.ok) {
-        const error = payload as StooqErrorResponse;
-        throw new PriceApiError(error.error || "Stooq request failed.");
+        const error = payload as StockErrorResponse;
+        throw new PriceApiError(error.error || "Stock request failed.");
     }
     return payload as T;
 };
 
-export const fetchStockLive = async (symbol: string) => {
-    const response = await fetchWithTimeout(
-        `${STQ_BASE_PATH}/live?symbol=${encodeURIComponent(symbol)}`
-    );
-    const payload = await parseStooqResponse<StooqLiveResponse>(response);
+const buildStockQuery = (symbols: StockSymbols) => {
+    const params = new URLSearchParams();
+    if (symbols.symbolYF?.trim()) {
+        params.set("symbolYF", symbols.symbolYF.trim());
+    }
+    if (symbols.symbolStooq?.trim()) {
+        params.set("symbolStooq", symbols.symbolStooq.trim());
+    }
+    if (!params.toString() && symbols.symbol?.trim()) {
+        params.set("symbol", symbols.symbol.trim());
+    }
+    return params;
+};
+
+export const fetchStockLive = async (symbols: string | StockSymbols) => {
+    const symbolRequest =
+        typeof symbols === "string" ? { symbol: symbols } : symbols;
+    const query = buildStockQuery(symbolRequest);
+    const response = await fetchWithTimeout(`${STQ_BASE_PATH}/live?${query.toString()}`);
+    const payload = await parseStockResponse<StockLiveResponse>(response);
     if (!payload.data || payload.data.length === 0) {
-        throw new TickerNotFoundError(symbol, "stock");
+        throw new TickerNotFoundError(
+            symbolRequest.symbolYF || symbolRequest.symbolStooq || symbolRequest.symbol || "",
+            "stock"
+        );
     }
     const [candle] = payload.data;
     if (candle.close == null) {
-        throw new TickerNotFoundError(symbol, "stock", "ticker not found");
+        throw new TickerNotFoundError(
+            symbolRequest.symbolYF || symbolRequest.symbolStooq || symbolRequest.symbol || "",
+            "stock",
+            "ticker not found"
+        );
     }
     return {
         date: candle.date,
@@ -64,16 +92,25 @@ export const fetchStockLive = async (symbol: string) => {
     };
 };
 
-export const fetchStockHistorical = async (symbol: string, date: string) => {
+export const fetchStockHistorical = async (
+    symbols: string | StockSymbols,
+    date: string
+) => {
+    const symbolRequest =
+        typeof symbols === "string" ? { symbol: symbols } : symbols;
     const formattedDate = date.replace(/-/g, "");
+    const query = buildStockQuery(symbolRequest);
+    query.set("from", formattedDate);
+
     const response = await fetchWithTimeout(
-        `${STQ_BASE_PATH}/historical?symbol=${encodeURIComponent(
-            symbol
-        )}&from=${formattedDate}`
+        `${STQ_BASE_PATH}/historical?${query.toString()}`
     );
-    const payload = await parseStooqResponse<StooqHistoricalResponse>(response);
+    const payload = await parseStockResponse<StockHistoricalResponse>(response);
     if (!payload.data || payload.data.length === 0) {
-        throw new TickerNotFoundError(symbol, "stock");
+        throw new TickerNotFoundError(
+            symbolRequest.symbolYF || symbolRequest.symbolStooq || symbolRequest.symbol || "",
+            "stock"
+        );
     }
     const entries = payload.data
         .filter((candle) => candle.close != null)
@@ -83,7 +120,11 @@ export const fetchStockHistorical = async (symbol: string, date: string) => {
             source: payload.source,
         }));
     if (entries.length === 0) {
-        throw new TickerNotFoundError(symbol, "stock", "ticker not found");
+        throw new TickerNotFoundError(
+            symbolRequest.symbolYF || symbolRequest.symbolStooq || symbolRequest.symbol || "",
+            "stock",
+            "ticker not found"
+        );
     }
     return entries;
 };

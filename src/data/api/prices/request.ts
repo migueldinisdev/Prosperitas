@@ -51,16 +51,45 @@ const recordSuccess = () => {
     consecutiveErrors.length = 0;
 };
 
+const isAbortError = (error: unknown): boolean =>
+    error instanceof DOMException && error.name === "AbortError";
+
+const getRequestUrl = (input: RequestInfo | URL): string => {
+    if (typeof input === "string") {
+        return input;
+    }
+    if (input instanceof URL) {
+        return input.toString();
+    }
+    return input.url;
+};
+
+const shouldApplyGlobalRateLimit = (input: RequestInfo | URL): boolean => {
+    const url = getRequestUrl(input);
+    // Typeahead search should not be throttled by unrelated live-price traffic.
+    if (url.includes("/api/proxy/stock/search-yahoo")) {
+        return false;
+    }
+    if (url.includes("/api/proxy/stock/search?")) {
+        return false;
+    }
+    return true;
+};
+
 export const fetchWithTimeout = async (
     input: RequestInfo | URL,
     init?: RequestInit & { timeoutMs?: number }
 ) => {
+    const applyGlobalRateLimit = shouldApplyGlobalRateLimit(input);
+
     // Check rate limit before making request
-    if (!canMakeRequest()) {
+    if (applyGlobalRateLimit && !canMakeRequest()) {
         throw new PriceApiError("Rate limit exceeded. Too many requests.");
     }
-    
-    recordRequest();
+
+    if (applyGlobalRateLimit) {
+        recordRequest();
+    }
     
     const { timeoutMs = DEFAULT_TIMEOUT_MS, signal, ...rest } = init ?? {};
     const controller = new AbortController();
@@ -82,16 +111,20 @@ export const fetchWithTimeout = async (
             ...rest,
             signal: controller.signal,
         });
-        
-        if (!response.ok) {
+
+        if (applyGlobalRateLimit && !response.ok) {
             recordError();
-        } else {
+        } else if (applyGlobalRateLimit) {
             recordSuccess();
         }
-        
+
         return response;
     } catch (error) {
-        recordError();
+        // Aborts are expected during typeahead flows and should not trip
+        // the global error circuit breaker.
+        if (applyGlobalRateLimit && !isAbortError(error)) {
+            recordError();
+        }
         if (timedOut) {
             throw new PriceApiError("Request timed out.");
         }
