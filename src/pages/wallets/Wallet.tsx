@@ -1018,11 +1018,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         if (!editAssetId) return;
         const stooqValue =
             editAssetType === "stock" || editAssetType === "etf"
-                ? editAssetStooq.trim() || null
+                ? (editAssetStooqSearch.trim() || editAssetStooq.trim()) || null
                 : null;
         const yfValue =
             editAssetType === "stock" || editAssetType === "etf"
-                ? editAssetYfTicker.trim().toUpperCase() || null
+                ?
+                      (editAssetYfSearch.trim() || editAssetYfTicker.trim())
+                          .toUpperCase() || null
                 : null;
         dispatch(
             updateAsset({
@@ -2201,7 +2203,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         </label>
                         <YahooAPIStockSelect
                             searchValue={editAssetYfSearch}
-                            onSearchChange={setEditAssetYfSearch}
+                            onSearchChange={(value) => {
+                                setEditAssetYfSearch(value);
+                                setEditAssetYfTicker(value);
+                            }}
                             selectedValue={editAssetYfTicker}
                             onSelect={setEditAssetYfTicker}
                             placeholder="Search Yahoo ticker"
@@ -2217,7 +2222,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         </label>
                         <StooqAPIStockSelect
                             searchValue={editAssetStooqSearch}
-                            onSearchChange={setEditAssetStooqSearch}
+                            onSearchChange={(value) => {
+                                setEditAssetStooqSearch(value);
+                                setEditAssetStooq(value);
+                            }}
                             selectedValue={editAssetStooq}
                             onSelect={setEditAssetStooq}
                             placeholder="Search stooq ticker"
