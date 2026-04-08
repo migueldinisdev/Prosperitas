@@ -21,7 +21,7 @@ const parseForexPair = (pair: string) => {
 
 const fetchFrankfurter = async (path: string) => {
     const response = await fetchWithTimeout(
-        `https://api.frankfurter.app${path}`
+        `/api/proxy/forex${path}`
     );
     if (!response.ok) {
         throw new PriceApiError("Frankfurter request failed.");
