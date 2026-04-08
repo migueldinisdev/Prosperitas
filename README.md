@@ -8,11 +8,11 @@
    `npm run build`
 3. Run the Vite dev server:
    `npm run dev`
-4. In another terminal, run the Cloudflare Pages/Workers serverless instance for the Stooq proxy:
+4. In another terminal, run the Cloudflare Pages/Workers serverless instance for price proxy endpoints:
    `npx wrangler pages dev . --port 8788`
 
 **Notes:**
-- This project uses a Cloudflare Pages + Workers (serverless) instance to host the `/api/proxy/stock` endpoint.
+- This project uses a Cloudflare Pages + Workers (serverless) instance to host `/api/proxy/stock` and `/api/proxy/forex` endpoints.
 - The Vite dev server proxies `/api` to `http://localhost:8788` as configured in `vite.config.ts`.
 
 ## Architecture Documentation
@@ -39,5 +39,4 @@ The original architecture and requirements document that defines the project vis
 Refer to this file when implementing new features to ensure alignment with the original project goals and architecture decisions.
 
 **Note for AI Development:** Both files should be consulted before making significant changes or adding new features to maintain consistency with the established architecture and coding patterns.
-
 
