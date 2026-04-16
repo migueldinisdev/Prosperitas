@@ -28,6 +28,15 @@ interface Props {
 
 const currencyOptions: Currency[] = ["EUR", "USD", "GBP"];
 const ZERO_EPSILON = 1e-9;
+const normalizeAssetTicker = (value: string) => value.trim().toUpperCase();
+const normalizeAssetName = (value: string) => value.trim();
+const getAssetCollisionMessage = (
+    assetName: string,
+    ticker: string,
+    currency: Currency,
+    isArchived?: boolean,
+) =>
+    `An asset with ticker ${ticker} and currency ${currency} already exists as "${assetName}"${isArchived ? " and it is archived." : "."}`;
 
 export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
     const assets = useAppSelector(selectAssets);
@@ -126,6 +135,27 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
     const [editAssetCurrency, setEditAssetCurrency] = useState<Currency>("USD");
     const [editAssetQuoteAlias, setEditAssetQuoteAlias] = useState("USDT");
     const [editAssetPieId, setEditAssetPieId] = useState("");
+    const normalizedEditAssetTicker = normalizeAssetTicker(editAssetTicker);
+    const normalizedEditAssetName = normalizeAssetName(editAssetName);
+    const conflictingEditedAsset = useMemo(() => {
+        if (!editAssetId || !normalizedEditAssetTicker) return null;
+        return (
+            assetList.find(
+                (asset) =>
+                    asset.id !== editAssetId &&
+                    asset.ticker.trim().toUpperCase() === normalizedEditAssetTicker &&
+                    asset.tradingCurrency === editAssetCurrency,
+            ) ?? null
+        );
+    }, [assetList, editAssetCurrency, editAssetId, normalizedEditAssetTicker]);
+    const conflictingEditedAssetMessage = conflictingEditedAsset
+        ? getAssetCollisionMessage(
+              conflictingEditedAsset.name,
+              conflictingEditedAsset.ticker,
+              conflictingEditedAsset.tradingCurrency,
+              conflictingEditedAsset.isArchived,
+          )
+        : "";
 
     const handleEditAssetOpen = (assetId: string) => {
         const asset = assets[assetId];
@@ -156,6 +186,7 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
 
     const handleEditAssetSave = () => {
         if (!editAssetId) return;
+        if (conflictingEditedAsset) return;
         const stooqValue =
             editAssetType === "stock" || editAssetType === "etf"
                 ? (editAssetStooqSearch.trim() || editAssetStooq.trim()) || null
@@ -170,8 +201,8 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
                 id: editAssetId,
                 changes: {
                     assetType: editAssetType,
-                    ticker: editAssetTicker.trim().toUpperCase(),
-                    name: editAssetName.trim() || editAssetTicker.trim(),
+                    ticker: normalizedEditAssetTicker,
+                    name: normalizedEditAssetName || normalizedEditAssetTicker,
                     yfTicker: yfValue,
                     stooqTicker: stooqValue,
                     cryptoQuoteAlias:
@@ -490,10 +521,19 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
                     <Button
                         className="w-full"
                         onClick={handleEditAssetSave}
-                        disabled={!editAssetTicker.trim() || !editAssetName.trim()}
+                        disabled={
+                            !editAssetTicker.trim() ||
+                            !editAssetName.trim() ||
+                            Boolean(conflictingEditedAsset)
+                        }
                     >
                         Update Asset
                     </Button>
+                    {conflictingEditedAssetMessage ? (
+                        <p className="text-sm text-app-warning">
+                            {conflictingEditedAssetMessage}
+                        </p>
+                    ) : null}
                 </div>
             </Modal>
         </div>
