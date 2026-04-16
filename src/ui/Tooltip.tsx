@@ -11,9 +11,10 @@ interface TooltipProps {
     content: string;
     children: React.ReactNode;
     className?: string;
+    fullWidth?: boolean;
 }
 
-export const Tooltip = ({ content, children, className }: TooltipProps) => {
+export const Tooltip = ({ content, children, className, fullWidth = false }: TooltipProps) => {
     const tooltipId = useId();
     const triggerRef = useRef<HTMLSpanElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
@@ -66,7 +67,9 @@ export const Tooltip = ({ content, children, className }: TooltipProps) => {
         <>
             <span
                 ref={triggerRef}
-                className={`inline-flex items-center ${className ?? ""}`}
+                className={`${fullWidth ? "flex w-full" : "inline-flex"} items-center ${
+                    className ?? ""
+                }`}
                 onMouseEnter={() => setIsVisible(true)}
                 onMouseLeave={() => setIsVisible(false)}
                 onFocus={() => setIsVisible(true)}

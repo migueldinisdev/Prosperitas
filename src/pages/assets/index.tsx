@@ -283,7 +283,11 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
                                         </td>
                                         <td className="px-4 py-3 text-center text-app-muted">
                                             {walletNames.length > 0 ? (
-                                                <Tooltip content={walletNames.join(", ")}>
+                                                <Tooltip
+                                                    content={walletNames.join(", ")}
+                                                    fullWidth
+                                                    className="justify-center py-1"
+                                                >
                                                     <span>{walletNames.length}</span>
                                                 </Tooltip>
                                             ) : (
