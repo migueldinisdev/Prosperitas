@@ -17,6 +17,7 @@ import { PieDetail } from "./pages/pies/PieDetail";
 import { StatisticsPage } from "./pages/statistics";
 import { HelpPage } from "./pages/help";
 import { SettingsPage } from "./pages/settings";
+import { AssetsPage } from "./pages/assets";
 import { useSyncStatus } from "./store/syncStatus";
 import { Notifications } from "./components/Notifications";
 import { FullPageLoader } from "./components/FullPageLoader";
@@ -186,6 +187,20 @@ const AppRoutes: React.FC<{
                         element={
                             isLoggedIn ? (
                                 <HelpPage
+                                    onMenuClick={() =>
+                                        setIsMobileMenuOpen(true)
+                                    }
+                                />
+                            ) : (
+                                <Navigate to="/" replace />
+                            )
+                        }
+                    />
+                    <Route
+                        path="/assets"
+                        element={
+                            isLoggedIn ? (
+                                <AssetsPage
                                     onMenuClick={() =>
                                         setIsMobileMenuOpen(true)
                                     }

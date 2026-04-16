@@ -86,6 +86,10 @@ const roundToInputPrecision = (value: string) => {
     return Math.round(parsed * factor) / factor;
 };
 const formatFundingAmount = (value: number) => roundToTwo(value).toFixed(2);
+const normalizeAssetTicker = (value: string) => value.trim().toUpperCase();
+const normalizeAssetName = (value: string) => value.trim();
+const getAssetCollisionMessage = (asset: Asset) =>
+    `An asset with ticker ${asset.ticker} and currency ${asset.tradingCurrency} already exists as "${asset.name}"${asset.isArchived ? " and it is archived." : "."}`;
 
 const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
 const shiftMonths = (date: Date, months: number) => {
@@ -360,6 +364,22 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         editWalletNameTrimmed.length > 0 &&
         existingWalletNamesLower.has(editWalletNameTrimmed.toLowerCase()) &&
         editWalletNameTrimmed.toLowerCase() !== currentWalletNameLower;
+    const normalizedEditAssetTicker = normalizeAssetTicker(editAssetTicker);
+    const normalizedEditAssetName = normalizeAssetName(editAssetName);
+    const conflictingEditedAsset = useMemo(() => {
+        if (!editAssetId || !normalizedEditAssetTicker) return null;
+        return (
+            Object.values(assets).find(
+                (asset) =>
+                    asset.id !== editAssetId &&
+                    asset.ticker.trim().toUpperCase() === normalizedEditAssetTicker &&
+                    asset.tradingCurrency === editAssetCurrency,
+            ) ?? null
+        );
+    }, [assets, editAssetCurrency, editAssetId, normalizedEditAssetTicker]);
+    const conflictingEditedAssetMessage = conflictingEditedAsset
+        ? getAssetCollisionMessage(conflictingEditedAsset)
+        : "";
     const tradeQuantityValue = roundToInputPrecision(tradeQuantity);
     const tradePriceValue = roundToInputPrecision(tradePrice);
     const tradeTotal = tradeQuantityValue * tradePriceValue;
@@ -399,14 +419,29 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const existingAssets = useMemo(
         () =>
-            Object.values(assets).sort((a, b) =>
-                a.ticker.localeCompare(b.ticker),
-            ),
+            Object.values(assets)
+                .filter((asset) => !asset.isArchived)
+                .sort((a, b) => a.ticker.localeCompare(b.ticker)),
         [assets],
     );
 
     const selectedAsset = tradeAssetId ? assets[tradeAssetId] : undefined;
     const canEditTradeCurrency = !tradeAssetId || selectedAsset?.amount === 0;
+    const normalizedTradeTicker = normalizeAssetTicker(tradeTicker);
+    const normalizedTradeName = normalizeAssetName(tradeName);
+    const conflictingTradeAsset = useMemo(() => {
+        if (tradeAssetId || !normalizedTradeTicker) return null;
+        return (
+            Object.values(assets).find(
+                (asset) =>
+                    asset.ticker.trim().toUpperCase() === normalizedTradeTicker &&
+                    asset.tradingCurrency === tradeCurrency,
+            ) ?? null
+        );
+    }, [assets, normalizedTradeTicker, tradeAssetId, tradeCurrency]);
+    const conflictingTradeAssetMessage = conflictingTradeAsset
+        ? getAssetCollisionMessage(conflictingTradeAsset)
+        : "";
     const selectedAssetPieId = useMemo(() => {
         if (!tradeAssetId) return "";
         return (
@@ -1016,6 +1051,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const handleEditAssetSave = () => {
         if (!editAssetId) return;
+        if (conflictingEditedAsset) return;
         const stooqValue =
             editAssetType === "stock" || editAssetType === "etf"
                 ? (editAssetStooqSearch.trim() || editAssetStooq.trim()) || null
@@ -1031,8 +1067,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 id: editAssetId,
                 changes: {
                     assetType: editAssetType,
-                    ticker: editAssetTicker.trim().toUpperCase(),
-                    name: editAssetName.trim() || editAssetTicker.trim(),
+                    ticker: normalizedEditAssetTicker,
+                    name: normalizedEditAssetName || normalizedEditAssetTicker,
                     yfTicker: yfValue,
                     stooqTicker: stooqValue,
                     cryptoQuoteAlias:
@@ -1124,12 +1160,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const handleAddTrade = () => {
         if (!id) return;
         const isExistingAsset = Boolean(tradeAssetId);
+        if (!isExistingAsset && conflictingTradeAsset) return;
         const asset =
             tradeAssetId ||
             Object.values(assets).find(
                 (existing) =>
-                    existing.ticker.toLowerCase() ===
-                        tradeTicker.toLowerCase() &&
+                    existing.ticker.trim().toUpperCase() ===
+                        normalizedTradeTicker &&
                     existing.tradingCurrency === tradeCurrency,
             )?.id;
 
@@ -1142,7 +1179,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             dispatch(
                 addAsset({
                     id: assetId,
-                    ticker: tradeTicker.toUpperCase(),
+                    ticker: normalizedTradeTicker,
                     yfTicker:
                         tradeAssetType === "stock" || tradeAssetType === "etf"
                             ? tradeYfTicker || null
@@ -1154,7 +1191,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                                 : null
                             : null,
                     tradingCurrency: tradeCurrency,
-                    name: tradeName || tradeTicker.toUpperCase(),
+                    name: normalizedTradeName || normalizedTradeTicker,
                     assetType: tradeAssetType,
                     cryptoQuoteAlias:
                         tradeAssetType === "crypto"
@@ -1890,11 +1927,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         >
                             <option value="">No asset</option>
-                            {Object.values(assets).map((asset) => (
+                            {Object.values(assets)
+                                .filter((asset) => !asset.isArchived)
+                                .map((asset) => (
                                 <option key={asset.id} value={asset.id}>
                                     {asset.ticker} • {asset.name}
                                 </option>
-                            ))}
+                                ))}
                         </select>
                     </div>
                     <Button
@@ -2239,11 +2278,18 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                         className="w-full"
                         onClick={handleEditAssetSave}
                         disabled={
-                            !editAssetTicker.trim() || !editAssetName.trim()
+                            !editAssetTicker.trim() ||
+                            !editAssetName.trim() ||
+                            Boolean(conflictingEditedAsset)
                         }
                     >
                         Update Asset
                     </Button>
+                    {conflictingEditedAssetMessage ? (
+                        <p className="text-sm text-app-warning">
+                            {conflictingEditedAssetMessage}
+                        </p>
+                    ) : null}
                 </div>
             </Modal>
 
@@ -2799,6 +2845,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             !hasTradeBasics ||
                             !hasFxDetails ||
                             !hasSufficientAsset ||
+                            Boolean(conflictingTradeAsset) ||
                             needsYahooTickerWarning
                         }
                         onClick={() => {
@@ -2808,6 +2855,11 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     >
                         Add Trade
                     </Button>
+                    {conflictingTradeAssetMessage ? (
+                        <p className="text-xs text-app-warning">
+                            {conflictingTradeAssetMessage}
+                        </p>
+                    ) : null}
                 </div>
             </Modal>
         </div>

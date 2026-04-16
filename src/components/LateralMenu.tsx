@@ -8,6 +8,7 @@ import {
     Settings,
     HelpCircle,
     Landmark,
+    Boxes,
     ChevronRight,
     Download,
     X,
@@ -81,6 +82,7 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
         { name: "Home", path: "/home", icon: LayoutDashboard },
         { name: "Balance", path: "/balance", icon: Landmark },
         { name: "Wallets", path: "/wallets", icon: Wallet },
+        { name: "Assets", path: "/assets", icon: Boxes },
         { name: "Pies", path: "/pies", icon: PieChart },
         { name: "Statistics", path: "/statistics", icon: BarChart3 },
     ];

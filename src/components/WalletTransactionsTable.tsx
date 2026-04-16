@@ -110,10 +110,13 @@ export const WalletTransactionsTable = React.memo(
         }, [transactions, currentPage, transactionsPerPage]);
         const assetOptions = useMemo(
             () =>
-                Object.values(assets).sort((a, b) =>
-                    a.ticker.localeCompare(b.ticker),
-                ),
-            [assets],
+                Object.values(assets)
+                    .filter(
+                        (asset) =>
+                            !asset.isArchived || asset.id === editAssetId,
+                    )
+                    .sort((a, b) => a.ticker.localeCompare(b.ticker)),
+            [assets, editAssetId],
         );
 
         useEffect(() => {
