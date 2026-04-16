@@ -95,6 +95,7 @@ export interface Asset {
     amount: number;
     avgCost: Money;
     txIds: string[];
+    isArchived?: boolean;
     createdAt: string;
     updatedAt: string;
 }

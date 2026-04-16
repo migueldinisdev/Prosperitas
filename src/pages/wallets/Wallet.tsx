@@ -399,9 +399,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const existingAssets = useMemo(
         () =>
-            Object.values(assets).sort((a, b) =>
-                a.ticker.localeCompare(b.ticker),
-            ),
+            Object.values(assets)
+                .filter((asset) => !asset.isArchived)
+                .sort((a, b) => a.ticker.localeCompare(b.ticker)),
         [assets],
     );
 
@@ -1890,11 +1890,13 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                             className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-app-foreground focus:outline-none focus:ring-1 focus:ring-app-primary"
                         >
                             <option value="">No asset</option>
-                            {Object.values(assets).map((asset) => (
+                            {Object.values(assets)
+                                .filter((asset) => !asset.isArchived)
+                                .map((asset) => (
                                 <option key={asset.id} value={asset.id}>
                                     {asset.ticker} • {asset.name}
                                 </option>
-                            ))}
+                                ))}
                         </select>
                     </div>
                     <Button
