@@ -7,6 +7,7 @@ import {
 } from "../slices/walletTxSlice";
 import {
     addWalletTxId,
+    removeWallet,
     removeWalletTxId,
     setWalletCash,
 } from "../slices/walletsSlice";
@@ -507,6 +508,33 @@ export const addWalletTransaction = (tx: WalletTx): AppThunk => {
             nextWalletTx,
             dispatch
         );
+    };
+};
+
+export const removeWalletIfEmpty = (walletId: string): AppThunk<boolean> => {
+    return (dispatch, getState) => {
+        const state = getState();
+        const wallet = state.wallets[walletId];
+        if (!wallet) return false;
+
+        const hasTransactions = Object.values(state.walletTx).some(
+            (tx) => tx.walletId === walletId
+        );
+        if (hasTransactions) {
+            dispatch(
+                addNotification({
+                    type: "warning",
+                    title: "Wallet not deleted",
+                    message:
+                        "Delete this wallet's transactions before deleting the wallet.",
+                })
+            );
+            return false;
+        }
+
+        dispatch(removeWalletPositionsForWallet(walletId));
+        dispatch(removeWallet(walletId));
+        return true;
     };
 };
 

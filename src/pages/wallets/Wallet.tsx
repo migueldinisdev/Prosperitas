@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card } from "../../ui/Card";
 import { NetWorthHistoryChart } from "../../components/NetWorthHistoryChart";
 import { Button } from "../../ui/Button";
@@ -13,6 +13,7 @@ import {
     Info,
     Menu,
     Pencil,
+    Trash2,
     Wallet as WalletIcon,
 } from "lucide-react";
 import { HoldingRow, HoldingsTable } from "../../components/HoldingsTable";
@@ -28,8 +29,12 @@ import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
 import { useNetWorthHistory } from "../../hooks/useNetWorthHistory";
 import { Modal } from "../../ui/Modal";
+import { ConfirmModal } from "../../ui/ConfirmModal";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { addWalletTransaction } from "../../store/thunks/walletThunks";
+import {
+    addWalletTransaction,
+    removeWalletIfEmpty,
+} from "../../store/thunks/walletThunks";
 import { addAsset, updateAsset } from "../../store/slices/assetsSlice";
 import { updatePie } from "../../store/slices/piesSlice";
 import { updateWallet } from "../../store/slices/walletsSlice";
@@ -255,6 +260,7 @@ const WalletTransactionsSection = React.memo(
 export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const { id } = useParams();
     const dispatch = useAppDispatch();
+    const navigate = useNavigate();
     const settings = useAppSelector(selectSettings);
     const pies = useAppSelector(selectPies);
     const wallets = useAppSelector(selectWallets);
@@ -269,6 +275,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const [isFxOpen, setFxOpen] = useState(false);
     const [isEditAssetOpen, setEditAssetOpen] = useState(false);
     const [isEditWalletOpen, setEditWalletOpen] = useState(false);
+    const [isDeleteWalletOpen, setDeleteWalletOpen] = useState(false);
     const [isCashBreakdownOpen, setCashBreakdownOpen] = useState(false);
     const [isPerformanceBreakdownOpen, setPerformanceBreakdownOpen] =
         useState(false);
@@ -830,6 +837,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             }),
         [walletTransactions],
     );
+    const canDeleteWallet = walletTransactions.length === 0;
 
     const apyYearOptions = useMemo(() => {
         const currentYear = new Date().getUTCFullYear();
@@ -1122,6 +1130,21 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             }),
         );
         setEditWalletOpen(false);
+    };
+
+    const handleWalletDeleteRequest = () => {
+        if (!canDeleteWallet) return;
+        setEditWalletOpen(false);
+        setDeleteWalletOpen(true);
+    };
+
+    const handleWalletDeleteConfirm = () => {
+        if (!wallet) return;
+        const deleted = dispatch(removeWalletIfEmpty(wallet.id));
+        setDeleteWalletOpen(false);
+        if (deleted) {
+            navigate("/wallets");
+        }
     };
 
     const handleAddFxOperation = () => {
@@ -1747,8 +1770,33 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     >
                         Save Changes
                     </Button>
+                    <div className="border-t border-app-border pt-4">
+                        <Button
+                            className="w-full"
+                            variant="danger"
+                            onClick={handleWalletDeleteRequest}
+                            disabled={!canDeleteWallet}
+                            icon={<Trash2 size={16} />}
+                        >
+                            Delete Wallet
+                        </Button>
+                        {!canDeleteWallet && (
+                            <p className="mt-2 text-xs text-app-muted">
+                                Wallets with transactions cannot be deleted.
+                            </p>
+                        )}
+                    </div>
                 </div>
             </Modal>
+
+            <ConfirmModal
+                isOpen={isDeleteWalletOpen}
+                onClose={() => setDeleteWalletOpen(false)}
+                onConfirm={handleWalletDeleteConfirm}
+                title="Delete Wallet"
+                description={`This will permanently delete ${walletName}. This is only available because the wallet has no transactions.`}
+                confirmLabel="Delete Wallet"
+            />
 
             <Modal
                 isOpen={isDepositOpen}
