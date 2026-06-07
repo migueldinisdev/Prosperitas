@@ -97,6 +97,8 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         Record<string, string>
     >({});
     const [shareView, setShareView] = useState<ShareView>("assetType");
+    const [includeCashInPieAllocation, setIncludeCashInPieAllocation] =
+        useState(false);
     const [selectedWalletIds, setSelectedWalletIds] = useState<string[]>([]);
     const [apyStartYear, setApyStartYear] = useState<number | null>(null);
 
@@ -647,17 +649,8 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         setIsHypotheticalModalOpen(false);
     };
 
-    const assetTypeData = useMemo(() => {
-        const totalsByType = holdingSummaries.reduce<Record<string, number>>(
-            (acc, summary) => {
-                acc[summary.assetType] =
-                    (acc[summary.assetType] ?? 0) + summary.currentValueVisual;
-                return acc;
-            },
-            {},
-        );
-
-        const cashTotal = cashBuckets.reduce((sum, bucket) => {
+    const cashTotalVisual = useMemo(() => {
+        return cashBuckets.reduce((sum, bucket) => {
             return (
                 sum +
                 toVisualValue(
@@ -668,9 +661,20 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 )
             );
         }, 0);
+    }, [cashBuckets, forexRates, settings.visualCurrency]);
 
-        if (cashTotal > 0) {
-            totalsByType.cash = (totalsByType.cash ?? 0) + cashTotal;
+    const assetTypeData = useMemo(() => {
+        const totalsByType = holdingSummaries.reduce<Record<string, number>>(
+            (acc, summary) => {
+                acc[summary.assetType] =
+                    (acc[summary.assetType] ?? 0) + summary.currentValueVisual;
+                return acc;
+            },
+            {},
+        );
+
+        if (cashTotalVisual > 0) {
+            totalsByType.cash = (totalsByType.cash ?? 0) + cashTotalVisual;
         }
 
         const totalValue = getTotalValue(Object.values(totalsByType));
@@ -684,7 +688,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 color: assetTypeColors[type] ?? "#94a3b8",
             }))
             .filter((entry) => entry.value > 0);
-    }, [cashBuckets, forexRates, holdingSummaries, settings.visualCurrency]);
+    }, [cashTotalVisual, holdingSummaries]);
 
     const currencyData = useMemo(() => {
         const totalsByCurrency = new Map<string, number>();
@@ -788,18 +792,30 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             return { id: pie.id, name: pie.name, value: pieValue };
         });
 
-        const totalValue = getTotalValue(pieTotals.map((pie) => pie.value));
+        const allocationTotals =
+            includeCashInPieAllocation && cashTotalVisual > 0
+                ? [
+                      ...pieTotals,
+                      { id: "__cash__", name: "Cash", value: cashTotalVisual },
+                  ]
+                : pieTotals;
+        const totalValue = getTotalValue(
+            allocationTotals.map((entry) => entry.value),
+        );
 
-        return pieTotals
-            .map((pie, index) => ({
-                name: pie.name,
+        return allocationTotals
+            .map((entry, index) => ({
+                name: entry.name,
                 value: Number(
-                    getAllocationPercent(pie.value, totalValue).toFixed(2),
+                    getAllocationPercent(entry.value, totalValue).toFixed(2),
                 ),
-                color: piePalette[index % piePalette.length],
+                color:
+                    entry.id === "__cash__"
+                        ? assetTypeColors.cash
+                        : piePalette[index % piePalette.length],
             }))
             .filter((entry) => entry.value > 0);
-    }, [holdingSummaries, pies]);
+    }, [cashTotalVisual, holdingSummaries, includeCashInPieAllocation, pies]);
 
     const netWorthShareData = useMemo(() => {
         const snapshotDates = Array.from(
@@ -1335,7 +1351,27 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                         </div>
                     </Card>
 
-                    <Card title="Allocation by Pie">
+                    <Card
+                        title="Allocation by Pie"
+                        action={
+                            <label className="flex items-center gap-2 text-xs text-app-muted sm:text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={includeCashInPieAllocation}
+                                    onChange={(event) =>
+                                        setIncludeCashInPieAllocation(
+                                            event.target.checked,
+                                        )
+                                    }
+                                    className="accent-app-primary"
+                                />
+                                <span>Include Cash</span>
+                                <Tooltip content="Include Cash from all wallets">
+                                    <Info className="h-4 w-4 text-app-muted" />
+                                </Tooltip>
+                            </label>
+                        }
+                    >
                         <PieChart data={pieAllocationData} height={300} />
                         <div className="mt-4 grid grid-cols-2 gap-2">
                             {pieAllocationData.map((d) => (
