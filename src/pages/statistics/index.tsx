@@ -370,9 +370,24 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             settings.visualCurrency,
             forexRates,
         );
-        return positions
+        const summariesByAsset = new Map<
+            string,
+            {
+                assetId: string;
+                name: string;
+                ticker: string;
+                assetType: string;
+                amount: number;
+                tradingCurrency: string;
+                currentValue: number;
+                currentValueVisual: number;
+                fallbackInvestedValueVisual: number;
+            }
+        >();
+
+        positions
             .filter(({ assetId }) => Boolean(assets[assetId]))
-            .map(({ assetId, position }) => {
+            .forEach(({ assetId, position }) => {
                 const asset = assets[assetId] as Asset;
                 const costAverage = position.avgCost.value;
                 const currentPrice = livePricesByAsset[assetId] ?? costAverage;
@@ -381,33 +396,60 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                     currentPrice,
                 );
                 const tradingCurrency = asset.tradingCurrency;
-                const investedValue =
-                    costBasisByAsset.get(assetId)?.costBasisVisual ??
-                    toVisualValue(
-                        getPositionInvestedValue(position.amount, costAverage),
-                        tradingCurrency,
-                        settings.visualCurrency,
-                        forexRates,
-                    );
-                return {
+                const currentValueVisual = toVisualValue(
+                    currentValue,
+                    tradingCurrency,
+                    settings.visualCurrency,
+                    forexRates,
+                );
+                const fallbackInvestedValueVisual = toVisualValue(
+                    getPositionInvestedValue(position.amount, costAverage),
+                    tradingCurrency,
+                    settings.visualCurrency,
+                    forexRates,
+                );
+                const previousSummary = summariesByAsset.get(assetId);
+
+                summariesByAsset.set(assetId, {
                     assetId,
                     name: asset?.name ?? assetId,
                     ticker: asset?.ticker ?? assetId,
                     assetType: asset?.assetType ?? "other",
-                    amount: position.amount,
+                    amount: (previousSummary?.amount ?? 0) + position.amount,
                     tradingCurrency,
-                    currentPrice,
-                    currentValue,
-                    investedValue,
-                    currentValueVisual: toVisualValue(
-                        currentValue,
-                        tradingCurrency,
-                        settings.visualCurrency,
-                        forexRates,
-                    ),
-                    investedValueVisual: investedValue,
-                };
+                    currentValue:
+                        (previousSummary?.currentValue ?? 0) + currentValue,
+                    currentValueVisual:
+                        (previousSummary?.currentValueVisual ?? 0) +
+                        currentValueVisual,
+                    fallbackInvestedValueVisual:
+                        (previousSummary?.fallbackInvestedValueVisual ?? 0) +
+                        fallbackInvestedValueVisual,
+                });
             });
+
+        return Array.from(summariesByAsset.values()).map((summary) => {
+            const currentPrice =
+                livePricesByAsset[summary.assetId] ??
+                (summary.amount > 0 ? summary.currentValue / summary.amount : 0);
+            const investedValueVisual =
+                costBasisByAsset.get(summary.assetId)?.costBasisVisual ??
+                summary.fallbackInvestedValueVisual;
+
+            return {
+                assetId: summary.assetId,
+                name: summary.name,
+                ticker: summary.ticker,
+                assetType: summary.assetType,
+                amount: summary.amount,
+                tradingCurrency: summary.tradingCurrency,
+                currentPrice,
+                currentValue: summary.currentValue,
+                investedValue: investedValueVisual,
+                currentValueVisual: summary.currentValueVisual,
+                investedValueVisual,
+            };
+        });
     }, [
         assets,
         settings.visualCurrency,
