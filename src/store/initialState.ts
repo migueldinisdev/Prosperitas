@@ -204,6 +204,7 @@ export const defaultState: ProsperitasState = {
         },
         sp500AccSymbol: "VUAA.DE",
         sp500AccCurrency: "EUR",
+        priceRequestsPerSecond: 60,
         hypotheticalAssetPrices: {},
     },
     account: {

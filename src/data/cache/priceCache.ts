@@ -137,6 +137,65 @@ export const setCachedPrices = async (entries: PriceCacheEntry[]) => {
     });
 };
 
+export const clearCachedPricesForTicker = async (params: {
+    type: PriceAssetType;
+    ticker: string;
+}) => {
+    const ticker = params.ticker.trim().toUpperCase();
+    const tickerKey = makeTickerKey(params.type, ticker);
+
+    if (!isIndexedDbAvailable) {
+        const fallback = loadFallbackCache();
+        const matchingIds = Object.values(fallback)
+            .filter((entry) => entry.tickerKey === tickerKey)
+            .map((entry) => entry.id);
+        matchingIds.forEach((id) => {
+            delete fallback[id];
+        });
+        saveFallbackCache(fallback);
+        return matchingIds.length;
+    }
+
+    const db = await openPricesDb();
+    return new Promise<number>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        const index = store.index("tickerKey");
+        const request = index.openCursor(IDBKeyRange.only(tickerKey));
+        let deletedCount = 0;
+
+        request.onsuccess = () => {
+            const cursor = request.result;
+            if (!cursor) return;
+            cursor.delete();
+            deletedCount += 1;
+            cursor.continue();
+        };
+        tx.oncomplete = () => resolve(deletedCount);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+    });
+};
+
+export const clearAllCachedPrices = async () => {
+    if (!isIndexedDbAvailable) {
+        const deletedCount = Object.keys(loadFallbackCache()).length;
+        saveFallbackCache({});
+        return deletedCount;
+    }
+
+    const db = await openPricesDb();
+    return new Promise<number>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        const countRequest = store.count();
+        store.clear();
+        tx.oncomplete = () => resolve(countRequest.result);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+    });
+};
+
 export const getClosestCachedPrice = async (params: {
     type: PriceAssetType;
     ticker: string;

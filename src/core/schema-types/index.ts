@@ -35,6 +35,7 @@ export interface Settings {
     numberFormat: NumberFormatSettings;
     sp500AccSymbol: string;
     sp500AccCurrency: Currency;
+    priceRequestsPerSecond: number;
     hypotheticalAssetPrices?: Record<string, number>;
 }
 

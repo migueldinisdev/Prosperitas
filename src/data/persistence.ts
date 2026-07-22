@@ -8,6 +8,7 @@ import { CURRENT_SCHEMA_VERSION } from "../store/initialState";
 const REQUIRED_KEYS = PERSISTED_KEYS.filter((key) => key !== "livePrices");
 const DEFAULT_SP500_ACC_SYMBOL = "VUAA.DE";
 const DEFAULT_SP500_ACC_CURRENCY = "EUR";
+const DEFAULT_PRICE_REQUESTS_PER_SECOND = 60;
 
 const validateStateShape = (data: unknown): data is PersistedState => {
     if (!data || typeof data !== "object") return false;
@@ -25,6 +26,9 @@ const migrateState = (state: PersistedState): PersistedState => {
                 state.settings.sp500AccSymbol ?? DEFAULT_SP500_ACC_SYMBOL,
             sp500AccCurrency:
                 state.settings.sp500AccCurrency ?? DEFAULT_SP500_ACC_CURRENCY,
+            priceRequestsPerSecond:
+                state.settings.priceRequestsPerSecond ??
+                DEFAULT_PRICE_REQUESTS_PER_SECOND,
         },
     };
 

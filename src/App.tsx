@@ -21,6 +21,7 @@ import { AssetsPage } from "./pages/assets";
 import { useSyncStatus } from "./store/syncStatus";
 import { Notifications } from "./components/Notifications";
 import { FullPageLoader } from "./components/FullPageLoader";
+import { PriceRequestProgress } from "./components/PriceRequestProgress";
 
 const AppRoutes: React.FC<{
     isMobileMenuOpen: boolean;
@@ -56,6 +57,7 @@ const AppRoutes: React.FC<{
     return (
         <div className="flex min-h-screen bg-app-bg text-app-foreground font-sans selection:bg-app-primary/20">
             <Notifications />
+            <PriceRequestProgress />
             {!isLanding && (
                 <LateralMenu
                     isMobileOpen={isMobileMenuOpen}

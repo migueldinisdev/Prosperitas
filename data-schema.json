@@ -15,7 +15,8 @@
       "maxFractionDigits": 2
     },
     "sp500AccSymbol": "VUAA.DE",
-    "sp500AccCurrency": "EUR"
+    "sp500AccCurrency": "EUR",
+    "priceRequestsPerSecond": 60
   },
   "account": {
     "name": "Miguel"

@@ -1,5 +1,7 @@
 import {
     buildPriceCacheEntry,
+    clearAllCachedPrices,
+    clearCachedPricesForTicker,
     getCachedPrice,
     getMostRecentCachedPrice,
     getPreviousCachedPrice,
@@ -13,12 +15,12 @@ import { fetchCryptoHistorical, fetchCryptoLive } from "./api/prices/cryptoApi";
 import {
     PriceApiError,
     PriceFallbackError,
-    TickerNotFoundError,
 } from "./api/prices/errors";
 import { store } from "../store";
 import { setLivePrice } from "../store/slices/livePricesSlice";
 
 export type { PriceAssetType };
+export { clearAllCachedPrices, clearCachedPricesForTicker };
 
 export interface PriceResult {
     ticker: string;
@@ -51,6 +53,16 @@ const makeLivePriceKey = (type: PriceAssetType, ticker: string) =>
     `${type}:${ticker}`;
 
 const toDateMs = (date: string) => new Date(`${date}T00:00:00.000Z`).getTime();
+
+const MAX_HISTORICAL_FALLBACK_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+const isRecentPreviousEntry = (
+    entry: PriceCacheEntry,
+    targetDate: string
+) => {
+    const ageMs = toDateMs(targetDate) - entry.dateMs;
+    return ageMs >= 0 && ageMs <= MAX_HISTORICAL_FALLBACK_AGE_MS;
+};
 
 const selectPreviousEntry = (entries: PriceCacheEntry[], targetDate: string) => {
     if (!entries.length) return null;
@@ -177,20 +189,12 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
 
         if (request.date) {
             const closest = selectPreviousEntry(filteredEntries, request.date);
-            if (closest) {
-                if (closest.date !== request.date) {
-                    const aliasEntry = buildPriceCacheEntry(
-                        request.type,
-                        ticker,
-                        request.date,
-                        closest.close,
-                        closest.source
-                    );
-                    await setCachedPrices([aliasEntry]);
-                    return buildResult(aliasEntry);
-                }
+            if (closest && isRecentPreviousEntry(closest, request.date)) {
                 return buildResult(closest);
             }
+            throw new PriceApiError(
+                "No sufficiently recent price data returned from provider."
+            );
         }
 
         if (filteredEntries[0]) {
@@ -199,43 +203,22 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
 
         throw new PriceApiError("No price data returned from provider.");
     } catch (error) {
-        if (error instanceof TickerNotFoundError) {
-            throw error;
-        }
-
         const baseError =
             error instanceof Error ? error : new Error("Unknown error");
         const errorMessage = baseError.message || "Price fetch failed.";
 
         if (request.date) {
-            try {
-                const closest = await getPreviousCachedPrice({
-                    type: request.type,
-                    ticker,
-                    date: request.date,
-                });
-                if (closest) {
-                    const fallbackEntry =
-                        closest.date !== request.date
-                            ? buildPriceCacheEntry(
-                                  request.type,
-                                  ticker,
-                                  request.date,
-                                  closest.close,
-                                  closest.source
-                              )
-                            : closest;
-                    if (fallbackEntry !== closest) {
-                        await setCachedPrices([fallbackEntry]);
-                    }
-                    throw new PriceFallbackError(
-                        errorMessage,
-                        baseError,
-                        buildResult(fallbackEntry, true)
-                    );
-                }
-            } catch (cacheError) {
-                throw cacheError;
+            const closest = await getPreviousCachedPrice({
+                type: request.type,
+                ticker,
+                date: request.date,
+            });
+            if (closest && isRecentPreviousEntry(closest, request.date)) {
+                throw new PriceFallbackError(
+                    errorMessage,
+                    baseError,
+                    buildResult(closest, true)
+                );
             }
         }
 
