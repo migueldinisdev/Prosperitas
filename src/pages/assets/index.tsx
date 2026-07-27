@@ -20,7 +20,6 @@ import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { toVisualValue } from "../../core/finance";
 import { YahooAPIStockSelect } from "../../components/YahooAPIStockSelect";
-import { StooqAPIStockSelect } from "../../components/StooqAPIStockSelect";
 
 interface Props {
     onMenuClick: () => void;
@@ -130,8 +129,6 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
     const [editAssetName, setEditAssetName] = useState("");
     const [editAssetYfTicker, setEditAssetYfTicker] = useState("");
     const [editAssetYfSearch, setEditAssetYfSearch] = useState("");
-    const [editAssetStooq, setEditAssetStooq] = useState("");
-    const [editAssetStooqSearch, setEditAssetStooqSearch] = useState("");
     const [editAssetCurrency, setEditAssetCurrency] = useState<Currency>("USD");
     const [editAssetQuoteAlias, setEditAssetQuoteAlias] = useState("USDT");
     const [editAssetPieId, setEditAssetPieId] = useState("");
@@ -169,8 +166,6 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
         setEditAssetName(asset.name);
         setEditAssetYfTicker(asset.yfTicker ?? "");
         setEditAssetYfSearch(asset.yfTicker ?? "");
-        setEditAssetStooq(asset.stooqTicker ?? "");
-        setEditAssetStooqSearch(asset.stooqTicker ?? "");
         setEditAssetCurrency(asset.tradingCurrency);
         setEditAssetQuoteAlias(
             asset.assetType === "crypto"
@@ -187,10 +182,6 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
     const handleEditAssetSave = () => {
         if (!editAssetId) return;
         if (conflictingEditedAsset) return;
-        const stooqValue =
-            editAssetType === "stock" || editAssetType === "etf"
-                ? (editAssetStooqSearch.trim() || editAssetStooq.trim()) || null
-                : null;
         const yfValue =
             editAssetType === "stock" || editAssetType === "etf"
                 ? (editAssetYfSearch.trim() || editAssetYfTicker.trim()).toUpperCase() ||
@@ -204,7 +195,6 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
                     ticker: normalizedEditAssetTicker,
                     name: normalizedEditAssetName || normalizedEditAssetTicker,
                     yfTicker: yfValue,
-                    stooqTicker: stooqValue,
                     cryptoQuoteAlias:
                         editAssetType === "crypto"
                             ? editAssetQuoteAlias.trim().toUpperCase() || null
@@ -493,25 +483,6 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
                             selectedValue={editAssetYfTicker}
                             onSelect={setEditAssetYfTicker}
                             placeholder="Search Yahoo ticker"
-                            disabled={
-                                editAssetType !== "stock" &&
-                                editAssetType !== "etf"
-                            }
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-app-muted mb-1">
-                            Stooq Ticker
-                        </label>
-                        <StooqAPIStockSelect
-                            searchValue={editAssetStooqSearch}
-                            onSearchChange={(value) => {
-                                setEditAssetStooqSearch(value);
-                                setEditAssetStooq(value);
-                            }}
-                            selectedValue={editAssetStooq}
-                            onSelect={setEditAssetStooq}
-                            placeholder="Search stooq ticker"
                             disabled={
                                 editAssetType !== "stock" &&
                                 editAssetType !== "etf"

@@ -9,10 +9,6 @@ const DEFAULT_REQUESTS_PER_SECOND = 60;
 const MIN_REQUESTS_PER_SECOND = 1;
 const MAX_REQUESTS_PER_SECOND = 1000;
 let maxRequestsPerSecond = DEFAULT_REQUESTS_PER_SECOND;
-const MAX_CONCURRENT_REQUESTS = 6;
-const consecutiveErrors: number[] = [];
-const MAX_CONSECUTIVE_ERRORS = 10;
-const ERROR_WINDOW_MS = 30000; // 30 seconds
 type ReleaseRequestSlot = () => void;
 type QueuedRequest = {
     resolve: (release: ReleaseRequestSlot) => void;
@@ -76,21 +72,12 @@ const pruneSchedulerHistory = (now: number) => {
     while (requestTimestamps.length > 0 && requestTimestamps[0] <= cutoff) {
         requestTimestamps.shift();
     }
-
-    const errorCutoff = now - ERROR_WINDOW_MS;
-    while (consecutiveErrors.length > 0 && consecutiveErrors[0] <= errorCutoff) {
-        consecutiveErrors.shift();
-    }
 };
 
 const getSchedulerDelay = (now: number) => {
-    const rateLimitDelay = requestTimestamps.length >= maxRequestsPerSecond
+    return requestTimestamps.length >= maxRequestsPerSecond
         ? requestTimestamps[0] + RATE_LIMIT_WINDOW_MS - now
         : 0;
-    const errorCooldownDelay = consecutiveErrors.length >= MAX_CONSECUTIVE_ERRORS
-        ? consecutiveErrors[0] + ERROR_WINDOW_MS - now
-        : 0;
-    return Math.max(0, rateLimitDelay, errorCooldownDelay);
 };
 
 const scheduleQueueDrain = (delayMs: number) => {
@@ -115,7 +102,7 @@ const drainRequestQueue = () => {
 
     while (
         requestQueue.length > 0 &&
-        activeRequestCount < MAX_CONCURRENT_REQUESTS &&
+        activeRequestCount < maxRequestsPerSecond &&
         requestTimestamps.length < maxRequestsPerSecond
     ) {
         const queuedRequest = requestQueue.shift();
@@ -137,7 +124,7 @@ const drainRequestQueue = () => {
 
     if (
         requestQueue.length > 0 &&
-        activeRequestCount < MAX_CONCURRENT_REQUESTS
+        activeRequestCount < maxRequestsPerSecond
     ) {
         const nextDelayMs = getSchedulerDelay(Date.now());
         if (nextDelayMs > 0) {
@@ -199,18 +186,6 @@ export const setPriceRequestsPerSecond = (limit: number) => {
     drainRequestQueue();
 };
 
-const recordError = () => {
-    consecutiveErrors.push(Date.now());
-};
-
-const recordSuccess = () => {
-    // Clear error history on successful request
-    consecutiveErrors.length = 0;
-};
-
-const isAbortError = (error: unknown): boolean =>
-    error instanceof DOMException && error.name === "AbortError";
-
 const getRequestUrl = (input: RequestInfo | URL): string => {
     if (typeof input === "string") {
         return input;
@@ -264,24 +239,11 @@ export const fetchWithTimeout = async (
     }
 
     try {
-        const response = await fetch(input, {
+        return await fetch(input, {
             ...rest,
             signal: controller.signal,
         });
-
-        if (applyGlobalRateLimit && !response.ok) {
-            recordError();
-        } else if (applyGlobalRateLimit) {
-            recordSuccess();
-        }
-
-        return response;
     } catch (error) {
-        // Aborts are expected during typeahead flows and should not trip
-        // the global error circuit breaker.
-        if (applyGlobalRateLimit && !isAbortError(error)) {
-            recordError();
-        }
         if (timedOut) {
             throw new PriceApiError("Request timed out.");
         }

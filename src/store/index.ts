@@ -24,6 +24,7 @@ import {
 } from "./persist";
 import { replaceState } from "./actions";
 import { dirtyMiddleware } from "./dirtyMiddleware";
+import { migrateState } from "../data/persistence";
 
 const appReducer = combineReducers({
     schemaVersion: schemaVersionReducer,
@@ -100,7 +101,12 @@ const shouldRehydrate = () => {
     return storedMode !== 'cloud';
 };
 
-export const persistor = persistStore(store, persistConfig, undefined, shouldRehydrate);
+export const persistor = persistStore(
+    store,
+    persistConfig,
+    (state) => migrateState(state as ProsperitasState),
+    shouldRehydrate,
+);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

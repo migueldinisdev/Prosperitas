@@ -3,9 +3,11 @@ import {
     clearAllCachedPrices,
     clearCachedPricesForTicker,
     getCachedPrice,
+    getHistoricalPriceCoverage,
     getMostRecentCachedPrice,
     getPreviousCachedPrice,
     setCachedPrices,
+    setHistoricalPriceCoverage,
     PriceAssetType,
     PriceCacheEntry,
 } from "./cache/priceCache";
@@ -18,6 +20,7 @@ import {
 } from "./api/prices/errors";
 import { store } from "../store";
 import { setLivePrice } from "../store/slices/livePricesSlice";
+import { addNotification } from "../store/slices/notificationsSlice";
 
 export type { PriceAssetType };
 export { clearAllCachedPrices, clearCachedPricesForTicker };
@@ -36,7 +39,20 @@ interface PriceRequest {
     type: PriceAssetType;
     date?: string;
     symbolYF?: string;
-    symbolStooq?: string;
+}
+
+interface ApiPriceEntry {
+    date: string;
+    close: number;
+    source: string;
+}
+
+interface ApiPriceResult {
+    entries: ApiPriceEntry[];
+    coverage?: {
+        from: string;
+        to: string;
+    };
 }
 
 export interface PriceBatchRequest extends PriceRequest {}
@@ -55,6 +71,27 @@ const makeLivePriceKey = (type: PriceAssetType, ticker: string) =>
 const toDateMs = (date: string) => new Date(`${date}T00:00:00.000Z`).getTime();
 
 const MAX_HISTORICAL_FALLBACK_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const STOCK_ERROR_NOTIFICATION_COOLDOWN_MS = 5 * 60 * 1000;
+const lastStockErrorNotificationByTicker = new Map<string, number>();
+
+const notifyInvalidYahooTicker = (ticker: string) => {
+    const now = Date.now();
+    const lastNotification =
+        lastStockErrorNotificationByTicker.get(ticker) ?? 0;
+    if (now - lastNotification < STOCK_ERROR_NOTIFICATION_COOLDOWN_MS) {
+        return;
+    }
+
+    lastStockErrorNotificationByTicker.set(ticker, now);
+    store.dispatch(
+        addNotification({
+            type: "error",
+            title: "Yahoo ticker request failed",
+            message: `The Yahoo Finance request for ${ticker} failed because the ticker is wrong.`,
+            timeout: 8000,
+        })
+    );
+};
 
 const isRecentPreviousEntry = (
     entry: PriceCacheEntry,
@@ -92,24 +129,22 @@ const fetchFromApi = async (
     type: PriceAssetType,
     ticker: string,
     date?: string,
-    symbolYF?: string,
-    symbolStooq?: string
-) => {
+    symbolYF?: string
+): Promise<ApiPriceResult> => {
     if (!date) {
         if (type === "stock") {
             const price = await fetchStockLive({
                 symbol: ticker,
                 symbolYF,
-                symbolStooq,
             });
-            return [price];
+            return { entries: [price] };
         }
         if (type === "forex") {
             const price = await fetchForexLive(ticker);
-            return [price];
+            return { entries: [price] };
         }
         const price = await fetchCryptoLive(ticker);
-        return [price];
+        return { entries: [price] };
     }
 
     if (type === "stock") {
@@ -117,18 +152,33 @@ const fetchFromApi = async (
             {
                 symbol: ticker,
                 symbolYF,
-                symbolStooq,
             },
             date
         );
     }
     if (type === "forex") {
-        return fetchForexHistorical(ticker, date);
+        const entries = await fetchForexHistorical(ticker, date);
+        const dates = [date, ...entries.map((entry) => entry.date)].sort(
+            (a, b) => a.localeCompare(b)
+        );
+        return {
+            entries,
+            coverage: {
+                from: dates[0],
+                to: dates[dates.length - 1],
+            },
+        };
     }
-    return fetchCryptoHistorical(ticker, date);
+    const entries = await fetchCryptoHistorical(ticker, date);
+    return {
+        entries,
+        coverage: { from: date, to: date },
+    };
 };
 
-export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
+const getPriceUnshared = async (
+    request: PriceRequest
+): Promise<PriceResult> => {
     const ticker = normalizeTicker(request.ticker);
 
     try {
@@ -141,6 +191,25 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
             if (cached) {
                 return buildResult(cached, true);
             }
+            const coverage = await getHistoricalPriceCoverage({
+                type: request.type,
+                ticker,
+                date: request.date,
+            });
+            if (coverage) {
+                const previous = await getPreviousCachedPrice({
+                    type: request.type,
+                    ticker,
+                    date: request.date,
+                });
+                if (
+                    previous &&
+                    previous.date >= coverage.from &&
+                    isRecentPreviousEntry(previous, request.date)
+                ) {
+                    return buildResult(previous, true);
+                }
+            }
         } else {
             // Always hit the live API; cache is only for fallback/reference.
         }
@@ -149,14 +218,18 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
     }
 
     try {
-        const apiEntries = await fetchFromApi(
+        const apiResult = await fetchFromApi(
             request.type,
             ticker,
             request.date,
-            request.symbolYF,
-            request.symbolStooq
-        );
-        const cacheEntries = apiEntries.map((entry) =>
+            request.symbolYF
+        ).catch((error) => {
+            if (request.type === "stock") {
+                notifyInvalidYahooTicker(ticker);
+            }
+            throw error;
+        });
+        const cacheEntries = apiResult.entries.map((entry) =>
             buildPriceCacheEntry(
                 request.type,
                 ticker,
@@ -166,30 +239,38 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
             )
         );
 
-        const filteredEntries = request.date
+        const eligibleEntries = request.date
             ? cacheEntries.filter((entry) => entry.date <= request.date!)
             : cacheEntries;
-        if (!filteredEntries.length) {
+        if (!eligibleEntries.length) {
             throw new PriceApiError("No price data returned from provider.");
         }
 
-        await setCachedPrices(filteredEntries);
+        await setCachedPrices(cacheEntries);
         if (!request.date) {
             store.dispatch(
                 setLivePrice({
                     key: makeLivePriceKey(request.type, ticker),
                     type: request.type,
                     ticker,
-                    value: filteredEntries[0].close,
+                    value: eligibleEntries[0].close,
                     updatedAt: new Date().toISOString(),
-                    source: filteredEntries[0].source,
+                    source: eligibleEntries[0].source,
                 })
             );
         }
 
         if (request.date) {
-            const closest = selectPreviousEntry(filteredEntries, request.date);
+            const closest = selectPreviousEntry(eligibleEntries, request.date);
             if (closest && isRecentPreviousEntry(closest, request.date)) {
+                if (apiResult.coverage) {
+                    await setHistoricalPriceCoverage({
+                        type: request.type,
+                        ticker,
+                        from: apiResult.coverage.from,
+                        to: apiResult.coverage.to,
+                    });
+                }
                 return buildResult(closest);
             }
             throw new PriceApiError(
@@ -197,8 +278,8 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
             );
         }
 
-        if (filteredEntries[0]) {
-            return buildResult(filteredEntries[0]);
+        if (eligibleEntries[0]) {
+            return buildResult(eligibleEntries[0]);
         }
 
         throw new PriceApiError("No price data returned from provider.");
@@ -250,6 +331,29 @@ export const getPrice = async (request: PriceRequest): Promise<PriceResult> => {
 
         throw error;
     }
+};
+
+const inFlightHistoricalPriceRequests = new Map<
+    string,
+    Promise<PriceResult>
+>();
+
+export const getPrice = (request: PriceRequest): Promise<PriceResult> => {
+    if (!request.date) {
+        return getPriceUnshared(request);
+    }
+
+    const key = `${request.type}:${normalizeTicker(request.ticker)}:${request.date}`;
+    const existing = inFlightHistoricalPriceRequests.get(key);
+    if (existing) return existing;
+
+    const pending = getPriceUnshared(request).finally(() => {
+        if (inFlightHistoricalPriceRequests.get(key) === pending) {
+            inFlightHistoricalPriceRequests.delete(key);
+        }
+    });
+    inFlightHistoricalPriceRequests.set(key, pending);
+    return pending;
 };
 
 export const getPricesBatch = async (

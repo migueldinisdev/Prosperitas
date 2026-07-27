@@ -314,22 +314,22 @@ Checklist before adding a new types file:
 - Historical prices/FX: cached (IndexedDB) and fetched on demand.
 - Priority: use FX rate saved on transaction if present; otherwise fallback to live/historical.
 - APIs cover crypto and FX.
-- Stock market prices: public APIs are limited and CORS complicates direct calls, so we use a serverless proxy function to call the STOOQ.com legacy API; this source may be taken down in the future.
+- Stock market prices: public APIs are limited and CORS complicates direct calls, so we use a serverless proxy function to call Yahoo Finance.
 
 ---
 
-## 10) API Schema (Stooq Proxy)
+## 10) API Schema (Stock Proxy)
 
-Base path: `/api/proxy/stooq`
+Base path: `/api/proxy/stock`
 
 Endpoints
-- `GET /api/proxy/stooq/live`
-- `GET /api/proxy/stooq/historical`
+- `GET /api/proxy/stock/live`
+- `GET /api/proxy/stock/historical`
 
 Common response shape
 ```json
 {
-  "symbol": "GOOGL.US",
+  "symbol": "GOOGL",
   "type": "live | historical",
   "data": [
     {
@@ -342,13 +342,13 @@ Common response shape
       "volume": 0
     }
   ],
-  "source": "stooq"
+  "source": "yahoo"
 }
 ```
 
 Live
 ```
-GET /api/proxy/stooq/live?symbol=GOOGL.US
+GET /api/proxy/stock/live?symbolYF=GOOGL
 ```
 
 Response notes
@@ -357,12 +357,12 @@ Response notes
 
 Historical
 ```
-GET /api/proxy/stooq/historical?symbol=GOOGL.US&from=20200101&to=20210101
-GET /api/proxy/stooq/historical?symbol=GOOGL.US&from=20200101
+GET /api/proxy/stock/historical?symbolYF=GOOGL&from=20200101&to=20210101
+GET /api/proxy/stock/historical?symbolYF=GOOGL&from=20200101
 ```
 
 Request params
-- `symbol` (required): Stooq ticker, e.g. `GOOGL.US`
+- `symbolYF` (required): Yahoo Finance ticker, e.g. `GOOGL`
 - `from` (required): `YYYYMMDD`
 - `to` (optional): `YYYYMMDD`
 
@@ -373,7 +373,7 @@ Response notes
 Historical response (adds `range`)
 ```json
 {
-  "symbol": "GOOGL.US",
+  "symbol": "GOOGL",
   "type": "historical",
   "range": { "from": "YYYYMMDD", "to": "YYYYMMDD" },
   "data": [
@@ -387,7 +387,7 @@ Historical response (adds `range`)
       "volume": 0
     }
   ],
-  "source": "stooq"
+  "source": "yahoo"
 }
 ```
 

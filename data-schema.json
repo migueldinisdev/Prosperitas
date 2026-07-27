@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "0.1",
+  "schemaVersion": "0.2",
 
   "meta": {
     "createdAt": "2025-12-22T00:00:00.000Z",
@@ -70,7 +70,6 @@
       "id": "a_0",
       "ticker": "BTC",
       "yfTicker": null,
-      "stooqTicker": null,
       "exchange": null,
       "tradingCurrency": "USD",
       "cryptoQuoteAlias": "USDT",
@@ -87,7 +86,6 @@
       "id": "a_1",
       "ticker": "VUAA",
       "yfTicker": null,
-      "stooqTicker": null,
       "exchange": "MIL",
       "tradingCurrency": "EUR",
       "name": "Vanguard S&P 500 UCITS ETF",

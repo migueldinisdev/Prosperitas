@@ -88,7 +88,6 @@ export interface Asset {
     id: string;
     ticker: string;
     yfTicker?: string | null;
-    stooqTicker?: string | null;
     tradingCurrency: Currency;
     cryptoQuoteAlias?: string | null;
     name: string;

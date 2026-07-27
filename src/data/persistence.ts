@@ -1,4 +1,6 @@
 import {
+    Asset,
+    AssetsState,
     ProsperitasState,
     PersistedState,
     PERSISTED_KEYS,
@@ -10,16 +12,41 @@ const DEFAULT_SP500_ACC_SYMBOL = "VUAA.DE";
 const DEFAULT_SP500_ACC_CURRENCY = "EUR";
 const DEFAULT_PRICE_REQUESTS_PER_SECOND = 60;
 
+type LegacyAsset = Asset & {
+    stooqTicker?: string | null;
+};
+
+const migrateAssets = (assets: AssetsState): AssetsState =>
+    Object.fromEntries(
+        Object.entries(assets).map(([assetId, legacyAsset]) => {
+            const { stooqTicker, ...asset } = legacyAsset as LegacyAsset;
+            const migratedYahooTicker =
+                asset.yfTicker?.trim()
+                    ? asset.yfTicker
+                    : stooqTicker?.trim()
+                      ? stooqTicker
+                      : null;
+
+            return [
+                assetId,
+                {
+                    ...asset,
+                    yfTicker: migratedYahooTicker || null,
+                },
+            ];
+        })
+    );
+
 const validateStateShape = (data: unknown): data is PersistedState => {
     if (!data || typeof data !== "object") return false;
     return REQUIRED_KEYS.every((key) => key in (data as Record<string, unknown>));
 };
 
-const migrateState = (state: PersistedState): PersistedState => {
-    // Future migrations will be added here when schemaVersion changes.
+export const migrateState = (state: PersistedState): PersistedState => {
     const migrated = {
-        livePrices: state.livePrices ?? {},
         ...state,
+        assets: migrateAssets(state.assets),
+        livePrices: state.livePrices ?? {},
         settings: {
             ...state.settings,
             sp500AccSymbol:
@@ -54,7 +81,7 @@ export const serializeState = (state: ProsperitasState): string => {
         account: state.account,
         categories: state.categories,
         balance: state.balance,
-        assets: state.assets,
+        assets: migrateAssets(state.assets),
         wallets: state.wallets,
         walletPositions: state.walletPositions,
         walletTx: state.walletTx,

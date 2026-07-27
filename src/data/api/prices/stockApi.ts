@@ -37,10 +37,14 @@ interface StockErrorResponse {
 export interface StockSymbols {
     symbol?: string;
     symbolYF?: string | null;
-    symbolStooq?: string | null;
 }
 
-const STQ_BASE_PATH = "/api/proxy/stock";
+const STOCK_BASE_PATH = "/api/proxy/stock";
+
+const compactDateToIso = (date: string) =>
+    /^\d{8}$/.test(date)
+        ? `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`
+        : date;
 
 const parseStockResponse = async <T>(response: Response): Promise<T> => {
     const payload = (await response.json()) as T | StockErrorResponse;
@@ -56,9 +60,6 @@ const buildStockQuery = (symbols: StockSymbols) => {
     if (symbols.symbolYF?.trim()) {
         params.set("symbolYF", symbols.symbolYF.trim());
     }
-    if (symbols.symbolStooq?.trim()) {
-        params.set("symbolStooq", symbols.symbolStooq.trim());
-    }
     if (!params.toString() && symbols.symbol?.trim()) {
         params.set("symbol", symbols.symbol.trim());
     }
@@ -69,18 +70,18 @@ export const fetchStockLive = async (symbols: string | StockSymbols) => {
     const symbolRequest =
         typeof symbols === "string" ? { symbol: symbols } : symbols;
     const query = buildStockQuery(symbolRequest);
-    const response = await fetchWithTimeout(`${STQ_BASE_PATH}/live?${query.toString()}`);
+    const response = await fetchWithTimeout(`${STOCK_BASE_PATH}/live?${query.toString()}`);
     const payload = await parseStockResponse<StockLiveResponse>(response);
     if (!payload.data || payload.data.length === 0) {
         throw new TickerNotFoundError(
-            symbolRequest.symbolYF || symbolRequest.symbolStooq || symbolRequest.symbol || "",
+            symbolRequest.symbolYF || symbolRequest.symbol || "",
             "stock"
         );
     }
     const [candle] = payload.data;
     if (candle.close == null) {
         throw new TickerNotFoundError(
-            symbolRequest.symbolYF || symbolRequest.symbolStooq || symbolRequest.symbol || "",
+            symbolRequest.symbolYF || symbolRequest.symbol || "",
             "stock",
             "ticker not found"
         );
@@ -103,12 +104,12 @@ export const fetchStockHistorical = async (
     query.set("from", formattedDate);
 
     const response = await fetchWithTimeout(
-        `${STQ_BASE_PATH}/historical?${query.toString()}`
+        `${STOCK_BASE_PATH}/historical?${query.toString()}`
     );
     const payload = await parseStockResponse<StockHistoricalResponse>(response);
     if (!payload.data || payload.data.length === 0) {
         throw new TickerNotFoundError(
-            symbolRequest.symbolYF || symbolRequest.symbolStooq || symbolRequest.symbol || "",
+            symbolRequest.symbolYF || symbolRequest.symbol || "",
             "stock"
         );
     }
@@ -121,10 +122,27 @@ export const fetchStockHistorical = async (
         }));
     if (entries.length === 0) {
         throw new TickerNotFoundError(
-            symbolRequest.symbolYF || symbolRequest.symbolStooq || symbolRequest.symbol || "",
+            symbolRequest.symbolYF || symbolRequest.symbol || "",
             "stock",
             "ticker not found"
         );
     }
-    return entries;
+    const entryDates = entries.map((entry) => entry.date);
+    const fallbackCoverageDates = [date, ...entryDates].sort((a, b) =>
+        a.localeCompare(b)
+    );
+    const today = new Date().toISOString().slice(0, 10);
+    const rangeFrom = payload.range
+        ? compactDateToIso(payload.range.from)
+        : fallbackCoverageDates[0];
+    const rangeTo = payload.range
+        ? compactDateToIso(payload.range.to)
+        : fallbackCoverageDates[fallbackCoverageDates.length - 1];
+    return {
+        entries,
+        coverage: {
+            from: rangeFrom,
+            to: rangeTo < today ? rangeTo : today,
+        },
+    };
 };

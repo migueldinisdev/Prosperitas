@@ -3,6 +3,7 @@
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 interface UnifiedCandle {
+    [key: string]: JsonValue;
     date: string;
     time: string | null;
     open: number | null;
@@ -64,29 +65,6 @@ function parseNumber(value: unknown): number | null {
     return null;
 }
 
-function parseCsvRows(csvText: string) {
-    const lines = csvText.trim().split(/\r?\n/);
-    if (lines.length <= 1) return [] as UnifiedCandle[];
-    const rows: UnifiedCandle[] = [];
-    for (let i = 1; i < lines.length; i += 1) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        const parts = line.split(",");
-        if (parts.length < 5) continue;
-        while (parts.length < 6) parts.push("");
-        rows.push({
-            date: parts[0],
-            time: null,
-            open: parseNumber(parts[1]),
-            high: parseNumber(parts[2]),
-            low: parseNumber(parts[3]),
-            close: parseNumber(parts[4]),
-            volume: parseNumber(parts[5]),
-        });
-    }
-    return rows;
-}
-
 const fetchWithTimeout = async (url: string, timeoutMs: number, init?: RequestInit) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -97,18 +75,10 @@ const fetchWithTimeout = async (url: string, timeoutMs: number, init?: RequestIn
     }
 };
 
-const readSymbols = (url: URL) => {
-    const symbolYF = url.searchParams.get("symbolYF")?.trim() || "";
-    const symbolStooq = url.searchParams.get("symbolStooq")?.trim() || "";
-    const legacySymbol = url.searchParams.get("symbol")?.trim() || "";
-    if (symbolYF || symbolStooq) {
-        return { symbolYF, symbolStooq };
-    }
-    if (legacySymbol) {
-        return { symbolYF: legacySymbol, symbolStooq: legacySymbol };
-    }
-    return { symbolYF: "", symbolStooq: "" };
-};
+const readYahooSymbol = (url: URL) =>
+    url.searchParams.get("symbolYF")?.trim() ||
+    url.searchParams.get("symbol")?.trim() ||
+    "";
 
 const fetchYahooHistorical = async (
     symbol: string,
@@ -157,28 +127,6 @@ const fetchYahooHistorical = async (
     }));
 };
 
-const fetchStooqHistorical = async (
-    symbol: string,
-    effectiveFrom: string,
-    effectiveTo: string
-): Promise<UnifiedCandle[] | null> => {
-    const stooqUrl = new URL("https://stooq.com/q/d/l/");
-    stooqUrl.searchParams.set("s", symbol.toLowerCase());
-    stooqUrl.searchParams.set("i", "d");
-    stooqUrl.searchParams.set("f", effectiveFrom);
-    stooqUrl.searchParams.set("t", effectiveTo);
-
-    const upstream = await fetch(stooqUrl.toString(), {
-        method: "GET",
-        headers: {
-            "User-Agent": "Prosperitas/1.0",
-        },
-    });
-    if (!upstream.ok) return null;
-    const csvText = await upstream.text();
-    return parseCsvRows(csvText);
-};
-
 export async function onRequest(context: { request: Request }): Promise<Response> {
     const { request } = context;
     if (request.method === "OPTIONS") {
@@ -186,12 +134,12 @@ export async function onRequest(context: { request: Request }): Promise<Response
     }
 
     const url = new URL(request.url);
-    const { symbolYF, symbolStooq } = readSymbols(url);
+    const symbolYF = readYahooSymbol(url);
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
 
-    if ((!symbolYF && !symbolStooq) || !from) {
-        return jsonResponse({ error: "Missing required query params: symbolYF or symbolStooq or symbol, from" }, 400);
+    if (!symbolYF || !from) {
+        return jsonResponse({ error: "Missing required query params: symbolYF or symbol, from" }, 400);
     }
 
     const fromDate = parseYmdCompact(from);
@@ -217,42 +165,23 @@ export async function onRequest(context: { request: Request }): Promise<Response
     const effectiveFromDate = parseYmdCompact(effectiveFrom) ?? fromDate;
     const effectiveToDate = parseYmdCompact(effectiveTo) ?? fromDate;
 
-    if (symbolYF) {
-        try {
-            const yfData = await fetchYahooHistorical(
-                symbolYF,
-                effectiveFromDate,
-                effectiveToDate
-            );
-            if (yfData && yfData.length > 0) {
-                return jsonResponse({
-                    symbol: symbolYF,
-                    type: "historical",
-                    range: { from: effectiveFrom, to: effectiveTo },
-                    data: yfData,
-                    source: "yahoo",
-                });
-            }
-        } catch {
-            // fallback to stooq when available
+    try {
+        const yfData = await fetchYahooHistorical(
+            symbolYF,
+            effectiveFromDate,
+            effectiveToDate
+        );
+        if (yfData && yfData.length > 0) {
+            return jsonResponse({
+                symbol: symbolYF,
+                type: "historical",
+                range: { from: effectiveFrom, to: effectiveTo },
+                data: yfData,
+                source: "yahoo",
+            });
         }
-    }
-
-    if (symbolStooq) {
-        try {
-            const stooqData = await fetchStooqHistorical(symbolStooq, effectiveFrom, effectiveTo);
-            if (stooqData) {
-                return jsonResponse({
-                    symbol: symbolStooq,
-                    type: "historical",
-                    range: { from: effectiveFrom, to: effectiveTo },
-                    data: stooqData,
-                    source: "stooq",
-                });
-            }
-        } catch {
-            // return error below
-        }
+    } catch {
+        // Return the upstream error below.
     }
 
     return jsonResponse({ error: "Upstream error", status: 502 }, 502);

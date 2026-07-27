@@ -1,6 +1,6 @@
 import { ProsperitasState } from "../core/schema-types";
 
-export const CURRENT_SCHEMA_VERSION = "0.1";
+export const CURRENT_SCHEMA_VERSION = "0.2";
 
 /*
 export const defaultState: ProsperitasState = {
@@ -67,7 +67,6 @@ export const defaultState: ProsperitasState = {
         a_0: {
             id: "a_0",
             ticker: "BTC",
-            stooqTicker: null,
             tradingCurrency: "USD",
             name: "Bitcoin",
             assetType: "crypto",
@@ -80,7 +79,6 @@ export const defaultState: ProsperitasState = {
         a_1: {
             id: "a_1",
             ticker: "VUAA",
-            stooqTicker: null,
             tradingCurrency: "EUR",
             name: "Vanguard S&P 500 UCITS ETF",
             assetType: "etf",
