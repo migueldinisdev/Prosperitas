@@ -58,7 +58,9 @@ export const useAssetLivePrices = (assets: Asset[]) => {
                         entry
                     ): entry is {
                         assetId: string;
-                        request: { type: PriceAssetType; ticker: string };
+                        request: NonNullable<
+                            ReturnType<typeof getAssetPriceRequest>
+                        >;
                     } => Boolean(entry.request)
                 ),
         [assets]
@@ -98,8 +100,8 @@ export const useAssetLivePrices = (assets: Asset[]) => {
             });
             
             const results = await Promise.all(
-                requestsToFetch.map(({ request }) =>
-                    getPrice(request)
+                requestsToFetch.map(({ assetId, request }) =>
+                    getPrice({ ...request, assetId })
                         .then((result) => ({ success: true, result }))
                         .catch((error) => ({ success: false, error }))
                 )

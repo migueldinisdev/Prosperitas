@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { AlertTriangle, Archive, Pencil } from "lucide-react";
+import React, { useMemo, useState, useSyncExternalStore } from "react";
+import { AlertCircle, AlertTriangle, Archive, Pencil } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Modal } from "../../ui/Modal";
 import { Tooltip } from "../../ui/Tooltip";
@@ -20,6 +20,10 @@ import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
 import { toVisualValue } from "../../core/finance";
 import { YahooAPIStockSelect } from "../../components/YahooAPIStockSelect";
+import {
+    getDirtyYahooTickersSnapshot,
+    subscribeToDirtyYahooTickers,
+} from "../../data/api/prices/yahooTickerStatus";
 
 interface Props {
     onMenuClick: () => void;
@@ -44,6 +48,11 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
     const walletPositions = useAppSelector(selectWalletPositionsState);
     const settings = useAppSelector(selectSettings);
     const dispatch = useAppDispatch();
+    const dirtyYahooTickers = useSyncExternalStore(
+        subscribeToDirtyYahooTickers,
+        getDirtyYahooTickersSnapshot,
+        getDirtyYahooTickersSnapshot,
+    );
 
     const assetList = useMemo(() => Object.values(assets), [assets]);
     const livePricesByAsset = useAssetLivePrices(assetList);
@@ -101,6 +110,13 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
                 const canArchive = !isUsed && Math.abs(quantity) <= ZERO_EPSILON;
                 const normalizedName = asset.name.trim().toLowerCase();
                 const hasDuplicateName = duplicateNameSet.has(normalizedName);
+                const yahooTicker = normalizeAssetTicker(
+                    asset.yfTicker || asset.ticker,
+                );
+                const dirtyYahooTicker = dirtyYahooTickers.get(asset.id);
+                const hasDirtyYahooTicker =
+                    Boolean(dirtyYahooTicker) &&
+                    dirtyYahooTicker?.ticker === yahooTicker;
 
                 return {
                     asset,
@@ -109,12 +125,15 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
                     walletNames,
                     canArchive,
                     hasDuplicateName,
+                    dirtyYahooTicker:
+                        hasDirtyYahooTicker ? dirtyYahooTicker : null,
                 };
             })
             .sort((a, b) => a.asset.name.localeCompare(b.asset.name));
     }, [
         assetList,
         duplicateNameSet,
+        dirtyYahooTickers,
         forexRates,
         livePricesByAsset,
         settings.visualCurrency,
@@ -264,7 +283,13 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
                         </thead>
                         <tbody className="divide-y divide-app-border">
                             {rows.map((row) => {
-                                const { asset, walletNames, canArchive, hasDuplicateName } = row;
+                                const {
+                                    asset,
+                                    walletNames,
+                                    canArchive,
+                                    hasDuplicateName,
+                                    dirtyYahooTicker,
+                                } = row;
                                 const isArchived = Boolean(asset.isArchived);
                                 return (
                                     <tr
@@ -288,6 +313,17 @@ export const AssetsPage: React.FC<Props> = ({ onMenuClick }) => {
                                                         <AlertTriangle
                                                             size={14}
                                                             className="text-app-warning"
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                                {dirtyYahooTicker && (
+                                                    <Tooltip
+                                                        content={`Yahoo Finance rejected ${dirtyYahooTicker.ticker} with a 404. Price requests are paused until the ticker changes.`}
+                                                    >
+                                                        <AlertCircle
+                                                            size={15}
+                                                            className="text-app-danger"
+                                                            aria-label="Yahoo ticker needs attention"
                                                         />
                                                     </Tooltip>
                                                 )}

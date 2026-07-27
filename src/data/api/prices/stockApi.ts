@@ -14,6 +14,7 @@ interface StockCandle {
 interface StockLiveResponse {
     symbol: string;
     type: "live";
+    availableFrom?: string | null;
     data: StockCandle[];
     source: string;
 }
@@ -25,6 +26,7 @@ interface StockHistoricalResponse {
         from: string;
         to: string;
     };
+    availableFrom?: string | null;
     data: StockCandle[];
     source: string;
 }
@@ -32,6 +34,10 @@ interface StockHistoricalResponse {
 interface StockErrorResponse {
     error: string;
     status: number;
+    provider?: string;
+    code?: string;
+    upstreamStatus?: number;
+    upstreamStatusText?: string;
 }
 
 export interface StockSymbols {
@@ -46,11 +52,30 @@ const compactDateToIso = (date: string) =>
         ? `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`
         : date;
 
-const parseStockResponse = async <T>(response: Response): Promise<T> => {
+const parseStockResponse = async <T>(
+    response: Response,
+    ticker: string
+): Promise<T> => {
     const payload = (await response.json()) as T | StockErrorResponse;
     if (!response.ok) {
         const error = payload as StockErrorResponse;
-        throw new PriceApiError(error.error || "Stock request failed.");
+        const details = {
+            status: error.upstreamStatus ?? error.status ?? response.status,
+            code: error.code,
+            provider: error.provider,
+        };
+        if (response.status === 404) {
+            throw new TickerNotFoundError(
+                ticker,
+                "stock",
+                error.error || `Ticker not found: ${ticker}`,
+                details
+            );
+        }
+        throw new PriceApiError(
+            error.error || "Stock request failed.",
+            details
+        );
     }
     return payload as T;
 };
@@ -71,7 +96,12 @@ export const fetchStockLive = async (symbols: string | StockSymbols) => {
         typeof symbols === "string" ? { symbol: symbols } : symbols;
     const query = buildStockQuery(symbolRequest);
     const response = await fetchWithTimeout(`${STOCK_BASE_PATH}/live?${query.toString()}`);
-    const payload = await parseStockResponse<StockLiveResponse>(response);
+    const requestedTicker =
+        symbolRequest.symbolYF || symbolRequest.symbol || "";
+    const payload = await parseStockResponse<StockLiveResponse>(
+        response,
+        requestedTicker
+    );
     if (!payload.data || payload.data.length === 0) {
         throw new TickerNotFoundError(
             symbolRequest.symbolYF || symbolRequest.symbol || "",
@@ -90,6 +120,7 @@ export const fetchStockLive = async (symbols: string | StockSymbols) => {
         date: candle.date,
         close: candle.close,
         source: payload.source,
+        availableFrom: payload.availableFrom ?? undefined,
     };
 };
 
@@ -106,7 +137,12 @@ export const fetchStockHistorical = async (
     const response = await fetchWithTimeout(
         `${STOCK_BASE_PATH}/historical?${query.toString()}`
     );
-    const payload = await parseStockResponse<StockHistoricalResponse>(response);
+    const requestedTicker =
+        symbolRequest.symbolYF || symbolRequest.symbol || "";
+    const payload = await parseStockResponse<StockHistoricalResponse>(
+        response,
+        requestedTicker
+    );
     if (!payload.data || payload.data.length === 0) {
         throw new TickerNotFoundError(
             symbolRequest.symbolYF || symbolRequest.symbol || "",
@@ -140,6 +176,7 @@ export const fetchStockHistorical = async (
         : fallbackCoverageDates[fallbackCoverageDates.length - 1];
     return {
         entries,
+        availableFrom: payload.availableFrom ?? undefined,
         coverage: {
             from: rangeFrom,
             to: rangeTo < today ? rangeTo : today,

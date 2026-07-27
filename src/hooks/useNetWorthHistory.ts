@@ -134,6 +134,8 @@ export const useNetWorthHistory = ({
             type: PriceAssetType;
             ticker: string;
             date: string;
+            symbolYF?: string;
+            assetId: string;
         }> = [];
         let skipped = 0;
         assetIds.forEach((assetId) => {
@@ -148,7 +150,7 @@ export const useNetWorthHistory = ({
                 return;
             }
             dates.forEach((date) => {
-                requests.push({ ...request, date });
+                requests.push({ ...request, assetId, date });
             });
         });
         return requests;

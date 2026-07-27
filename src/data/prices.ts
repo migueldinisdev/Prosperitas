@@ -15,9 +15,18 @@ import { fetchStockHistorical, fetchStockLive } from "./api/prices/stockApi";
 import { fetchForexHistorical, fetchForexLive } from "./api/prices/forexApi";
 import { fetchCryptoHistorical, fetchCryptoLive } from "./api/prices/cryptoApi";
 import {
+    PriceBeforeListingError,
     PriceApiError,
     PriceFallbackError,
+    TickerNotFoundError,
 } from "./api/prices/errors";
+import {
+    getDirtyYahooTicker,
+    getYahooTickerAvailableFrom,
+    markYahooTickerDirty,
+    rememberYahooTickerAvailableFrom,
+    syncYahooTicker,
+} from "./api/prices/yahooTickerStatus";
 import { store } from "../store";
 import { setLivePrice } from "../store/slices/livePricesSlice";
 import { addNotification } from "../store/slices/notificationsSlice";
@@ -34,11 +43,12 @@ export interface PriceResult {
     fromCache?: boolean;
 }
 
-interface PriceRequest {
+export interface PriceRequest {
     ticker: string;
     type: PriceAssetType;
     date?: string;
     symbolYF?: string;
+    assetId?: string;
 }
 
 interface ApiPriceEntry {
@@ -49,6 +59,7 @@ interface ApiPriceEntry {
 
 interface ApiPriceResult {
     entries: ApiPriceEntry[];
+    availableFrom?: string;
     coverage?: {
         from: string;
         to: string;
@@ -72,22 +83,52 @@ const toDateMs = (date: string) => new Date(`${date}T00:00:00.000Z`).getTime();
 
 const MAX_HISTORICAL_FALLBACK_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const STOCK_ERROR_NOTIFICATION_COOLDOWN_MS = 5 * 60 * 1000;
-const lastStockErrorNotificationByTicker = new Map<string, number>();
+const lastStockErrorNotificationByKey = new Map<string, number>();
+const yahooTickerValidationByAsset = new Map<string, Promise<void>>();
+const yahooStockLiveRequests = new Map<
+    string,
+    Promise<Awaited<ReturnType<typeof fetchStockLive>>>
+>();
 
-const notifyInvalidYahooTicker = (ticker: string) => {
+const notifyYahooError = (ticker: string, error: unknown) => {
+    const isInvalidTicker = error instanceof TickerNotFoundError;
+    const status =
+        error instanceof PriceApiError || error instanceof TickerNotFoundError
+            ? error.status
+            : undefined;
+    const notificationKey = isInvalidTicker
+        ? `invalid:${ticker}`
+        : `status:${status ?? "unknown"}`;
     const now = Date.now();
     const lastNotification =
-        lastStockErrorNotificationByTicker.get(ticker) ?? 0;
+        lastStockErrorNotificationByKey.get(notificationKey) ?? 0;
     if (now - lastNotification < STOCK_ERROR_NOTIFICATION_COOLDOWN_MS) {
         return;
     }
 
-    lastStockErrorNotificationByTicker.set(ticker, now);
+    lastStockErrorNotificationByKey.set(notificationKey, now);
+    let title = "Yahoo Finance request failed";
+    let message =
+        error instanceof Error
+            ? error.message
+            : `The Yahoo Finance request for ${ticker} failed.`;
+
+    if (isInvalidTicker) {
+        title = "Yahoo ticker not found";
+    } else if (status === 429) {
+        title = "Yahoo Finance rate limit reached";
+        message = "Yahoo Finance is receiving too many requests. Please try again later.";
+    } else if (status === 504) {
+        title = "Yahoo Finance timed out";
+    } else if (status && status >= 500) {
+        title = "Yahoo Finance is unavailable";
+    }
+
     store.dispatch(
         addNotification({
             type: "error",
-            title: "Yahoo ticker request failed",
-            message: `The Yahoo Finance request for ${ticker} failed because the ticker is wrong.`,
+            title,
+            message,
             timeout: 8000,
         })
     );
@@ -125,6 +166,47 @@ const buildResult = (
     fromCache,
 });
 
+const fetchStockLiveShared = (
+    ticker: string,
+    symbolYF?: string
+) => {
+    const yahooTicker = normalizeTicker(symbolYF || ticker);
+    const existing = yahooStockLiveRequests.get(yahooTicker);
+    if (existing) return existing;
+
+    const request = fetchStockLive({
+        symbol: ticker,
+        symbolYF,
+    })
+        .then((price) => {
+            if (price.availableFrom) {
+                rememberYahooTickerAvailableFrom(
+                    yahooTicker,
+                    price.availableFrom
+                );
+            }
+            return price;
+        })
+        .finally(() => {
+            if (yahooStockLiveRequests.get(yahooTicker) === request) {
+                yahooStockLiveRequests.delete(yahooTicker);
+            }
+        });
+    yahooStockLiveRequests.set(yahooTicker, request);
+    return request;
+};
+
+const discoverYahooTickerAvailableFrom = async (
+    ticker: string,
+    symbolYF?: string
+) => {
+    const yahooTicker = normalizeTicker(symbolYF || ticker);
+    const cached = getYahooTickerAvailableFrom(yahooTicker);
+    if (cached) return cached;
+    const price = await fetchStockLiveShared(ticker, symbolYF);
+    return price.availableFrom ?? null;
+};
+
 const fetchFromApi = async (
     type: PriceAssetType,
     ticker: string,
@@ -133,11 +215,11 @@ const fetchFromApi = async (
 ): Promise<ApiPriceResult> => {
     if (!date) {
         if (type === "stock") {
-            const price = await fetchStockLive({
-                symbol: ticker,
-                symbolYF,
-            });
-            return { entries: [price] };
+            const price = await fetchStockLiveShared(ticker, symbolYF);
+            return {
+                entries: [price],
+                availableFrom: price.availableFrom,
+            };
         }
         if (type === "forex") {
             const price = await fetchForexLive(ticker);
@@ -218,17 +300,123 @@ const getPriceUnshared = async (
     }
 
     try {
-        const apiResult = await fetchFromApi(
-            request.type,
-            ticker,
-            request.date,
-            request.symbolYF
-        ).catch((error) => {
+        const yahooTicker =
+            request.type === "stock"
+                ? normalizeTicker(request.symbolYF || request.ticker)
+                : "";
+        const throwIfYahooTickerIsDirty = () => {
+            if (!request.assetId || !yahooTicker) return;
+            const dirtyTicker = getDirtyYahooTicker(
+                request.assetId,
+                yahooTicker
+            );
+            if (!dirtyTicker) return;
+            throw new TickerNotFoundError(
+                dirtyTicker.ticker,
+                "stock",
+                dirtyTicker.message,
+                {
+                    status: 404,
+                    code: "DIRTY_YAHOO_TICKER",
+                    provider: "yahoo",
+                }
+            );
+        };
+
+        if (request.type === "stock" && request.assetId) {
+            syncYahooTicker(request.assetId, yahooTicker);
+            throwIfYahooTickerIsDirty();
+        }
+
+        const handleYahooRequestError = (error: unknown): never => {
             if (request.type === "stock") {
-                notifyInvalidYahooTicker(ticker);
+                if (
+                    request.assetId &&
+                    error instanceof TickerNotFoundError &&
+                    error.status === 404 &&
+                    error.provider === "yahoo"
+                ) {
+                    markYahooTickerDirty(
+                        request.assetId,
+                        request.symbolYF || request.ticker,
+                        error.message
+                    );
+                }
+                notifyYahooError(ticker, error);
             }
             throw error;
-        });
+        };
+
+        if (request.type === "stock" && request.date) {
+            const availableFrom =
+                getYahooTickerAvailableFrom(yahooTicker) ??
+                await discoverYahooTickerAvailableFrom(
+                    ticker,
+                    request.symbolYF
+                ).catch(handleYahooRequestError);
+            if (
+                availableFrom &&
+                request.date < availableFrom
+            ) {
+                throw new PriceBeforeListingError(
+                    yahooTicker,
+                    request.date,
+                    availableFrom
+                );
+            }
+        }
+
+        const fetchApiResult = () =>
+            fetchFromApi(
+                request.type,
+                ticker,
+                request.date,
+                request.symbolYF
+            ).catch(handleYahooRequestError);
+
+        let apiResult: ApiPriceResult;
+        if (request.type === "stock" && request.assetId) {
+            const validationKey = `${request.assetId}:${yahooTicker}`;
+            const pendingValidation =
+                yahooTickerValidationByAsset.get(validationKey);
+
+            if (pendingValidation) {
+                await pendingValidation;
+                throwIfYahooTickerIsDirty();
+                apiResult = await fetchApiResult();
+            } else {
+                let releaseValidation: () => void = () => undefined;
+                const validation = new Promise<void>((resolve) => {
+                    releaseValidation = resolve;
+                });
+                yahooTickerValidationByAsset.set(validationKey, validation);
+
+                try {
+                    apiResult = await fetchApiResult();
+                } finally {
+                    if (
+                        yahooTickerValidationByAsset.get(validationKey) ===
+                        validation
+                    ) {
+                        yahooTickerValidationByAsset.delete(validationKey);
+                    }
+                    releaseValidation();
+                }
+            }
+        } else {
+            apiResult = await fetchApiResult();
+        }
+
+        if (
+            request.type === "stock" &&
+            apiResult.availableFrom
+        ) {
+            rememberYahooTickerAvailableFrom(
+                yahooTicker,
+                apiResult.availableFrom
+            );
+        }
+
         const cacheEntries = apiResult.entries.map((entry) =>
             buildPriceCacheEntry(
                 request.type,

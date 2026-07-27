@@ -13,6 +13,17 @@ interface UnifiedCandle {
     volume: number | null;
 }
 
+interface YahooError {
+    status: number;
+    statusText: string;
+    code: string;
+    message: string;
+}
+
+type YahooHistoricalResult =
+    | { data: UnifiedCandle[]; availableFrom: string | null }
+    | { error: YahooError };
+
 function corsHeaders(): Headers {
     return new Headers({
         "Access-Control-Allow-Origin": "*",
@@ -25,8 +36,93 @@ function corsHeaders(): Headers {
 function jsonResponse(body: JsonValue, status = 200): Response {
     const headers = corsHeaders();
     headers.set("Content-Type", "application/json; charset=utf-8");
-    headers.set("Cache-Control", "public, max-age=300");
+    headers.set(
+        "Cache-Control",
+        status >= 400 ? "no-store" : "public, max-age=300"
+    );
     return new Response(JSON.stringify(body), { status, headers });
+}
+
+function yahooErrorResponse(error: YahooError): Response {
+    return jsonResponse({
+        error: error.message,
+        status: error.status,
+        provider: "yahoo",
+        code: error.code,
+        upstreamStatus: error.status,
+        upstreamStatusText: error.statusText,
+    }, error.status);
+}
+
+function parseYahooPayload(text: string): {
+    chart?: {
+        result?: Array<{
+            meta?: {
+                firstTradeDate?: number;
+                exchangeTimezoneName?: string;
+            };
+            timestamp?: number[];
+            indicators?: {
+                quote?: Array<{
+                    close?: Array<number | null>;
+                }>;
+            };
+        }> | null;
+        error?: {
+            code?: string;
+            description?: string;
+        } | null;
+    };
+} {
+    if (!text.trim()) return {};
+    try {
+        return JSON.parse(text);
+    } catch {
+        return {};
+    }
+}
+
+function yahooErrorFromResponse(upstream: Response, text: string): YahooError {
+    const payload = parseYahooPayload(text);
+    const yahooError = payload.chart?.error;
+    return {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        code: yahooError?.code || `HTTP_${upstream.status}`,
+        message:
+            yahooError?.description ||
+            text.trim().slice(0, 500) ||
+            upstream.statusText ||
+            "Yahoo Finance request failed.",
+    };
+}
+
+function formatYahooDate(
+    timestamp: number | undefined,
+    timeZone: string | undefined
+): string | null {
+    if (timestamp === undefined || !Number.isFinite(timestamp)) return null;
+    const date = new Date(timestamp * 1000);
+    if (Number.isNaN(date.getTime())) return null;
+    if (timeZone) {
+        try {
+            const parts = new Intl.DateTimeFormat("en-US", {
+                timeZone,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+            }).formatToParts(date);
+            const values = Object.fromEntries(
+                parts.map((part) => [part.type, part.value])
+            );
+            if (values.year && values.month && values.day) {
+                return `${values.year}-${values.month}-${values.day}`;
+            }
+        } catch {
+            // Fall back to the UTC date below.
+        }
+    }
+    return date.toISOString().slice(0, 10);
 }
 
 function parseYmdCompact(value: string): Date | null {
@@ -84,7 +180,7 @@ const fetchYahooHistorical = async (
     symbol: string,
     fromDate: Date,
     toDate: Date
-): Promise<UnifiedCandle[] | null> => {
+): Promise<YahooHistoricalResult> => {
     const period1 = Math.floor(fromDate.getTime() / 1000);
     const period2 = Math.floor(addDaysUtc(toDate, 1).getTime() / 1000);
     const yahooUrl = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`);
@@ -96,35 +192,45 @@ const fetchYahooHistorical = async (
         method: "GET",
         headers: { "User-Agent": "Prosperitas/1.0" },
     });
-    if (!upstream.ok) return null;
-
-    const payload = (await upstream.json()) as {
-        chart?: {
-            result?: Array<{
-                timestamp?: number[];
-                indicators?: {
-                    quote?: Array<{
-                        close?: Array<number | null>;
-                    }>;
-                };
-            }>;
+    const responseText = await upstream.text();
+    if (!upstream.ok) {
+        return { error: yahooErrorFromResponse(upstream, responseText) };
+    }
+    const payload = parseYahooPayload(responseText);
+    if (payload.chart?.error) {
+        return {
+            error: {
+                status: 502,
+                statusText: "Bad Gateway",
+                code: payload.chart.error.code || "YAHOO_ERROR",
+                message:
+                    payload.chart.error.description ||
+                    "Yahoo Finance returned an error.",
+            },
         };
-    };
+    }
 
     const result = payload.chart?.result?.[0];
-    if (!result) return [];
+    if (!result) return { data: [], availableFrom: null };
+    const availableFrom = formatYahooDate(
+        result.meta?.firstTradeDate,
+        result.meta?.exchangeTimezoneName
+    );
     const timestamps = result.timestamp ?? [];
     const closes = result.indicators?.quote?.[0]?.close ?? [];
 
-    return timestamps.map((ts, index) => ({
-        date: new Date(ts * 1000).toISOString().slice(0, 10),
-        time: null,
-        open: null,
-        high: null,
-        low: null,
-        close: parseNumber(closes[index]),
-        volume: null,
-    }));
+    return {
+        availableFrom,
+        data: timestamps.map((ts, index) => ({
+            date: new Date(ts * 1000).toISOString().slice(0, 10),
+            time: null,
+            open: null,
+            high: null,
+            low: null,
+            close: parseNumber(closes[index]),
+            volume: null,
+        })),
+    };
 };
 
 export async function onRequest(context: { request: Request }): Promise<Response> {
@@ -166,23 +272,40 @@ export async function onRequest(context: { request: Request }): Promise<Response
     const effectiveToDate = parseYmdCompact(effectiveTo) ?? fromDate;
 
     try {
-        const yfData = await fetchYahooHistorical(
+        const yahooResult = await fetchYahooHistorical(
             symbolYF,
             effectiveFromDate,
             effectiveToDate
         );
+        if ("error" in yahooResult) {
+            return yahooErrorResponse(yahooResult.error);
+        }
+        const yfData = yahooResult.data;
         if (yfData && yfData.length > 0) {
             return jsonResponse({
                 symbol: symbolYF,
                 type: "historical",
+                availableFrom: yahooResult.availableFrom,
                 range: { from: effectiveFrom, to: effectiveTo },
                 data: yfData,
                 source: "yahoo",
             });
         }
-    } catch {
-        // Return the upstream error below.
+        return jsonResponse({
+            error: `Yahoo Finance returned no price data for ${symbolYF} in the requested range.`,
+            status: 404,
+            provider: "yahoo",
+            code: "NO_DATA",
+        }, 404);
+    } catch (error) {
+        const timedOut = error instanceof Error && error.name === "AbortError";
+        return jsonResponse({
+            error: timedOut
+                ? "Yahoo Finance request timed out."
+                : "Unable to reach Yahoo Finance.",
+            status: timedOut ? 504 : 502,
+            provider: "yahoo",
+            code: timedOut ? "UPSTREAM_TIMEOUT" : "UPSTREAM_NETWORK_ERROR",
+        }, timedOut ? 504 : 502);
     }
-
-    return jsonResponse({ error: "Upstream error", status: 502 }, 502);
 }
