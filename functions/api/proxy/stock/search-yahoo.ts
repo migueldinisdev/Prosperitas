@@ -4,10 +4,12 @@ type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string
 
 function corsHeaders(): Headers {
     return new Headers({
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": "https://prosperitas.migueldinis.dev",
         "Access-Control-Allow-Methods": "GET,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Max-Age": "86400",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
     });
 }
 
@@ -23,12 +25,18 @@ export async function onRequest(context: { request: Request }): Promise<Response
     if (request.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders() });
     }
+    if (request.method !== "GET") {
+        return jsonResponse({ error: "Method Not Allowed" }, 405);
+    }
 
     const url = new URL(request.url);
     const query = url.searchParams.get("q")?.trim() ?? "";
 
     if (!query) {
         return jsonResponse({ quotes: [] });
+    }
+    if (query.length > 100) {
+        return jsonResponse({ error: "Search query too long" }, 400);
     }
 
     const upstreamUrl = new URL("https://query1.finance.yahoo.com/v1/finance/search");

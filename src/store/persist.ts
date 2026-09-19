@@ -1,5 +1,4 @@
 import type { Reducer, Store } from "@reduxjs/toolkit";
-import { replaceState } from "./actions";
 
 export interface StorageEngine {
     getItem: (key: string) => Promise<string | null>;
@@ -107,6 +106,7 @@ export const persistReducer = <S>(
 class SimplePersistor<S> {
     private listeners = new Set<() => void>();
     private bootstrapped = false;
+    private pendingWrite: Promise<void> = Promise.resolve();
 
     constructor(
         private readonly store: Store<S>,
@@ -162,18 +162,22 @@ class SimplePersistor<S> {
                       {} as S
                   )
                 : state;
-        await this.config.storage.setItem(
-            this.config.key,
-            JSON.stringify(serializableState)
-        );
+        const serialized = JSON.stringify(serializableState);
+        await this.queueWrite(() => this.config.storage.setItem(this.config.key, serialized));
     }
 
     async purge() {
-        await this.config.storage.removeItem(this.config.key);
+        await this.queueWrite(() => this.config.storage.removeItem(this.config.key));
     }
 
     async flush() {
-        await this.persist();
+        await this.pendingWrite;
+    }
+
+    private queueWrite(operation: () => Promise<void>): Promise<void> {
+        const write = this.pendingWrite.then(operation);
+        this.pendingWrite = write.catch(() => undefined);
+        return write;
     }
 }
 
@@ -188,7 +192,8 @@ export const persistStore = <S>(
     store: Store<S>,
     config: PersistConfig<S>,
     migrate?: (state: Partial<S>) => Partial<S>,
-    shouldRehydrate?: () => boolean
+    shouldRehydrate?: () => boolean,
+    shouldPersist?: () => boolean
 ): Persistor<S> => {
     const persistor = new SimplePersistor(store, config);
 
@@ -201,7 +206,10 @@ export const persistStore = <S>(
     }
 
     store.subscribe(() => {
-        void persistor.persist();
+        if (shouldPersist && !shouldPersist()) return;
+        void persistor.persist().catch((error) => {
+            console.error("Failed to persist state", error);
+        });
     });
 
     return {

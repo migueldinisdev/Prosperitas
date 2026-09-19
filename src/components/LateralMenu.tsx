@@ -20,6 +20,10 @@ import { replaceState } from "../store/actions";
 import { defaultState } from "../store/initialState";
 import { persistor } from "../store";
 import { useSyncStatus } from "../store/syncStatus";
+import { clearAllAccessTokens } from "../data/api/google/oauth/storage";
+import { clearAllCachedPrices } from "../data/prices";
+import { clearYahooTickerStatus } from "../data/api/prices/yahooTickerStatus";
+import { cancelAllPriceRequests } from "../data/api/prices/request";
 
 interface LateralMenuProps {
     isMobileOpen: boolean;
@@ -103,9 +107,15 @@ export const LateralMenu: React.FC<LateralMenuProps> = ({
         setIsSigningOut(true);
         try {
             suppressNextDirty();
+            resetSession();
+            clearAllAccessTokens();
+            cancelAllPriceRequests();
             dispatch(replaceState(defaultState));
             await persistor.purge();
-            resetSession();
+            await clearAllCachedPrices();
+            clearYahooTickerStatus();
+            window.localStorage.removeItem("prosperitas:price-cache");
+            window.localStorage.removeItem("prosperitas:price-coverage");
             navigate("/");
             setIsMobileOpen(false);
         } finally {

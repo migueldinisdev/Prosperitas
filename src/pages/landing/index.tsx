@@ -11,6 +11,7 @@ import { NoGoogleDriveSaveError } from "../../data/api/google/errors";
 import { addNotification } from "../../store/slices/notificationsSlice";
 import { useAppDispatch } from "../../store/hooks";
 import { useSyncStatus } from "../../store/syncStatus";
+import { persistor } from "../../store";
 
 export const LandingPage: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -52,11 +53,13 @@ export const LandingPage: React.FC = () => {
         try {
             await importFromGoogleDrive();
             setModeAndClean("cloud");
+            await persistor.purge();
             navigate("/home");
         } catch (error) {
             if (error instanceof NoGoogleDriveSaveError) {
                 dispatch(replaceState(defaultState));
                 setModeAndClean("cloud");
+                await persistor.purge();
                 markUnsaved();
                 navigate("/home");
                 return;

@@ -106,6 +106,9 @@ export const persistor = persistStore(
     persistConfig,
     (state) => migrateState(state as ProsperitasState),
     shouldRehydrate,
+    () =>
+        typeof window !== 'undefined' &&
+        window.localStorage.getItem('prosperitas:syncMode') === 'offline',
 );
 
 export type RootState = ReturnType<typeof store.getState>;

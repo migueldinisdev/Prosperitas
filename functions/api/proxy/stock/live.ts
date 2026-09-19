@@ -26,10 +26,12 @@ type YahooLiveResult =
 
 function corsHeaders(): Headers {
     return new Headers({
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": "https://prosperitas.migueldinis.dev",
         "Access-Control-Allow-Methods": "GET,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Max-Age": "86400",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
     });
 }
 
@@ -218,12 +220,18 @@ export async function onRequest(context: {
     if (request.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders() });
     }
+    if (request.method !== "GET") {
+        return jsonResponse({ error: "Method Not Allowed" }, 405);
+    }
 
     const url = new URL(request.url);
     const symbolYF = readYahooSymbol(url);
 
     if (!symbolYF) {
         return jsonResponse({ error: "Missing required query param: symbolYF or symbol" }, 400);
+    }
+    if (symbolYF.length > 40) {
+        return jsonResponse({ error: "Invalid symbol length" }, 400);
     }
 
     try {

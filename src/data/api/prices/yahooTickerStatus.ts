@@ -64,6 +64,15 @@ const persistYahooTickerAvailability = () => {
     }
 };
 
+export const clearYahooTickerStatus = (): void => {
+    dirtyYahooTickers = new Map();
+    yahooTickerAvailability = new Map();
+    if (typeof window !== "undefined") {
+        window.localStorage.removeItem(AVAILABILITY_STORAGE_KEY);
+    }
+    publish();
+};
+
 const publish = () => {
     listeners.forEach((listener) => listener());
 };

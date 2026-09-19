@@ -4,10 +4,12 @@ type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string
 
 function corsHeaders(): Headers {
     return new Headers({
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": "https://prosperitas.migueldinis.dev",
         "Access-Control-Allow-Methods": "GET,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Max-Age": "86400",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
     });
 }
 
@@ -44,6 +46,14 @@ export async function onRequest(context: { request: Request }): Promise<Response
 
     try {
         const requestUrl = new URL(request.url);
+        const pathname = requestUrl.pathname.replace(/^\/api\/proxy\/forex\/?/, "");
+        if (pathname && pathname !== "latest" && !/^\d{4}-\d{2}-\d{2}$/.test(pathname)) {
+            return jsonResponse({ error: "Invalid forex path" }, 400);
+        }
+        if ([...requestUrl.searchParams.keys()].some((key) => key !== "from" && key !== "to") ||
+            [...requestUrl.searchParams.values()].some((value) => !/^[A-Za-z]{3}$/.test(value))) {
+            return jsonResponse({ error: "Invalid forex query" }, 400);
+        }
         const upstreamUrl = buildFrankfurterUrl(requestUrl);
 
         const upstream = await fetch(upstreamUrl.toString(), {

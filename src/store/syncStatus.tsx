@@ -6,12 +6,16 @@ import React, {
     useRef,
     useState,
 } from "react";
-import { store } from "./index";
+import { persistor, store } from "./index";
 import { importFromGoogleDriveSilent } from "./sync";
 import { NoGoogleDriveSaveError } from "../data/api/google/errors";
 import { replaceState } from "./actions";
 import { defaultState } from "./initialState";
 import { registerDirtyCallbacks } from "./dirtyMiddleware";
+import { clearAllAccessTokens } from "../data/api/google/oauth/storage";
+import { clearAllCachedPrices } from "../data/prices";
+import { clearYahooTickerStatus } from "../data/api/prices/yahooTickerStatus";
+import { cancelAllPriceRequests } from "../data/api/prices/request";
 
 export type SyncMode = "offline" | "cloud" | null;
 export type SyncStatus = "saved" | "unsaved" | "saving" | "up-to-date";
@@ -95,11 +99,13 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const setMode = (nextMode: SyncMode) => {
         storeMode(nextMode);
+        modeRef.current = nextMode;
         setModeState(nextMode);
     };
 
     const setModeAndClean = (nextMode: SyncMode) => {
         storeMode(nextMode);
+        modeRef.current = nextMode;
         setModeState(nextMode);
         setIsDirty(false);
         setStatus(getSavedStatus(nextMode));
@@ -126,10 +132,30 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
     const resetSession = () => {
         suppressNextDirty();
         storeMode(null);
+        modeRef.current = null;
         setModeState(null);
         setIsDirty(false);
         setStatus("saved");
     };
+
+    useEffect(() => {
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key !== "prosperitas:syncMode" || event.newValue !== null || !modeRef.current) {
+                return;
+            }
+            resetSession();
+            clearAllAccessTokens();
+            cancelAllPriceRequests();
+            store.dispatch(replaceState(defaultState));
+            void persistor.purge();
+            void clearAllCachedPrices();
+            clearYahooTickerStatus();
+            window.localStorage.removeItem("prosperitas:price-cache");
+            window.localStorage.removeItem("prosperitas:price-coverage");
+        };
+        window.addEventListener("storage", handleStorage);
+        return () => window.removeEventListener("storage", handleStorage);
+    }, []);
 
     useEffect(() => {
         const restoreCloudSession = async () => {
@@ -140,6 +166,7 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
             setIsRestoring(true);
 
             try {
+                await persistor.purge();
                 suppressNextDirty();
                 await importFromGoogleDriveSilent();
                 setModeAndClean("cloud");

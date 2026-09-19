@@ -26,10 +26,12 @@ type YahooHistoricalResult =
 
 function corsHeaders(): Headers {
     return new Headers({
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": "https://prosperitas.migueldinis.dev",
         "Access-Control-Allow-Methods": "GET,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Max-Age": "86400",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
     });
 }
 
@@ -238,6 +240,9 @@ export async function onRequest(context: { request: Request }): Promise<Response
     if (request.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders() });
     }
+    if (request.method !== "GET") {
+        return jsonResponse({ error: "Method Not Allowed" }, 405);
+    }
 
     const url = new URL(request.url);
     const symbolYF = readYahooSymbol(url);
@@ -246,6 +251,9 @@ export async function onRequest(context: { request: Request }): Promise<Response
 
     if (!symbolYF || !from) {
         return jsonResponse({ error: "Missing required query params: symbolYF or symbol, from" }, 400);
+    }
+    if (symbolYF.length > 40) {
+        return jsonResponse({ error: "Invalid symbol length" }, 400);
     }
 
     const fromDate = parseYmdCompact(from);
@@ -270,6 +278,10 @@ export async function onRequest(context: { request: Request }): Promise<Response
 
     const effectiveFromDate = parseYmdCompact(effectiveFrom) ?? fromDate;
     const effectiveToDate = parseYmdCompact(effectiveTo) ?? fromDate;
+    const daySpan = (effectiveToDate.getTime() - effectiveFromDate.getTime()) / 86400000;
+    if (daySpan < 0 || daySpan > 31) {
+        return jsonResponse({ error: "Historical range must be at most 31 days" }, 400);
+    }
 
     try {
         const yahooResult = await fetchYahooHistorical(

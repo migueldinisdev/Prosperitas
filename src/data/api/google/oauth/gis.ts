@@ -8,6 +8,7 @@ declare global {
                     initTokenClient: (config: {
                         client_id: string;
                         scope: string;
+                        include_granted_scopes?: boolean;
                         callback: (response: {
                             access_token?: string;
                             error?: string;
@@ -65,6 +66,7 @@ export const requestAccessTokenInteractive = async (
         const tokenClient = window.google!.accounts.oauth2.initTokenClient({
             client_id: clientId,
             scope: scopes.join(" "),
+            include_granted_scopes: false,
             callback: (response) => {
                 if (response.access_token) {
                     resolve(response.access_token);
@@ -106,6 +108,7 @@ export const requestAccessTokenSilent = async (
         const tokenClient = window.google!.accounts.oauth2.initTokenClient({
             client_id: clientId,
             scope: scopes.join(" "),
+            include_granted_scopes: false,
             callback: (response) => {
                 if (response.access_token) {
                     resolve(response.access_token);
