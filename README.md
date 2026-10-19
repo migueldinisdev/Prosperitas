@@ -40,3 +40,4 @@ Refer to this file when implementing new features to ensure alignment with the o
 
 **Note for AI Development:** Both files should be consulted before making significant changes or adding new features to maintain consistency with the established architecture and coding patterns.
 
+miguel 2
