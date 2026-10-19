@@ -1,3 +1,7 @@
+# Prosperitas
+
+A streamlined financial tracker for monitoring net worth, investments, and everyday expenses.
+
 ## Run Locally
 
 **Prerequisites:** Node.js (npm). Wrangler is included as a dev dependency for the local Pages/Workers server.
