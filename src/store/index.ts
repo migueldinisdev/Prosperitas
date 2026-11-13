@@ -22,7 +22,7 @@ import {
     PersistConfig,
     REHYDRATE_ACTION,
 } from "./persist";
-import { replaceState } from "./actions";
+import { applyWalletLedger, replaceState } from "./actions";
 import { dirtyMiddleware } from "./dirtyMiddleware";
 import { migrateState } from "../data/persistence";
 
@@ -42,21 +42,24 @@ const appReducer = combineReducers({
     notifications: notificationsReducer,
 });
 
-const rootReducer = (
+export const rootReducer = (
     state: ProsperitasState | undefined,
     action: AnyAction
 ) => {
+    if (applyWalletLedger.match(action) && state) {
+        return { ...state, ...action.payload };
+    }
     if (action.type === REHYDRATE_ACTION && action.payload) {
         // Preserve notifications when rehydrating from IndexedDB
         return {
-            ...action.payload,
+            ...migrateState(action.payload),
             notifications: state?.notifications ?? [],
         } as ProsperitasState;
     }
     if (replaceState.match(action)) {
         // Preserve notifications when importing from file/Google Drive
         return {
-            ...action.payload,
+            ...migrateState(action.payload),
             notifications: state?.notifications ?? [],
         } as ProsperitasState;
     }

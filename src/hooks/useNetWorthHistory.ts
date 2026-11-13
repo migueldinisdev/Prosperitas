@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Asset, WalletTx } from "../core/schema-types";
+import { Asset, Money, WalletTx } from "../core/schema-types";
 import { getPricesBatch, PriceAssetType } from "../data/prices";
 import {
     buildNetWorthHistory,
@@ -66,6 +66,7 @@ export const useNetWorthHistory = ({
 }: UseNetWorthHistoryOptions): {
     data: NetWorthHistoryPoint[];
     isLoading: boolean;
+    transferValues: Record<string, Money>;
 } => {
     const [priceMap, setPriceMap] = useState<Map<string, number>>(
         () => new Map()
@@ -100,9 +101,14 @@ export const useNetWorthHistory = ({
         return Array.from(unique).sort((a, b) => a.localeCompare(b));
     }, [snapshotDates, sortedTransactions]);
 
+    const valuationDates = useMemo(() => Array.from(new Set([
+        ...dates, ...sortedTransactions.filter((tx) => tx.type === "transfer").map((tx) => tx.date),
+    ])).sort(), [dates, sortedTransactions]);
+
     const assetIds = useMemo(() => {
         const ids = new Set<string>();
         sortedTransactions.forEach((tx) => {
+            if (tx.type === "transfer" && tx.fee?.kind === "asset" && (!assetFilter || assetFilter.has(tx.fee.assetId))) ids.add(tx.fee.assetId);
             if ("assetId" in tx && tx.assetId) {
                 if (!assetFilter || assetFilter.has(tx.assetId)) {
                     ids.add(tx.assetId);
@@ -149,12 +155,12 @@ export const useNetWorthHistory = ({
                 skipped++;
                 return;
             }
-            dates.forEach((date) => {
+            valuationDates.forEach((date) => {
                 requests.push({ ...request, assetId, date });
             });
         });
         return requests;
-    }, [assetIds, assets, dates]);
+    }, [assetIds, assets, valuationDates]);
 
     const forexCurrencies = useMemo(() => {
         const currencies = new Set<string>(
@@ -178,12 +184,12 @@ export const useNetWorthHistory = ({
         forexCurrencies.forEach((currency) => {
             const ticker = normalizeTicker(`${currency}${baseCurrency}`);
             if (!ticker) return;
-            dates.forEach((date) => {
+            valuationDates.forEach((date) => {
                 requests.push({ type: "forex", ticker, date });
             });
         });
         return requests;
-    }, [baseCurrency, dates, forexCurrencies]);
+    }, [baseCurrency, valuationDates, forexCurrencies]);
 
     useEffect(() => {
         let isActive = true;
@@ -289,7 +295,7 @@ export const useNetWorthHistory = ({
         };
     }, [dates, forexRequests, priceRequests]);
 
-    const data = useMemo(() => {
+    const valuation = useMemo(() => {
         const getAssetPrice = (assetId: string, date: string) => {
             const asset = assets[assetId];
             if (!asset) return null;
@@ -310,7 +316,16 @@ export const useNetWorthHistory = ({
             return rate ?? null;
         };
 
-        return buildNetWorthHistory({
+        const transferValues: Record<string, Money> = {};
+        sortedTransactions.forEach((tx) => {
+            if (tx.type !== "transfer") return;
+            const price = getAssetPrice(tx.assetId, tx.date);
+            transferValues[tx.id] = {
+                value: price !== null ? price * tx.quantity : tx.lots.reduce((sum, lot) => sum + lot.quantity * lot.price.value, 0),
+                currency: assets[tx.assetId]?.tradingCurrency ?? tx.lots[0]?.price.currency ?? "EUR",
+            };
+        });
+        const data = buildNetWorthHistory({
             transactions: sortedTransactions,
             forexRates: {},
             baseCurrency,
@@ -326,6 +341,7 @@ export const useNetWorthHistory = ({
             getForexRate,
             snapshotDates: dates,
         });
+        return { data, transferValues };
     }, [
         assetFilter,
         assetMetadata,
@@ -343,5 +359,5 @@ export const useNetWorthHistory = ({
         sortedTransactions,
     ]);
 
-    return { data, isLoading };
+    return { ...valuation, isLoading };
 };

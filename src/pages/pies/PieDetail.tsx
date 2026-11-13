@@ -1,3 +1,4 @@
+import { transactionTouchesAssets } from "../../utils/netWorthHistory";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -17,6 +18,7 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { usePieData } from "../../hooks/usePieData";
 import { useAssetLivePrices } from "../../hooks/useAssetLivePrices";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
+import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
 import { Modal } from "../../ui/Modal";
 import { Tooltip } from "../../ui/Tooltip";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
@@ -107,9 +109,8 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
 
     const livePricesByAsset = useAssetLivePrices(assets);
     const transactionCurrencies = useMemo(() => {
-        const filtered = Object.values(walletTx).filter(
-            (tx) => tx.pieId === id,
-        );
+        const assetIds = new Set(assets.map((asset) => asset.id));
+        const filtered = Object.values(walletTx).filter((tx) => transactionTouchesAssets(tx, assetIds));
         const currencies = new Set<string>(getWalletTxCurrencies(filtered));
         assets.forEach((asset) => currencies.add(asset.tradingCurrency));
         return Array.from(currencies);
@@ -127,16 +128,19 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
     const pieTransactions = useMemo(() => {
         if (pieAssetIds.size === 0) return [];
         return Object.values(walletTx).filter((tx) => {
-            if (!("assetId" in tx) || !tx.assetId) return false;
-            return pieAssetIds.has(tx.assetId);
+            return transactionTouchesAssets(tx, pieAssetIds);
         });
     }, [pieAssetIds, walletTx]);
+    const transactionDates = useMemo(() => pieTransactions.flatMap((tx) => tx.type === "transfer"
+        ? [tx.date, ...tx.lots.map((lot) => lot.acquiredAt)] : [tx.date]), [pieTransactions]);
+    const { getForexRate } = useForexHistoricalRates(transactionCurrencies, transactionDates, settings.visualCurrency);
 
     const { holdings, totals } = useMemo(() => {
         const costBasisByAsset = calculatePositionCostBasis(
             pieTransactions,
             settings.visualCurrency,
             forexRates,
+            getForexRate,
         );
         const rows = assets.map((asset) => {
             const costAverage = asset.avgCost.value;
@@ -210,6 +214,7 @@ export const PieDetail: React.FC<Props> = ({ onMenuClick }) => {
     }, [
         assets,
         forexRates,
+        getForexRate,
         livePricesByAsset,
         pieTransactions,
         settings.visualCurrency,

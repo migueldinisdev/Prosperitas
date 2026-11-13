@@ -124,7 +124,8 @@ export const HomeSummarySection: React.FC = () => {
         const costBasisByAsset = calculatePositionCostBasis(
             walletTransactions,
             settings.visualCurrency,
-            forexRates
+            forexRates,
+            getForexRate,
         );
         const holdingValues = positions.map(({ assetId, position }) => {
             const asset = assets[assetId];
@@ -204,7 +205,8 @@ export const HomeSummarySection: React.FC = () => {
             const costBasisByAsset = calculatePositionCostBasis(
                 walletTransactionsForWallet,
                 settings.visualCurrency,
-                forexRates
+                forexRates,
+                getForexRate,
             );
             const positionRows = Object.entries(positions).map(
                 ([assetId, position]) => {
@@ -252,6 +254,7 @@ export const HomeSummarySection: React.FC = () => {
     }, [
         assets,
         forexRates,
+        getForexRate,
         livePricesByAsset,
         settings.visualCurrency,
         walletList,

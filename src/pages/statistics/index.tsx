@@ -36,6 +36,7 @@ import {
     buildNetWorthHistory,
     formatHistoryDate,
     getWalletTxCurrencies,
+    getWalletExternalFlow,
 } from "../../utils/netWorthHistory";
 import { Modal } from "../../ui/Modal";
 import { Button } from "../../ui/Button";
@@ -269,7 +270,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         return Array.from(uniqueDates).sort((a, b) => a.localeCompare(b));
     }, [performancePeriods, selectedWalletTransactions]);
 
-    const { data: performanceSnapshots } = useNetWorthHistory({
+    const { data: performanceSnapshots, transferValues } = useNetWorthHistory({
         transactions: selectedWalletTransactions,
         assets,
         baseCurrency: settings.visualCurrency,
@@ -284,13 +285,9 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             performanceSnapshots.map((point) => [point.date, point.value]),
         );
         const externalCashFlows = selectedWalletTransactions
-            .filter((tx) => tx.type === "deposit" || tx.type === "withdraw")
             .map((tx) => ({
                 date: tx.date,
-                amount:
-                    tx.type === "deposit"
-                        ? toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
-                        : -toBaseValue(tx.amount.value, tx.amount.currency, tx.date),
+                amount: getWalletExternalFlow(tx, settings.visualCurrency, forexRates, getForexRate, transferValues),
             }));
         const endDate = toDateKey(new Date());
 
@@ -307,6 +304,10 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         performancePeriods,
         performanceSnapshotDates,
         performanceSnapshots,
+        transferValues,
+        forexRates,
+        getForexRate,
+        settings.visualCurrency,
         selectedWalletTransactions,
         toBaseValue,
     ]);
@@ -357,6 +358,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
     }, [
         assets,
         forexRates,
+        getForexRate,
         livePricesByAsset,
         selectedWalletIdSet,
         settings.visualCurrency,
@@ -369,6 +371,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
             walletTransactions,
             settings.visualCurrency,
             forexRates,
+            getForexRate,
         );
         const summariesByAsset = new Map<
             string,
@@ -454,6 +457,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         assets,
         settings.visualCurrency,
         forexRates,
+        getForexRate,
         livePricesByAsset,
         positions,
         walletTransactions,
@@ -483,6 +487,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         });
     }, [
         forexRates,
+        getForexRate,
         holdingSummaries,
         livePricesByAsset,
         settings.hypotheticalAssetPrices,
@@ -534,6 +539,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 walletTransactionsForWallet,
                 settings.visualCurrency,
                 forexRates,
+                getForexRate,
             );
 
             const positionRows = Object.entries(walletPositionsByAsset)
@@ -618,6 +624,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
         assets,
         cashBuckets,
         forexRates,
+        getForexRate,
         livePricesByAsset,
         settings.visualCurrency,
         walletPositions,
@@ -879,7 +886,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 includeHoldings?: boolean;
             }>,
         ) => {
-            const mapByDate = new Map<string, Record<string, number>>();
+            const mapByDate = new Map<string, { date: string; name: string; [key: string]: string | number }>();
 
             groups.forEach((group) => {
                 const filteredTransactions = group.walletId
@@ -948,6 +955,7 @@ export const StatisticsPage: React.FC<Props> = ({ onMenuClick }) => {
                 .filter((entry) => entry.assetIds.length > 0);
 
             const cashSeries = {
+                assetIds: [] as string[],
                 key: "cash",
                 label: "CASH",
                 color: assetTypeColors.cash,

@@ -6,6 +6,7 @@ import {
     PERSISTED_KEYS,
 } from "../core/schema-types";
 import { CURRENT_SCHEMA_VERSION } from "../store/initialState";
+import { deriveWalletState } from "../core/finance/deriveWalletState";
 
 const REQUIRED_KEYS = PERSISTED_KEYS.filter((key) => key !== "livePrices");
 const DEFAULT_SP500_ACC_SYMBOL = "VUAA.DE";
@@ -59,12 +60,12 @@ export const migrateState = (state: PersistedState): PersistedState => {
         },
     };
 
-    if (migrated.schemaVersion === CURRENT_SCHEMA_VERSION) {
-        return migrated;
-    }
-
+    // v0.3 is additive: old cash transactions keep their shape. Reconstruct FIFO
+    // costs and transfer provenance from history, rather than inventing purchases.
+    const ledger = deriveWalletState(migrated, migrated.walletTx);
     return {
         ...migrated,
+        ...(ledger.value ?? {}),
         schemaVersion: CURRENT_SCHEMA_VERSION,
     };
 };

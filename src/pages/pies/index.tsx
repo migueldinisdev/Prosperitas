@@ -1,3 +1,4 @@
+import { transactionTouchesAssets } from "../../utils/netWorthHistory";
 import React, { useMemo, useState } from "react";
 import { PageHeader } from "../../components/PageHeader";
 import { PieCard } from "./PieCard";
@@ -25,6 +26,7 @@ import {
     toVisualValue,
 } from "../../core/finance";
 import { useForexLivePrices } from "../../hooks/useForexLivePrices";
+import { useForexHistoricalRates } from "../../hooks/useForexHistoricalRates";
 import { getWalletTxCurrencies } from "../../utils/netWorthHistory";
 
 const piePalette = [
@@ -77,7 +79,8 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
     const livePricesByAsset = useAssetLivePrices(pieAssets);
 
     const transactionCurrencies = useMemo(() => {
-        const pieTx = Object.values(walletTx).filter((tx) => tx.pieId);
+        const assetIds = new Set(pieAssets.map((asset) => asset.id));
+        const pieTx = Object.values(walletTx).filter((tx) => transactionTouchesAssets(tx, assetIds));
         const currencies = new Set<string>(getWalletTxCurrencies(pieTx));
         pieAssets.forEach((asset) => currencies.add(asset.tradingCurrency));
         return Array.from(currencies);
@@ -87,6 +90,8 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
         transactionCurrencies,
         settings.visualCurrency,
     );
+    const transactionDates = useMemo(() => Object.values(walletTx).map((tx) => tx.date), [walletTx]);
+    const { getForexRate } = useForexHistoricalRates(transactionCurrencies, transactionDates, settings.visualCurrency);
 
     const pieAllocationData = useMemo(() => {
         const pieTotals = pieList.map((pie) => {
@@ -190,13 +195,13 @@ export const PiesPage: React.FC<Props> = ({ onMenuClick }) => {
                         const pieTransactionsForCard = Object.values(
                             walletTx,
                         ).filter((tx) => {
-                            if (!("assetId" in tx) || !tx.assetId) return false;
-                            return pieAssetIds.has(tx.assetId);
+                            return transactionTouchesAssets(tx, pieAssetIds);
                         });
                         const costBasisByAsset = calculatePositionCostBasis(
                             pieTransactionsForCard,
                             settings.visualCurrency,
                             forexRates,
+                            getForexRate,
                         );
                         const holdingSummaries = pieAssets.map((asset) => {
                             const currentPrice =

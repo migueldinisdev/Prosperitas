@@ -1,3 +1,4 @@
+import { getWalletExternalFlow } from "../utils/netWorthHistory";
 import React, { useEffect, useMemo, useState } from "react";
 import { AreaChart } from "./AreaChart";
 import { formatCurrency } from "../utils/formatters";
@@ -185,7 +186,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         };
     }, [range, tickRate, transactions]);
 
-    const { data: baseChartData } = useNetWorthHistory({
+    const { data: baseChartData, transferValues } = useNetWorthHistory({
         transactions,
         assets,
         baseCurrency,
@@ -215,26 +216,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
                 sortedTx[txIndex].date <= point.date
             ) {
                 const tx = sortedTx[txIndex];
-                if (tx.type === "deposit") {
-                    netInvested += toBaseValue(
-                        tx.amount.value,
-                        tx.amount.currency,
-                        baseCurrency,
-                        tx.date,
-                        forexRates,
-                        getForexRate,
-                    );
-                }
-                if (tx.type === "withdraw") {
-                    netInvested -= toBaseValue(
-                        tx.amount.value,
-                        tx.amount.currency,
-                        baseCurrency,
-                        tx.date,
-                        forexRates,
-                        getForexRate,
-                    );
-                }
+                netInvested += getWalletExternalFlow(tx, baseCurrency, forexRates, getForexRate);
                 txIndex += 1;
             }
             return {
@@ -266,7 +248,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         }
 
         const flowDates = transactions
-            .filter((tx) => tx.type === "deposit" || tx.type === "withdraw")
+            .filter((tx) => tx.type === "deposit" || tx.type === "withdraw" || tx.type === "transfer")
             .map((tx) => tx.date);
         const requestedDates = Array.from(new Set([...ticks, ...flowDates])).sort(
             (a, b) => a.localeCompare(b),
@@ -296,15 +278,8 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
 
             const cashFlowByDate = transactions.reduce<Map<string, number>>(
                 (map, tx) => {
-                    if (tx.type !== "deposit" && tx.type !== "withdraw") return map;
-                    const flowInVisual = toBaseValue(
-                        tx.amount.value * (tx.type === "withdraw" ? -1 : 1),
-                        tx.amount.currency,
-                        baseCurrency,
-                        tx.date,
-                        forexRates,
-                        getForexRate,
-                    );
+                    const flowInVisual = getWalletExternalFlow(tx, baseCurrency, forexRates, getForexRate, transferValues);
+                    if (!flowInVisual) return map;
                     const benchmarkToVisualRate =
                         benchmarkCurrency === baseCurrency
                             ? 1
@@ -363,6 +338,7 @@ export const NetWorthHistoryChart: React.FC<NetWorthHistoryChartProps> = ({
         forexRates,
         getForexRate,
         showBenchmarkLine,
+        transferValues,
         ticks,
         transactions,
     ]);

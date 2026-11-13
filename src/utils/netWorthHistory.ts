@@ -1,4 +1,7 @@
-import { WalletTx } from "../core/schema-types";
+import { getLotCostValue } from "../core/finance";
+import { decimalProduct } from "../core/finance/decimal";
+import { quantitySum, sortLedgerTransactions } from "../core/finance/walletLedger";
+import { Money, WalletTx } from "../core/schema-types";
 
 export interface NetWorthHistoryPoint {
     name: string;
@@ -35,21 +38,8 @@ export const formatHistoryDate = (date: string, locale?: string) => {
     });
 };
 
-const sortTransactions = (transactions: WalletTx[]) => {
-    // Filter out transactions with invalid dates
-    const validTransactions = transactions.filter(tx => {
-        return tx.date && !isNaN(new Date(tx.date).getTime());
-    });
-    
-    return validTransactions.sort((a, b) => {
-        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-        if (dateDiff !== 0) return dateDiff;
-        return (
-            new Date(a.createdAt).getTime() -
-            new Date(b.createdAt).getTime()
-        );
-    });
-};
+const sortTransactions = (transactions: WalletTx[]) =>
+    sortLedgerTransactions(transactions.filter((tx) => tx.date && Number.isFinite(Date.parse(tx.date))));
 
 const toBaseValue = (
     amount: number,
@@ -80,6 +70,10 @@ export const getWalletTxCurrencies = (
         : Object.values(transactions ?? {});
     txList.forEach((tx) => {
         switch (tx.type) {
+            case "transfer":
+                tx.lots.forEach((lot) => { currencies.add(lot.price.currency); if (lot.feePerUnit) currencies.add(lot.feePerUnit.currency); });
+                if (tx.fee?.kind === "cash") currencies.add(tx.fee.amount.currency);
+                break;
             case "deposit":
             case "withdraw":
             case "dividend":
@@ -130,7 +124,7 @@ export const buildNetWorthHistory = ({
 
     const addCash = (currency: string, delta: number) => {
         const current = cashByCurrency.get(currency) ?? 0;
-        cashByCurrency.set(currency, current + delta);
+        cashByCurrency.set(currency, quantitySum(current, delta));
     };
 
     const sortedTransactions = sortTransactions(transactions);
@@ -147,6 +141,23 @@ export const buildNetWorthHistory = ({
                     addCash(tx.amount.currency, -tx.amount.value);
                 }
                 break;
+            case "transfer": {
+                const move = (assetId: string, delta: number, price: number, currency: string) => {
+                    if (!includeHoldings || assetFilter && !assetFilter.has(assetId)) return;
+                    const holding = holdings.get(assetId) ?? { quantity: 0, price, currency };
+                    holdings.set(assetId, { ...holding, quantity: quantitySum(holding.quantity, delta) });
+                };
+                const price = tx.lots.reduce((sum, lot) => sum + lot.price.value * lot.quantity, 0) / tx.quantity;
+                move(tx.assetId, tx.quantity * (tx.direction === "in" ? 1 : -1), price || 0,
+                    assetMetadata?.[tx.assetId]?.tradingCurrency ?? tx.lots[0]?.price.currency ?? baseCurrency);
+                if (tx.direction === "out" && tx.fee) {
+                    if (tx.fee.kind === "cash" && includeCash) addCash(tx.fee.amount.currency, -tx.fee.amount.value);
+                    if (tx.fee.kind === "asset") move(tx.fee.assetId, -tx.fee.quantity,
+                        tx.feeLots?.[0]?.price.value ?? 0,
+                        assetMetadata?.[tx.fee.assetId]?.tradingCurrency ?? tx.feeLots?.[0]?.price.currency ?? baseCurrency);
+                }
+                break;
+            }
             case "forex":
                 if (includeCash && includeForex) {
                     addCash(tx.from.currency, -tx.from.value);
@@ -168,7 +179,7 @@ export const buildNetWorthHistory = ({
                         currency: tradingCurrency,
                     };
                     holdings.set(tx.assetId, {
-                        quantity: holding.quantity + tx.quantity,
+                        quantity: quantitySum(holding.quantity, tx.quantity),
                         price: tx.price.value,
                         currency: tradingCurrency,
                     });
@@ -176,7 +187,7 @@ export const buildNetWorthHistory = ({
                 if (includeCash) {
                     addCash(
                         tx.price.currency,
-                        -tx.price.value * tx.quantity
+                        -decimalProduct(tx.price.value, tx.quantity)
                     );
                     if (tx.fees) {
                         addCash(tx.fees.currency, -tx.fees.value);
@@ -195,7 +206,7 @@ export const buildNetWorthHistory = ({
                         price: tx.price.value,
                         currency: tradingCurrency,
                     };
-                    const nextQuantity = holding.quantity - tx.quantity;
+                    const nextQuantity = quantitySum(holding.quantity, -tx.quantity);
                     if (nextQuantity <= 0) {
                         holdings.delete(tx.assetId);
                     } else {
@@ -209,7 +220,7 @@ export const buildNetWorthHistory = ({
                 if (includeCash) {
                     addCash(
                         tx.price.currency,
-                        tx.price.value * tx.quantity
+                        decimalProduct(tx.price.value, tx.quantity)
                     );
                     if (tx.fees) {
                         addCash(tx.fees.currency, -tx.fees.value);
@@ -309,3 +320,24 @@ export const buildNetWorthHistory = ({
             value: Number(value.toFixed(2)),
         }));
 };
+
+/** Transfer legs cancel when both wallets are selected; one leg is a flow for a single-wallet view. */
+export const getWalletExternalFlow = (
+    tx: WalletTx, baseCurrency: string, forexRates: Record<string, number> = {},
+    getForexRate?: (currency: string, date: string) => number | null,
+    transferValues?: Record<string, Money>,
+) => {
+    if (tx.type === "deposit" || tx.type === "withdraw") {
+        return toBaseValue(tx.amount.value, tx.amount.currency, baseCurrency, forexRates, tx.date, getForexRate) * (tx.type === "deposit" ? 1 : -1);
+    }
+    if (tx.type !== "transfer") return 0;
+    const market = transferValues?.[tx.id];
+    const value = market
+        ? toBaseValue(market.value, market.currency, baseCurrency, forexRates, tx.date, getForexRate)
+        : tx.lots.reduce((sum, lot) => sum + getLotCostValue(lot, baseCurrency, forexRates, getForexRate), 0);
+    return value * (tx.direction === "in" ? 1 : -1);
+};
+
+export const transactionTouchesAssets = (tx: WalletTx, assetIds: Set<string>) =>
+    "assetId" in tx && !!tx.assetId && assetIds.has(tx.assetId) ||
+    tx.type === "transfer" && tx.fee?.kind === "asset" && assetIds.has(tx.fee.assetId);

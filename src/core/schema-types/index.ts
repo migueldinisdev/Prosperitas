@@ -131,6 +131,8 @@ export interface WalletTxBase {
     walletId: string;
     date: string;
     createdAt: string;
+    /** Persisted tie-breaker for operations recorded in the same millisecond. */
+    sequence?: number;
     pieId?: string;
 }
 
@@ -178,13 +180,48 @@ export interface DividendWalletTx extends WalletTxBase {
     assetId?: string;
 }
 
+/** A slice of an original purchase, retained across every internal movement. */
+export interface WalletLot {
+    sourceTxId: string;
+    acquiredAt: string;
+    sourceCreatedAt: string;
+    sourceSequence?: number;
+    quantity: number;
+    price: Money;
+    feePerUnit?: Money;
+    fxPair?: string;
+    fxRate?: number;
+    transferIds: string[];
+}
+
+export type TransferFee =
+    | { kind: "cash"; amount: Money }
+    | { kind: "asset"; assetId: string; quantity: number };
+
+/** Two entries share transferId; both are committed/edited/deleted together. */
+export interface TransferWalletTx extends WalletTxBase {
+    type: "transfer";
+    direction: "out" | "in";
+    transferId: string;
+    counterpartWalletId: string;
+    assetId: string;
+    /** Quantity received. Any fee is charged in addition, in the source wallet. */
+    quantity: number;
+    fee?: TransferFee;
+    reference?: string;
+    /** Rebuilt from the ledger on every mutation; never trusted as user input. */
+    lots: WalletLot[];
+    feeLots?: WalletLot[];
+}
+
 export type WalletTx =
     | DepositWalletTx
     | WithdrawWalletTx
     | ForexWalletTx
     | BuyWalletTx
     | SellWalletTx
-    | DividendWalletTx;
+    | DividendWalletTx
+    | TransferWalletTx;
 
 export type WalletTxState = Record<string, WalletTx>;
 

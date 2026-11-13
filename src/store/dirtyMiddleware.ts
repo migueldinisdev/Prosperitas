@@ -50,7 +50,8 @@ export const dirtyMiddleware: Middleware = (store) => (next) => (action) => {
     }
 
     // Skip ignored actions
-    if (IGNORED_ACTION_TYPES.has(action.type)) {
+    const actionType = (action as { type?: string }).type;
+    if (actionType && IGNORED_ACTION_TYPES.has(actionType)) {
         return result;
     }
 
@@ -60,7 +61,7 @@ export const dirtyMiddleware: Middleware = (store) => (next) => (action) => {
     }
 
     // Skip REHYDRATE action
-    if (action.type === REHYDRATE_ACTION) {
+    if (actionType === REHYDRATE_ACTION) {
         return result;
     }
 

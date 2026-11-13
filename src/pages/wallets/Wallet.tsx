@@ -1,3 +1,5 @@
+import { getWalletExternalFlow, getWalletTxCurrencies } from "../../utils/netWorthHistory";
+import { decimalProduct } from "../../core/finance/decimal";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card } from "../../ui/Card";
@@ -17,6 +19,7 @@ import {
     Wallet as WalletIcon,
 } from "lucide-react";
 import { HoldingRow, HoldingsTable } from "../../components/HoldingsTable";
+import { WalletTransferModal } from "../../components/WalletTransferModal";
 import { WalletTransactionsTable } from "../../components/WalletTransactionsTable";
 import { YahooAPIStockSelect } from "../../components/YahooAPIStockSelect";
 import { SyncStatusPills } from "../../components/SyncStatusPills";
@@ -268,6 +271,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         useWalletData(id);
 
     const [isDepositOpen, setDepositOpen] = useState(false);
+    const [isTransferOpen, setTransferOpen] = useState(false);
     const [isWithdrawOpen, setWithdrawOpen] = useState(false);
     const [isDividendOpen, setDividendOpen] = useState(false);
     const [isTradeOpen, setTradeOpen] = useState(false);
@@ -383,7 +387,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         : "";
     const tradeQuantityValue = roundToInputPrecision(tradeQuantity);
     const tradePriceValue = roundToInputPrecision(tradePrice);
-    const tradeTotal = tradeQuantityValue * tradePriceValue;
+    const tradeTotal = decimalProduct(tradeQuantityValue, tradePriceValue);
     const fxFromAmountValue = Number(fxFromAmount);
     const fxRateValue = Number(fxRate);
     const fxToAmountValue =
@@ -416,7 +420,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     const roundedFundingAmountValue = roundToTwo(tradeFundingAmountValue);
     const requiredFundingBase = fxEnabled
         ? roundedFundingAmountValue
-        : roundToTwo(tradeTotal);
+        : tradeTotal;
 
     const existingAssets = useMemo(
         () =>
@@ -558,29 +562,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         [cashBuckets],
     );
 
-    const transactionCurrencies = useMemo(() => {
-        const currencies = new Set<Currency>();
-        walletTransactions.forEach((tx) => {
-            switch (tx.type) {
-                case "deposit":
-                case "withdraw":
-                case "dividend":
-                    currencies.add(tx.amount.currency);
-                    break;
-                case "forex":
-                    currencies.add(tx.from.currency);
-                    currencies.add(tx.to.currency);
-                    if (tx.fees) currencies.add(tx.fees.currency);
-                    break;
-                case "buy":
-                case "sell":
-                    currencies.add(tx.price.currency);
-                    if (tx.fees) currencies.add(tx.fees.currency);
-                    break;
-            }
-        });
-        return Array.from(currencies);
-    }, [walletTransactions]);
+    const transactionCurrencies = useMemo(() => getWalletTxCurrencies(walletTransactions) as Currency[], [walletTransactions]);
 
     const forexCurrencies = useMemo(() => {
         const currencies = new Set<Currency>();
@@ -597,7 +579,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
     );
 
     const transactionDates = useMemo(
-        () => walletTransactions.map((tx) => tx.date),
+        () => walletTransactions.flatMap((tx) => tx.type === "transfer" ? [tx.date, ...tx.lots.map((lot) => lot.acquiredAt.slice(0, 10))] : [tx.date]),
         [walletTransactions],
     );
 
@@ -616,31 +598,16 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         [forexRates, getForexRate, settings.visualCurrency],
     );
 
-    const netInvested = useMemo(
-        () =>
-            walletTransactions.reduce((total, tx) => {
-                if (tx.type === "deposit") {
-                    return (
-                        total +
-                        toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
-                    );
-                }
-                if (tx.type === "withdraw") {
-                    return (
-                        total -
-                        toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
-                    );
-                }
-                return total;
-            }, 0),
-        [walletTransactions, toBaseValue],
-    );
+    const netInvested = useMemo(() => walletTransactions.reduce((sum, tx) =>
+        sum + getWalletExternalFlow(tx, settings.visualCurrency, forexRates, getForexRate), 0),
+        [walletTransactions, settings.visualCurrency, forexRates, getForexRate]);
 
     const { holdings, totals } = useMemo(() => {
         const costBasisByAsset = calculatePositionCostBasis(
             walletTransactions,
             settings.visualCurrency,
             forexRates,
+            getForexRate,
         );
         const costBasisFxByAsset = calculatePositionCostBasisFx(
             walletTransactions,
@@ -879,7 +846,7 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         return Array.from(uniqueDates).sort((a, b) => a.localeCompare(b));
     }, [performancePeriods, walletTransactions]);
 
-    const { data: performanceSnapshots } = useNetWorthHistory({
+    const { data: performanceSnapshots, transferValues } = useNetWorthHistory({
         transactions: walletTransactions,
         assets,
         baseCurrency: settings.visualCurrency,
@@ -893,13 +860,9 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
             performanceSnapshots.map((point) => [point.date, point.value]),
         );
         const externalCashFlows = walletTransactions
-            .filter((tx) => tx.type === "deposit" || tx.type === "withdraw")
             .map((tx) => ({
                 date: tx.date,
-                amount:
-                    tx.type === "deposit"
-                        ? toBaseValue(tx.amount.value, tx.amount.currency, tx.date)
-                        : -toBaseValue(tx.amount.value, tx.amount.currency, tx.date),
+                amount: getWalletExternalFlow(tx, settings.visualCurrency, forexRates, getForexRate, transferValues),
             }));
         const endDate = toDateKey(new Date());
 
@@ -916,6 +879,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
         performancePeriods,
         performanceSnapshotDates,
         performanceSnapshots,
+        transferValues,
+        forexRates,
+        getForexRate,
+        settings.visualCurrency,
         walletTransactions,
         toBaseValue,
     ]);
@@ -1557,6 +1524,10 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                     >
                         Withdraw Cash
                     </Button>
+                    <Button variant="secondary" icon={<ArrowLeftRight size={16} />}
+                        onClick={() => setTransferOpen(true)} disabled={Object.keys(wallets).length < 2}>
+                        Transfer
+                    </Button>
                     <Button
                         variant="secondary"
                         icon={<WalletIcon size={16} />}
@@ -1767,6 +1738,8 @@ export const WalletDetail: React.FC<Props> = ({ onMenuClick }) => {
                 description={`This will permanently delete ${walletName}. This is only available because the wallet has no transactions.`}
                 confirmLabel="Delete Wallet"
             />
+
+            {isTransferOpen && id && <WalletTransferModal walletId={id} onClose={() => setTransferOpen(false)} />}
 
             <Modal
                 isOpen={isDepositOpen}

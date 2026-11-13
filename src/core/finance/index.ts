@@ -1,4 +1,5 @@
-import { BuyWalletTx, Money, SellWalletTx, WalletTx } from "../schema-types";
+import { Money, WalletLot, WalletTx } from "../schema-types";
+import { lotQuoteCost, quantitySum, replayLedger } from "./walletLedger";
 
 export const getPositionCurrentValue = (units: number, currentPrice: number) =>
     units * currentPrice;
@@ -56,32 +57,36 @@ const resolveForexRate = (
         return 1;
     }
     const historicalRate = date && getForexRate ? getForexRate(currency, date) : null;
-    return historicalRate ?? forexRates[currency] ?? null;
+    const rate = historicalRate ?? forexRates[currency];
+    return Number.isFinite(rate) && rate > 0 ? rate : null;
 };
 
 export const calculateTimeWeightedReturn = (
     portfolioValues: PortfolioValuePoint[],
     cashFlows: CashFlowPoint[]
 ) => {
-    if (portfolioValues.length < 2) return null;
-    const orderedValues = [...portfolioValues].sort((a, b) =>
-        a.date.localeCompare(b.date)
-    );
-    const cashFlowByDate = cashFlows.reduce<Map<string, number>>((map, flow) => {
-        map.set(flow.date, (map.get(flow.date) ?? 0) + flow.amount);
-        return map;
-    }, new Map());
+    if (portfolioValues.length < 2 || portfolioValues.some((point) => !Number.isFinite(point.value)) ||
+        cashFlows.some((flow) => !Number.isFinite(flow.amount))) return null;
+    const orderedValues = [...new Map(portfolioValues.map((point) => [point.date, point])).values()]
+        .sort((a, b) => a.date.localeCompare(b.date));
+    const orderedFlows = [...cashFlows].sort((a, b) => a.date.localeCompare(b.date));
+    let flowIndex = 0;
 
     let twrFactor = 1;
     let hasValidPeriod = false;
 
     for (let index = 1; index < orderedValues.length; index += 1) {
         const previousValue = orderedValues[index - 1].value;
-        if (previousValue === 0) continue;
         const currentPoint = orderedValues[index];
-        const periodCashFlow = cashFlowByDate.get(currentPoint.date) ?? 0;
+        let periodCashFlow = 0;
+        while (flowIndex < orderedFlows.length && orderedFlows[flowIndex].date <= currentPoint.date) {
+            const flow = orderedFlows[flowIndex++];
+            if (flow.date > orderedValues[index - 1].date) periodCashFlow = quantitySum(periodCashFlow, flow.amount);
+        }
+        if (previousValue === 0) continue;
         const periodReturn = (currentPoint.value - periodCashFlow) / previousValue - 1;
         twrFactor *= 1 + periodReturn;
+        if (!Number.isFinite(twrFactor) || twrFactor < 0) return null;
         hasValidPeriod = true;
     }
 
@@ -109,9 +114,9 @@ export const calculatePeriodReturns = (
         }
 
         const startDate = rawStartDate > endDate ? endDate : rawStartDate;
-        const datesInRange = snapshotDates.filter(
+        const datesInRange = [...new Set(snapshotDates)].filter(
             (date) => date >= startDate && date <= endDate
-        );
+        ).sort();
         if (datesInRange.length < 2) {
             return {
                 key: period.key,
@@ -156,6 +161,7 @@ export const calculatePeriodReturns = (
             const endTime = new Date(endDate).getTime();
             const days = Math.max(1, (endTime - startTime) / MS_PER_DAY);
             const apy = Math.pow(1 + twrDecimal, 365 / days) - 1;
+            if (!Number.isFinite(apy)) return { key: period.key, label: period.label, hasValue: false, value: 0 };
             return {
                 key: period.key,
                 label: period.label,
@@ -203,33 +209,24 @@ const parseFxPair = (fxPair?: string) => {
     return { base, quote };
 };
 
-const toVisualValueUsingTxFx = (
-    amount: number,
-    currency: string,
-    visualCurrency: string,
-    forexRates: Record<string, number>,
-    fxPair?: string,
-    fxRate?: number
+const transactionForexRate = (
+    currency: string, visualCurrency: string, forexRates: Record<string, number>,
+    fxPair?: string, fxRate?: number, date?: string, getForexRate?: ForexRateGetter,
 ) => {
-    const normalizedCurrency = currency.trim().toUpperCase();
-    const normalizedVisualCurrency = visualCurrency.trim().toUpperCase();
+    const from = currency.trim().toUpperCase(), to = visualCurrency.trim().toUpperCase();
+    if (from === to) return 1;
     const pair = parseFxPair(fxPair);
-    if (pair && fxRate) {
-        if (
-            normalizedVisualCurrency === pair.base &&
-            normalizedCurrency === pair.quote
-        ) {
-            return amount / fxRate;
-        }
-        if (
-            normalizedVisualCurrency === pair.quote &&
-            normalizedCurrency === pair.base
-        ) {
-            return amount * fxRate;
-        }
+    if (pair && Number.isFinite(fxRate) && fxRate > 0) {
+        if (from === pair.base && to === pair.quote) return fxRate;
+        if (from === pair.quote && to === pair.base) return 1 / fxRate;
     }
-    return toVisualValue(amount, currency, visualCurrency, forexRates);
+    return resolveForexRate(from, to, forexRates, date, getForexRate);
 };
+
+const toVisualValueUsingTxFx = (
+    amount: number, currency: string, visualCurrency: string, forexRates: Record<string, number>,
+    fxPair?: string, fxRate?: number, date?: string, getForexRate?: ForexRateGetter,
+) => amount * (transactionForexRate(currency, visualCurrency, forexRates, fxPair, fxRate, date, getForexRate) ?? 1);
 
 export const toVisualMoney = (
     money: Money,
@@ -247,375 +244,85 @@ export const toVisualMoney = (
         getForexRate
     );
 
+/** Original acquisition values travel with the lot, including its entry FX. */
+export const getLotCostValue = (lot: WalletLot, visualCurrency: string, forexRates: Record<string, number>, getForexRate?: ForexRateGetter) => {
+    const convert = (money: Money) => toVisualValueUsingTxFx(money.value, money.currency, visualCurrency,
+        forexRates, lot.fxPair, lot.fxRate, lot.acquiredAt.slice(0, 10), getForexRate);
+    return lot.quantity * (convert(lot.price) + (lot.feePerUnit ? convert(lot.feePerUnit) : 0));
+};
+
 export const calculatePositionCostBasis = (
-    transactions: WalletTx[],
-    visualCurrency: string,
-    forexRates: Record<string, number>
+    transactions: WalletTx[], visualCurrency: string, forexRates: Record<string, number>, getForexRate?: ForexRateGetter,
 ) => {
-    const lotsByAsset = new Map<
-        string,
-        Array<{ quantity: number; costBasisVisual: number }>
-    >();
-    const sorted = [...transactions].sort((a, b) => {
-        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-        if (dateDiff !== 0) return dateDiff;
-        return (
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-    });
-
-    sorted.forEach((tx) => {
-        if (tx.type !== "buy" && tx.type !== "sell") return;
-        if (tx.type === "buy") {
-            const cost = tx.price.value * tx.quantity;
-            const costVisual = toVisualValueUsingTxFx(
-                cost,
-                tx.price.currency,
-                visualCurrency,
-                forexRates,
-                tx.fxPair,
-                tx.fxRate
-            );
-            const feesVisual = tx.fees
-                ? toVisualValueUsingTxFx(
-                      tx.fees.value,
-                      tx.fees.currency,
-                      visualCurrency,
-                      forexRates,
-                      tx.fxPair,
-                      tx.fxRate
-                  )
-                : 0;
-            const lots = lotsByAsset.get(tx.assetId) ?? [];
-            lots.push({
-                quantity: tx.quantity,
-                costBasisVisual: costVisual + feesVisual,
-            });
-            lotsByAsset.set(tx.assetId, lots);
-            return;
-        }
-
-        const lots = lotsByAsset.get(tx.assetId) ?? [];
-        let remainingQuantity = tx.quantity;
-        while (remainingQuantity > 0 && lots.length > 0) {
-            const lot = lots[0];
-            const quantityToConsume = Math.min(remainingQuantity, lot.quantity);
-            const costPerUnit = lot.costBasisVisual / lot.quantity;
-            lot.quantity -= quantityToConsume;
-            lot.costBasisVisual -= costPerUnit * quantityToConsume;
-            remainingQuantity -= quantityToConsume;
-            if (lot.quantity <= 0) {
-                lots.shift();
-            }
-        }
-        lotsByAsset.set(tx.assetId, lots);
-    });
-
-    const positions = new Map<
-        string,
-        { amount: number; costBasisVisual: number }
-    >();
-    lotsByAsset.forEach((lots, assetId) => {
-        const totals = lots.reduce(
-            (sum, lot) => ({
-                amount: sum.amount + lot.quantity,
-                costBasisVisual: sum.costBasisVisual + lot.costBasisVisual,
-            }),
-            { amount: 0, costBasisVisual: 0 }
-        );
-        positions.set(assetId, totals);
-    });
-
+    const book = replayLedger(transactions);
+    const positions = new Map<string, { amount: number; costBasisVisual: number }>();
+    Object.values(book.lots).forEach((assets) => Object.entries(assets).forEach(([assetId, lots]) => {
+        const value = positions.get(assetId) ?? { amount: 0, costBasisVisual: 0 };
+        lots.forEach((lot) => {
+            value.amount = quantitySum(value.amount, lot.quantity);
+            value.costBasisVisual += getLotCostValue(lot, visualCurrency, forexRates, getForexRate);
+        });
+        positions.set(assetId, value);
+    }));
     return positions;
 };
 
 export const calculatePositionCostBasisFx = (
-    transactions: WalletTx[],
-    visualCurrency: string,
-    forexRates: Record<string, number>,
-    getForexRate?: ForexRateGetter
+    transactions: WalletTx[], visualCurrency: string, forexRates: Record<string, number>, getForexRate?: ForexRateGetter,
 ) => {
-    const lotsByAsset = new Map<
-        string,
-        {
-            lots: Array<{
-                quantity: number;
-                costBasisQuote: number;
-                costBasisBase: number;
-            }>;
-            hasMissingFx: boolean;
-        }
-    >();
-    const sorted = [...transactions].sort((a, b) => {
-        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-        if (dateDiff !== 0) return dateDiff;
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    });
-
-    sorted.forEach((tx) => {
-        if (tx.type !== "buy" && tx.type !== "sell") return;
-        const current = lotsByAsset.get(tx.assetId) ?? {
-            lots: [],
-            hasMissingFx: false,
-        };
-        if (tx.type === "buy") {
-            const costQuote = tx.price.value * tx.quantity;
-            const rate = resolveForexRate(
-                tx.price.currency,
-                visualCurrency,
-                forexRates,
-                tx.date,
-                getForexRate
-            );
-            const hasMissingFx =
-                current.hasMissingFx ||
-                (rate === null && tx.price.currency !== visualCurrency);
-            current.lots.push({
-                quantity: tx.quantity,
-                costBasisQuote: costQuote,
-                costBasisBase: rate === null ? 0 : costQuote * rate,
-            });
-            lotsByAsset.set(tx.assetId, {
-                lots: current.lots,
-                hasMissingFx,
-            });
-            return;
-        }
-
-        let remainingQuantity = tx.quantity;
-        while (remainingQuantity > 0 && current.lots.length > 0) {
-            const lot = current.lots[0];
-            const quantityToConsume = Math.min(remainingQuantity, lot.quantity);
-            const costPerUnitQuote = lot.costBasisQuote / lot.quantity;
-            const costPerUnitBase = lot.costBasisBase / lot.quantity;
-            lot.quantity -= quantityToConsume;
-            lot.costBasisQuote -= costPerUnitQuote * quantityToConsume;
-            lot.costBasisBase -= costPerUnitBase * quantityToConsume;
-            remainingQuantity -= quantityToConsume;
-            if (lot.quantity <= 0) {
-                current.lots.shift();
-            }
-        }
-        lotsByAsset.set(tx.assetId, current);
-    });
-
-    const positions = new Map<
-        string,
-        {
-            amount: number;
-            costBasisQuote: number;
-            costBasisBase: number;
-            hasMissingFx: boolean;
-        }
-    >();
-    lotsByAsset.forEach((entry, assetId) => {
-        const totals = entry.lots.reduce(
-            (sum, lot) => ({
-                amount: sum.amount + lot.quantity,
-                costBasisQuote: sum.costBasisQuote + lot.costBasisQuote,
-                costBasisBase: sum.costBasisBase + lot.costBasisBase,
-            }),
-            { amount: 0, costBasisQuote: 0, costBasisBase: 0 }
-        );
-        positions.set(assetId, {
-            ...totals,
-            hasMissingFx: entry.hasMissingFx,
+    const positions = new Map<string, { amount: number; costBasisQuote: number; costBasisBase: number; hasMissingFx: boolean }>();
+    const book = replayLedger(transactions);
+    Object.values(book.lots).forEach((assets) => Object.entries(assets).forEach(([assetId, lots]) => {
+        const value = positions.get(assetId) ?? { amount: 0, costBasisQuote: 0, costBasisBase: 0, hasMissingFx: false };
+        lots.forEach((lot) => {
+            const rate = transactionForexRate(lot.price.currency, visualCurrency, forexRates,
+                lot.fxPair, lot.fxRate, lot.acquiredAt.slice(0, 10), getForexRate);
+            value.amount = quantitySum(value.amount, lot.quantity);
+            // Convert acquisition fees into the lot's quote currency at entry,
+            // using the same original rates as the base-currency cost.
+            const feeRate = lot.feePerUnit ? transactionForexRate(lot.feePerUnit.currency,
+                visualCurrency, forexRates, lot.fxPair, lot.fxRate, lot.acquiredAt, getForexRate) : 1;
+            value.costBasisQuote += rate && feeRate ? lot.quantity * (lot.price.value +
+                (lot.feePerUnit ? lot.feePerUnit.value * feeRate / rate : 0)) : lotQuoteCost(lot);
+            value.costBasisBase += getLotCostValue(lot, visualCurrency, forexRates, getForexRate);
+            value.hasMissingFx ||= rate === null || !!lot.feePerUnit && transactionForexRate(
+                lot.feePerUnit.currency, visualCurrency, forexRates, lot.fxPair, lot.fxRate,
+                lot.acquiredAt.slice(0, 10), getForexRate) === null;
         });
-    });
-
+        positions.set(assetId, value);
+    }));
     return positions;
 };
 
-export const calculateRealizedPnl = (
-    transactions: WalletTx[],
-    visualCurrency: string,
-    forexRates: Record<string, number>,
-    getForexRate?: ForexRateGetter
+export const calculateRealizedPnlBreakdown = (
+    transactions: WalletTx[], visualCurrency: string, forexRates: Record<string, number>, getForexRate?: ForexRateGetter,
 ) => {
-    const toVisualValueForTx = (
-        tx: BuyWalletTx | SellWalletTx,
-        amount: number
-    ) =>
-        tx.fxPair && tx.fxRate
-            ? toVisualValueUsingTxFx(
-                  amount,
-                  tx.price.currency,
-                  visualCurrency,
-                  forexRates,
-                  tx.fxPair,
-                  tx.fxRate
-              )
-            : toVisualValue(
-                  amount,
-                  tx.price.currency,
-                  visualCurrency,
-                  forexRates,
-                  tx.date,
-                  getForexRate
-              );
-    const lotsByAsset = new Map<
-        string,
-        Array<{ quantity: number; costBasisVisual: number }>
-    >();
-    const sorted = [...transactions].sort((a, b) => {
-        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-        if (dateDiff !== 0) return dateDiff;
-        return (
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-    });
-
-    return sorted.reduce((total, tx) => {
-        switch (tx.type) {
-            case "buy": {
-                const costVisual = toVisualValueForTx(
-                    tx,
-                    tx.price.value * tx.quantity
-                );
-                const lots = lotsByAsset.get(tx.assetId) ?? [];
-                lots.push({
-                    quantity: tx.quantity,
-                    costBasisVisual: costVisual,
-                });
-                lotsByAsset.set(tx.assetId, lots);
-                return total;
-            }
-            case "sell": {
-                const lots = lotsByAsset.get(tx.assetId) ?? [];
-                const availableQuantity = lots.reduce(
-                    (sum, lot) => sum + lot.quantity,
-                    0
-                );
-                const quantity = Math.min(tx.quantity, availableQuantity);
-                const proceedsVisual = toVisualValueForTx(
-                    tx,
-                    tx.price.value * quantity
-                );
-                let remainingQuantity = quantity;
-                let costBasisConsumed = 0;
-                while (remainingQuantity > 0 && lots.length > 0) {
-                    const lot = lots[0];
-                    const quantityToConsume = Math.min(
-                        remainingQuantity,
-                        lot.quantity
-                    );
-                    const costPerUnit = lot.costBasisVisual / lot.quantity;
-                    costBasisConsumed += costPerUnit * quantityToConsume;
-                    lot.quantity -= quantityToConsume;
-                    lot.costBasisVisual -= costPerUnit * quantityToConsume;
-                    remainingQuantity -= quantityToConsume;
-                    if (lot.quantity <= 0) {
-                        lots.shift();
-                    }
-                }
-                lotsByAsset.set(tx.assetId, lots);
-                const realized = proceedsVisual - costBasisConsumed;
-                return total + realized;
-            }
-            default:
-                return total;
+    const book = replayLedger(transactions);
+    return transactions.reduce((result, tx) => {
+        let realized = 0;
+        if (tx.type === "sell") {
+            const proceeds = toVisualValueUsingTxFx(tx.price.value * tx.quantity, tx.price.currency,
+                visualCurrency, forexRates, tx.fxPair, tx.fxRate, tx.date, getForexRate);
+            const cost = (book.consumed[tx.id] ?? []).reduce((sum, lot) => sum + getLotCostValue(lot, visualCurrency, forexRates, getForexRate), 0);
+            const fees = tx.fees ? toVisualValueUsingTxFx(tx.fees.value, tx.fees.currency, visualCurrency,
+                forexRates, tx.fxPair, tx.fxRate, tx.date, getForexRate) : 0;
+            realized = proceeds - cost - fees;
+        } else if (tx.type === "transfer" && tx.direction === "out" && tx.fee) {
+            // No sale is invented. Expense the removed basis; the corresponding
+            // unrealized PnL disappears with the fee units, accounting for their value.
+            realized = tx.fee.kind === "cash"
+                ? -toVisualValue(tx.fee.amount.value, tx.fee.amount.currency, visualCurrency, forexRates, tx.date, getForexRate)
+                : -(book.transactions[tx.id] as typeof tx).feeLots?.reduce((sum, lot) => sum + getLotCostValue(lot, visualCurrency, forexRates, getForexRate), 0) || 0;
         }
-    }, 0);
+        if (realized >= 0) result.positive += realized;
+        else result.negative += realized;
+        return result;
+    }, { positive: 0, negative: 0 });
 };
 
-export const calculateRealizedPnlBreakdown = (
-    transactions: WalletTx[],
-    visualCurrency: string,
-    forexRates: Record<string, number>,
-    getForexRate?: ForexRateGetter
+export const calculateRealizedPnl = (
+    transactions: WalletTx[], visualCurrency: string, forexRates: Record<string, number>, getForexRate?: ForexRateGetter,
 ) => {
-    const toVisualValueForTx = (
-        tx: BuyWalletTx | SellWalletTx,
-        amount: number
-    ) =>
-        tx.fxPair && tx.fxRate
-            ? toVisualValueUsingTxFx(
-                  amount,
-                  tx.price.currency,
-                  visualCurrency,
-                  forexRates,
-                  tx.fxPair,
-                  tx.fxRate
-              )
-            : toVisualValue(
-                  amount,
-                  tx.price.currency,
-                  visualCurrency,
-                  forexRates,
-                  tx.date,
-                  getForexRate
-              );
-    const lotsByAsset = new Map<
-        string,
-        Array<{ quantity: number; costBasisVisual: number }>
-    >();
-    const sorted = [...transactions].sort((a, b) => {
-        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-        if (dateDiff !== 0) return dateDiff;
-        return (
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-    });
-
-    return sorted.reduce(
-        (acc, tx) => {
-            switch (tx.type) {
-                case "buy": {
-                    const costVisual = toVisualValueForTx(
-                        tx,
-                        tx.price.value * tx.quantity
-                    );
-                    const lots = lotsByAsset.get(tx.assetId) ?? [];
-                    lots.push({
-                        quantity: tx.quantity,
-                        costBasisVisual: costVisual,
-                    });
-                    lotsByAsset.set(tx.assetId, lots);
-                    return acc;
-                }
-                case "sell": {
-                    const lots = lotsByAsset.get(tx.assetId) ?? [];
-                    const availableQuantity = lots.reduce(
-                        (sum, lot) => sum + lot.quantity,
-                        0
-                    );
-                    const quantity = Math.min(tx.quantity, availableQuantity);
-                    const proceedsVisual = toVisualValueForTx(
-                        tx,
-                        tx.price.value * quantity
-                    );
-                    let remainingQuantity = quantity;
-                    let costBasisConsumed = 0;
-
-                    while (remainingQuantity > 0 && lots.length > 0) {
-                        const lot = lots[0];
-                        const quantityToConsume = Math.min(
-                            remainingQuantity,
-                            lot.quantity
-                        );
-                        const costPerUnit = lot.costBasisVisual / lot.quantity;
-                        costBasisConsumed += costPerUnit * quantityToConsume;
-                        lot.quantity -= quantityToConsume;
-                        lot.costBasisVisual -= costPerUnit * quantityToConsume;
-                        remainingQuantity -= quantityToConsume;
-                        if (lot.quantity <= 0) {
-                            lots.shift();
-                        }
-                    }
-
-                    lotsByAsset.set(tx.assetId, lots);
-                    const realized = proceedsVisual - costBasisConsumed;
-                    if (realized >= 0) {
-                        acc.positive += realized;
-                    } else {
-                        acc.negative += realized;
-                    }
-                    return acc;
-                }
-                default:
-                    return acc;
-            }
-        },
-        { positive: 0, negative: 0 }
-    );
+    const result = calculateRealizedPnlBreakdown(transactions, visualCurrency, forexRates, getForexRate);
+    return result.positive + result.negative;
 };

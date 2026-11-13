@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { WalletTransferModal } from "./WalletTransferModal";
+import { QuantityValue } from "./QuantityValue";
 import { Pencil, Trash2 } from "lucide-react";
 import { WalletTx, AssetsState, Money, Currency } from "../core/schema-types";
 import { formatCurrency } from "../utils/formatters";
-import { useAppDispatch } from "../store/hooks";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
     removeWalletTransaction,
     updateWalletTransaction,
@@ -63,8 +66,11 @@ export const WalletTransactionsTable = React.memo(
         console.log("WalletTransactionsTable re-rendered");
 
         const [currentPage, setCurrentPage] = useState(1);
+        const [searchParams] = useSearchParams();
+        const focusedTransactionId = searchParams.get("transaction");
         const [transactionsPerPage, setTransactionsPerPage] = useState(10);
         const dispatch = useAppDispatch();
+        const wallets = useAppSelector((state) => state.wallets);
         const [confirmTx, setConfirmTx] = useState<WalletTx | null>(null);
         const [editTx, setEditTx] = useState<WalletTx | null>(null);
         const [editDate, setEditDate] = useState("");
@@ -102,6 +108,15 @@ export const WalletTransactionsTable = React.memo(
             setTransactionsPerPage(Number(event.target.value));
             setCurrentPage(1); // Reset to first page when changing items per page
         };
+
+        useEffect(() => {
+            const index = transactions.findIndex((tx) => tx.id === focusedTransactionId);
+            setCurrentPage(index >= 0 ? Math.floor(index / transactionsPerPage) + 1 : 1);
+        }, [focusedTransactionId, transactions, transactionsPerPage]);
+
+        useEffect(() => {
+            if (focusedTransactionId) document.getElementById(`transaction-${focusedTransactionId}`)?.scrollIntoView({ block: "center" });
+        }, [focusedTransactionId, currentPage]);
 
         const paginatedTransactions = useMemo(() => {
             const start = (currentPage - 1) * transactionsPerPage;
@@ -181,8 +196,9 @@ export const WalletTransactionsTable = React.memo(
                 createdAt: editCreatedAt ?? editTx.createdAt,
                 pieId: editTx.pieId,
             };
+            let saved = false;
             if (editTx.type === "deposit" || editTx.type === "withdraw") {
-                dispatch(
+                saved = dispatch(
                     updateWalletTransaction({
                         ...base,
                         type: editTx.type,
@@ -194,7 +210,7 @@ export const WalletTransactionsTable = React.memo(
                 );
             }
             if (editTx.type === "dividend") {
-                dispatch(
+                saved = dispatch(
                     updateWalletTransaction({
                         ...base,
                         type: "dividend",
@@ -207,7 +223,7 @@ export const WalletTransactionsTable = React.memo(
                 );
             }
             if (editTx.type === "buy" || editTx.type === "sell") {
-                dispatch(
+                saved = dispatch(
                     updateWalletTransaction({
                         ...base,
                         type: editTx.type,
@@ -230,7 +246,7 @@ export const WalletTransactionsTable = React.memo(
                 );
             }
             if (editTx.type === "forex") {
-                dispatch(
+                saved = dispatch(
                     updateWalletTransaction({
                         ...base,
                         type: "forex",
@@ -253,7 +269,7 @@ export const WalletTransactionsTable = React.memo(
                     }),
                 );
             }
-            setEditTx(null);
+            if (saved) setEditTx(null);
         };
 
         const isEditDisabled = (() => {
@@ -371,7 +387,7 @@ export const WalletTransactionsTable = React.memo(
                                 ? `${asset.ticker} • ${asset.name}`
                                 : "-";
 
-                            let quantity: string | number = "-";
+                            let quantity: React.ReactNode = "-";
                             let price = "-";
                             let amount = "-";
                             let fees = "-";
@@ -399,7 +415,7 @@ export const WalletTransactionsTable = React.memo(
                             }
 
                             if (tx.type === "buy" || tx.type === "sell") {
-                                quantity = tx.quantity.toLocaleString();
+                                quantity = <QuantityValue value={tx.quantity} />;
                                 price = formatMoney(tx.price);
                                 amount = formatCurrency(
                                     tx.price.value * tx.quantity,
@@ -412,16 +428,28 @@ export const WalletTransactionsTable = React.memo(
                                         : "-";
                             }
 
+                            if (tx.type === "transfer") {
+                                quantity = <QuantityValue value={tx.quantity} prefix={tx.direction === "out" ? "−" : "+"} />;
+                                const totalCost = tx.lots.reduce((sum, lot) => sum + lot.quantity * lot.price.value, 0);
+                                price = tx.quantity && tx.lots.length ? formatMoney({ value: totalCost / tx.quantity, currency: tx.lots[0].price.currency }) : "-";
+                                fees = tx.fee?.kind === "cash" ? formatMoney(tx.fee.amount)
+                                    : tx.fee?.kind === "asset" ? `${tx.fee.quantity} ${assets[tx.fee.assetId]?.ticker ?? tx.fee.assetId}` : "-";
+                            }
                             return (
                                 <tr
                                     key={tx.id}
-                                    className="group hover:bg-app-surface transition-colors"
+                                    id={`transaction-${tx.id}`}
+                                    className={`group hover:bg-app-surface transition-colors ${tx.id === focusedTransactionId ? "bg-app-primary/10 ring-1 ring-inset ring-app-primary" : ""}`}
                                 >
                                     <td className="px-4 py-3 text-app-muted">
                                         {tx.date}
                                     </td>
                                     <td className="px-4 py-3 text-app-foreground font-medium">
-                                        {formatType(tx.type)}
+                                        {tx.type === "transfer" ? `Transfer ${tx.direction}` : formatType(tx.type)}
+                                        {tx.type === "transfer" && <div className="text-xs font-normal text-app-muted">
+                                            {tx.direction === "out" ? "To " : "From "}
+                                            <Link className="text-app-primary underline" to={`/wallets/${tx.counterpartWalletId}`}>{wallets[tx.counterpartWalletId]?.name ?? tx.counterpartWalletId}</Link>
+                                        </div>}
                                     </td>
                                     <td className="px-4 py-3 text-app-muted">
                                         {assetLabel}
@@ -471,15 +499,15 @@ export const WalletTransactionsTable = React.memo(
                     onClose={() => setConfirmTx(null)}
                     onConfirm={() => {
                         if (!confirmTx) return;
-                        dispatch(removeWalletTransaction(confirmTx.id));
-                        setConfirmTx(null);
+                        if (dispatch(removeWalletTransaction(confirmTx.id))) setConfirmTx(null);
                     }}
                     title="Delete transaction"
-                    description="This will remove the transaction and update wallet balances."
+                    description={confirmTx?.type === "transfer" ? "This removes both sides of the transfer and recalculates all dependent wallet balances. Later operations must remain valid." : "This will remove the transaction and update wallet balances."}
                     confirmLabel="Delete Transaction"
                 />
+                {editTx?.type === "transfer" && <WalletTransferModal walletId={editTx.walletId} transfer={editTx} onClose={() => setEditTx(null)} />}
                 <Modal
-                    isOpen={Boolean(editTx)}
+                    isOpen={Boolean(editTx && editTx.type !== "transfer")}
                     onClose={() => setEditTx(null)}
                     title="Edit Transaction"
                 >

@@ -1,6 +1,6 @@
 import { ProsperitasState } from "../core/schema-types";
 
-export const CURRENT_SCHEMA_VERSION = "0.2";
+export const CURRENT_SCHEMA_VERSION = "0.3";
 
 /*
 export const defaultState: ProsperitasState = {

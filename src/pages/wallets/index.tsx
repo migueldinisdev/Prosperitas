@@ -1,3 +1,4 @@
+import { getWalletTxCurrencies, getWalletExternalFlow } from "../../utils/netWorthHistory";
 import React, { useMemo, useState } from "react";
 import { PageHeader } from "../../components/PageHeader";
 import { WalletCard } from "./WalletCard";
@@ -81,29 +82,7 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
 
     const livePricesByAsset = useAssetLivePrices(walletAssets);
 
-    const transactionCurrencies = useMemo(() => {
-        const currencies = new Set<string>();
-        Object.values(walletTx).forEach((tx) => {
-            switch (tx.type) {
-                case "deposit":
-                case "withdraw":
-                case "dividend":
-                    currencies.add(tx.amount.currency);
-                    break;
-                case "forex":
-                    currencies.add(tx.from.currency);
-                    currencies.add(tx.to.currency);
-                    if (tx.fees) currencies.add(tx.fees.currency);
-                    break;
-                case "buy":
-                case "sell":
-                    currencies.add(tx.price.currency);
-                    if (tx.fees) currencies.add(tx.fees.currency);
-                    break;
-            }
-        });
-        return Array.from(currencies);
-    }, [walletTx]);
+    const transactionCurrencies = useMemo(() => getWalletTxCurrencies(walletTx), [walletTx]);
 
     const forexCurrencies = useMemo(() => {
         const currencies = new Set<string>();
@@ -142,7 +121,8 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
             const costBasisByAsset = calculatePositionCostBasis(
                 walletTransactions,
                 settings.visualCurrency,
-                forexRates
+                forexRates,
+                getForexRate,
             );
             const positionRows = Object.entries(positions)
                 .map(([assetId, position]) => {
@@ -191,7 +171,7 @@ export const WalletsPage: React.FC<Props> = ({ onMenuClick }) => {
             const cashTotal = getTotalValue(
                 normalizeCashBuckets(wallet.cash).map((bucket) =>
                     toVisualMoney(
-                        bucket,
+                        { ...bucket, currency: bucket.currency as Money["currency"] },
                         settings.visualCurrency,
                         forexRates
                     )
