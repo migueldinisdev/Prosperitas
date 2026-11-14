@@ -33,6 +33,14 @@ date, creation time, persisted sequence and stable event ID, with the outgoing l
 immediately preceding its incoming counterpart. Sequence disambiguates operations
 created in the same millisecond. Original purchase ordering is retained after transfers.
 
+Existing historical cash shortfalls do not block an asset-only transfer. Mutation
+validation compares cash postings with their previous checkpoints and rejects new
+or worsened shortfalls; asset availability and FIFO validation remain strict.
+Where funding history is incomplete, saved cash is retained and only the mutation's
+cash delta is applied. No synthetic funding record is added. Cash fees must also
+fit the saved spendable balance. A standalone strict replay without a baseline
+still reports historical cash gaps for future reconciliation.
+
 ## Cost and statistics
 
 Every wallet has an independent FIFO lot book. Aggregate cost is the sum of the

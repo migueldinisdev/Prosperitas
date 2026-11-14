@@ -1,4 +1,4 @@
-import type { PersistedState, WalletTxState } from "../schema-types";
+import type { Currency, Money, PersistedState, WalletTx, WalletTxState } from "../schema-types";
 import { bookCash, bookPositions, quantitySum, replayLedger } from "./walletLedger";
 
 export type WalletLedgerState = Pick<PersistedState, "walletTx" | "wallets" | "walletPositions" | "assets" | "pies">;
@@ -19,7 +19,7 @@ export const deriveWalletState = (state: WalletLedgerState, transactions: Wallet
             }
         }
     }
-    const book = replayLedger(Object.values(transactions), true);
+    const book = replayLedger(Object.values(transactions), true, previous);
     if (book.violation) {
         const violation = { ...book.violation };
         Object.entries(state.assets).forEach(([id, asset]) => {
@@ -35,10 +35,52 @@ export const deriveWalletState = (state: WalletLedgerState, transactions: Wallet
         }
     }
     const walletPositions = bookPositions(book);
+    const inheritedCashGaps = new Map<string, Set<string>>();
+    let cashViolation: { tx: WalletTx; message: string } | undefined;
+    Object.entries(previous.cashCheckpoints).forEach(([txId, currencies]) => {
+        const walletId = previous.transactions[txId].walletId;
+        Object.entries(currencies).forEach(([currency, balances]) => {
+            if (!balances.some((balance) => balance < 0)) return;
+            if (!inheritedCashGaps.has(walletId)) inheritedCashGaps.set(walletId, new Set());
+            inheritedCashGaps.get(walletId)!.add(currency);
+        });
+    });
+    const deriveCash = (id: string): Money[] => {
+        const cash = bookCash(book, id);
+        const gaps = inheritedCashGaps.get(id);
+        if (!gaps) return cash;
+        const saved = state.wallets[id].cash;
+        const savedCash = Array.isArray(saved) ? saved : Object.entries(saved ?? {})
+            .map(([currency, value]) => ({ currency: currency as Currency, value: Number(value) }));
+        // Preserve saved cash when historical funding is incomplete. Apply only
+        // this mutation's cash delta; never fabricate a deposit or rewrite cash
+        // merely because existing assets moved to another wallet.
+        gaps.forEach((currency) => {
+            const existing = savedCash.find((money) => money.currency === currency);
+            const before = previous.cash[id]?.[currency] ?? 0;
+            const after = book.cash[id]?.[currency] ?? 0;
+            const delta = quantitySum(after, -before);
+            const index = cash.findIndex((money) => money.currency === currency);
+            if (delta === 0 && !existing) {
+                if (index >= 0) cash.splice(index, 1);
+                return;
+            }
+            const money = { currency: currency as Currency, value: quantitySum(existing?.value ?? 0, delta) };
+            if (delta < 0 && money.value < Math.min(0, existing?.value ?? 0)) {
+                const changed = Object.values(transactions).find((tx) => tx.walletId === id && state.walletTx[tx.id] !== tx) ??
+                    Object.values(state.walletTx).find((tx) => tx.walletId === id && !transactions[tx.id]);
+                if (changed) cashViolation ??= { tx: changed, message: `Insufficient cash (${currency}).` };
+            }
+            if (index >= 0) cash[index] = money;
+            else cash.push(money);
+        });
+        return cash;
+    };
     const wallets = Object.fromEntries(Object.entries(state.wallets).map(([id, wallet]) => [id, {
-        ...wallet, cash: bookCash(book, id),
+        ...wallet, cash: deriveCash(id),
         txIds: Object.values(transactions).filter((tx) => tx.walletId === id).map((tx) => tx.id),
     }]));
+    if (cashViolation) return { violation: cashViolation };
     const assets = Object.fromEntries(Object.entries(state.assets).map(([id, asset]) => {
         const positions = Object.values(walletPositions).map((positions) => positions[id]).filter(Boolean);
         const amount = positions.reduce((n, p) => quantitySum(n, p.amount), 0);

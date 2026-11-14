@@ -1,6 +1,6 @@
 # Transfer validation and future audit readiness
 
-The regression suite contains 58 tests. Run `npm test` from the repository root.
+The regression suite contains 70 tests. Run `npm test` from the repository root.
 Tests execute real Redux thunks, ledger replay, history/statistics functions, and
 JSON export/import. The deterministic model test uses 40 seeds and checks more
 than 1,000 operations against a separate integer-unit reference model across
@@ -49,6 +49,13 @@ three wallets and two assets.
 - Invalid dates, rates, overflowing trade values and unsupported input kinds now
   fail validation. Mixing open quote currencies for the same asset is blocked
   rather than producing a meaningless average.
+- A legacy cash shortfall could block a fee-free asset transfer while replaying
+  an unrelated old purchase. Mutation validation now tolerates existing cash
+  shortfalls without allowing new or worse ones. Saved cash is preserved where
+  funding history is incomplete, applying only the mutation's actual cash delta.
+  Regression tests cover preview/save, LINK fees, zero fees, unrelated wallets,
+  deficits later covered by funding, edits/removal, reload and overspending.
+  Standalone strict audit replay still exposes the original funding gap.
 
 ## What a future tax audit still needs
 
@@ -57,6 +64,8 @@ A future audit must replay the **complete account ledger in strict mode**, then
 select the wallet/entity being audited. Cached incoming allocations support
 partial UI views; they are not independent proof when source history is missing.
 Original exchange records must remain available for reconciliation.
+Cash snapshots retained from incomplete histories must also be reconciled against
+the cash ledger; permitting an asset transfer does not resolve those discrepancies.
 
 Current transaction dates have day precision. For operations on the same day,
 creation time, persisted sequence and stable IDs provide deterministic application

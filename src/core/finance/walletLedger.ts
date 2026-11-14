@@ -36,6 +36,7 @@ export interface LedgerBook {
     cash: Record<string, Record<string, number>>;
     consumed: Record<string, WalletLot[]>;
     transactions: Record<string, WalletTx>;
+    cashCheckpoints: Record<string, Record<string, number[]>>;
     violation?: { tx: WalletTx; message: string };
 }
 const validMoney = (money: Money) => money && Number.isFinite(money.value) &&
@@ -83,8 +84,8 @@ export const validateLedgerInput = (tx: WalletTx): string | null => {
  * before committing any mutation. Partial analytical replays can use the saved
  * incoming allocations when the source wallet is outside the selected view.
  */
-export const replayLedger = (transactions: WalletTx[], strict = false): LedgerBook => {
-    const book: LedgerBook = { lots: {}, cash: {}, consumed: {}, transactions: {} };
+export const replayLedger = (transactions: WalletTx[], strict = false, cashBaseline?: LedgerBook): LedgerBook => {
+    const book: LedgerBook = { lots: {}, cash: {}, consumed: {}, transactions: {}, cashCheckpoints: {} };
     const resolved = new Map<string, WalletLot[]>();
     const transfers = new Map<string, TransferWalletTx[]>();
     for (const tx of transactions) {
@@ -115,10 +116,18 @@ export const replayLedger = (transactions: WalletTx[], strict = false): LedgerBo
         return book.lots[walletId][assetId] ??= [];
     };
     const cashDelta = (tx: WalletTx, money: Money, sign: number) => {
+        if (money.value === 0) return;
         const cash = book.cash[tx.walletId] ??= {};
         cash[money.currency] = decimalSum(cash[money.currency] ?? 0, sign * money.value);
+        const checkpoints = (book.cashCheckpoints[tx.id] ??= {})[money.currency] ??= [];
+        const original = cashBaseline?.transactions[tx.id];
+        // An unchanged historical shortfall must not require new funding for an
+        // asset-only movement. New debits and worsening old deficits still fail.
+        const previousBalance = original?.walletId === tx.walletId && original.date === tx.date
+            ? cashBaseline.cashCheckpoints[tx.id]?.[money.currency]?.[checkpoints.length] : undefined;
+        checkpoints.push(cash[money.currency]);
         if (!Number.isFinite(cash[money.currency])) fail(tx, "Cash balance is too large.");
-        if (cash[money.currency] < 0) fail(tx, `Insufficient cash (${money.currency}).`);
+        if (sign < 0 && cash[money.currency] < Math.min(0, previousBalance ?? 0)) fail(tx, `Insufficient cash (${money.currency}).`);
     };
     const take = (tx: WalletTx, assetId: string, quantity: number): WalletLot[] => {
         const lots = walletLots(tx.walletId, assetId);
